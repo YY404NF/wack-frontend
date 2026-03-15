@@ -80,3 +80,20 @@ export function createCourseForm() {
     roomName: '509',
   }
 }
+
+export function createClassForm() {
+  return {
+    className: '',
+    grade: new Date().getFullYear(),
+    majorName: '',
+  }
+}
+
+export function createClassFilters() {
+  return {
+    grade: '',
+    majorName: '',
+    className: '',
+    studentCount: '',
+  }
+}

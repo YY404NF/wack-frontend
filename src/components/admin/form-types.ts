@@ -28,6 +28,19 @@ export type AdminCourseForm = {
   roomName: string
 }
 
+export type AdminClassForm = {
+  className: string
+  grade: number
+  majorName: string
+}
+
+export type AdminClassFilters = {
+  grade: string
+  majorName: string
+  className: string
+  studentCount: string
+}
+
 export type AdminProfileForm = {
   studentId: string
   realName: string

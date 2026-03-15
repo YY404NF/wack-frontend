@@ -6,6 +6,7 @@ import {
   type AttendanceCheckDetail,
   type AttendanceResultItem,
   type AvailableCourseItem,
+  type ClassItem,
   type CourseCalendarItem,
   type CourseItem,
   type DashboardSummary,
@@ -15,6 +16,8 @@ import {
 } from '../api'
 import { type AppTab, type StatusCode } from '../constants'
 import {
+  createClassFilters,
+  createClassForm,
   createCourseForm,
   createFreeTimeForm,
   createLoginForm,
@@ -47,6 +50,10 @@ export function useApp() {
 
   const userFilters = reactive(createUserFilters())
 
+  const classForm = reactive(createClassForm())
+
+  const classFilters = reactive(createClassFilters())
+
   const courseForm = reactive(createCourseForm())
 
   const me = ref<SessionUser | null>(null)
@@ -56,6 +63,8 @@ export function useApp() {
   const passwordResetting = ref(false)
   const profileSaving = ref(false)
   const courseSaving = ref(false)
+  const classSaving = ref(false)
+  const classDeleting = ref(false)
   const passwordSaving = ref(false)
   const freeTimeSaving = ref(false)
   const attendanceCompleting = ref(false)
@@ -70,6 +79,7 @@ export function useApp() {
   const studentToast = ref('')
 
   const users = ref<UserItem[]>([])
+  const classes = ref<ClassItem[]>([])
   const courses = ref<CourseItem[]>([])
   const courseCalendar = ref<CourseCalendarItem[]>([])
   const dashboard = ref<DashboardSummary | null>(null)
@@ -80,11 +90,16 @@ export function useApp() {
 
   const editingFreeTimeId = ref<number | null>(null)
   const editingUserStudentId = ref('')
+  const editingClassId = ref<number | null>(null)
   const passwordTargetStudentId = ref('')
   const passwordTargetName = ref('')
+  const deletingClassId = ref<number | null>(null)
+  const deletingClassName = ref('')
   const selectedStudentId = ref<number | null>(null)
 
   const userModalOpen = ref(false)
+  const classModalOpen = ref(false)
+  const deleteClassModalOpen = ref(false)
   const passwordModalOpen = ref(false)
   const profileModalOpen = ref(false)
   const userPasswordModalOpen = ref(false)
@@ -92,6 +107,8 @@ export function useApp() {
 
   const userPage = ref(1)
   const userPageSize = ref(10)
+  const classPage = ref(1)
+  const classPageSize = ref(10)
 
   const adminStats = computed(() => {
     if (!dashboard.value) {
@@ -116,10 +133,25 @@ export function useApp() {
     }),
   )
 
+  const filteredClasses = computed(() =>
+    classes.value.filter((item) => {
+      const byGrade = !classFilters.grade || String(item.grade).includes(classFilters.grade.trim())
+      const byMajor = !classFilters.majorName || item.major_name.includes(classFilters.majorName.trim())
+      const byName = !classFilters.className || item.class_name.includes(classFilters.className.trim())
+      const byCount = !classFilters.studentCount || String(item.student_count).includes(classFilters.studentCount.trim())
+      return byGrade && byMajor && byName && byCount
+    }),
+  )
+
   const userTotalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / userPageSize.value)))
+  const classTotalPages = computed(() => Math.max(1, Math.ceil(filteredClasses.value.length / classPageSize.value)))
   const paginatedUsers = computed(() => {
     const start = (userPage.value - 1) * userPageSize.value
     return filteredUsers.value.slice(start, start + userPageSize.value)
+  })
+  const paginatedClasses = computed(() => {
+    const start = (classPage.value - 1) * classPageSize.value
+    return filteredClasses.value.slice(start, start + classPageSize.value)
   })
 
   const selectedStudent = computed(() => {
@@ -133,6 +165,7 @@ export function useApp() {
   const isStudent = computed(() => me.value?.role === 2)
   const currentUserId = computed(() => me.value?.id)
   const isEditingUser = computed(() => editingUserStudentId.value.length > 0)
+  const isEditingClass = computed(() => editingClassId.value !== null)
   watch(
     () => [userFilters.studentId, userFilters.realName, userFilters.role, userFilters.status, userPageSize.value],
     () => {
@@ -140,9 +173,22 @@ export function useApp() {
     },
   )
 
+  watch(
+    () => [classFilters.grade, classFilters.majorName, classFilters.className, classFilters.studentCount, classPageSize.value],
+    () => {
+      classPage.value = 1
+    },
+  )
+
   watch(userTotalPages, (total) => {
     if (userPage.value > total) {
       userPage.value = total
+    }
+  })
+
+  watch(classTotalPages, (total) => {
+    if (classPage.value > total) {
+      classPage.value = total
     }
   })
 
@@ -197,6 +243,11 @@ export function useApp() {
     passwordTargetName.value = ''
   }
 
+  function resetClassForm() {
+    Object.assign(classForm, createClassForm())
+    editingClassId.value = null
+  }
+
   function resetFreeTimeForm() {
     Object.assign(freeTimeForm, createFreeTimeForm())
     editingFreeTimeId.value = null
@@ -221,6 +272,36 @@ export function useApp() {
     userForm.status = user.status
     editingUserStudentId.value = user.student_id
     userModalOpen.value = true
+  }
+
+  function closeClassModal() {
+    classModalOpen.value = false
+    resetClassForm()
+  }
+
+  function openCreateClassModal() {
+    resetClassForm()
+    classModalOpen.value = true
+  }
+
+  function openEditClassModal(item: ClassItem) {
+    classForm.className = item.class_name
+    classForm.grade = item.grade
+    classForm.majorName = item.major_name
+    editingClassId.value = item.id
+    classModalOpen.value = true
+  }
+
+  function closeDeleteClassModal() {
+    deleteClassModalOpen.value = false
+    deletingClassId.value = null
+    deletingClassName.value = ''
+  }
+
+  function openDeleteClassModal(item: ClassItem) {
+    deletingClassId.value = item.id
+    deletingClassName.value = item.class_name
+    deleteClassModalOpen.value = true
   }
 
   function closePasswordModal() {
@@ -264,9 +345,18 @@ export function useApp() {
     userPageSize.value = size
   }
 
+  function updateClassPage(page: number) {
+    classPage.value = page
+  }
+
+  function updateClassPageSize(size: number) {
+    classPageSize.value = size
+  }
+
   const adminFlow = useAdminFlow({
     me,
     users,
+    classes,
     courses,
     courseCalendar,
     dashboard,
@@ -276,17 +366,24 @@ export function useApp() {
     profileForm,
     userPasswordForm,
     courseForm,
+    classForm,
     editingUserStudentId,
+    editingClassId,
     passwordTargetStudentId,
+    deletingClassId,
     userSaving,
     passwordResetting,
     profileSaving,
     courseSaving,
+    classSaving,
+    classDeleting,
     adminError,
     showAdminToast: (message) => showScopedToast('admin', message),
     closeUserModal,
     closeUserPasswordModal,
     closeProfileModal,
+    closeClassModal,
+    closeDeleteClassModal,
   })
 
   const studentFlow = useStudentFlow({
@@ -321,6 +418,7 @@ export function useApp() {
 
   function resetAppData() {
     users.value = []
+    classes.value = []
     courses.value = []
     courseCalendar.value = []
     dashboard.value = null
@@ -334,6 +432,8 @@ export function useApp() {
 
   function closeAllAdminModals() {
     closeUserModal()
+    closeClassModal()
+    closeDeleteClassModal()
     closePasswordModal()
     closeProfileModal()
     closeUserPasswordModal()
@@ -405,6 +505,14 @@ export function useApp() {
     await adminFlow.createCourse()
   }
 
+  async function saveClass() {
+    await adminFlow.saveClass()
+  }
+
+  async function deleteClass() {
+    await adminFlow.deleteClass()
+  }
+
   async function openCourse(course: AvailableCourseItem) {
     await studentFlow.openCourse(course)
   }
@@ -459,6 +567,7 @@ export function useApp() {
     adminStats: adminStats.value,
     courseCalendar: courseCalendar.value,
     freeTimes: freeTimes.value,
+    classes: paginatedClasses.value,
     users: paginatedUsers.value,
     currentUserId: currentUserId.value,
     courses: courses.value,
@@ -478,6 +587,18 @@ export function useApp() {
     passwordResetting: passwordResetting.value,
     courseForm,
     creatingCourse: courseSaving.value,
+    classForm,
+    classFilters,
+    classModalOpen: classModalOpen.value,
+    deleteClassModalOpen: deleteClassModalOpen.value,
+    isEditingClass: isEditingClass.value,
+    classSaving: classSaving.value,
+    classDeleting: classDeleting.value,
+    classPage: classPage.value,
+    classPageSize: classPageSize.value,
+    classTotalPages: classTotalPages.value,
+    classPageOptions: USER_PAGE_OPTIONS,
+    deletingClassName: deletingClassName.value,
     profileForm,
     profileModalOpen: profileModalOpen.value,
     profileSaving: profileSaving.value,
@@ -495,6 +616,13 @@ export function useApp() {
       activeTab.value = value
     },
     logout,
+    openCreateClassModal,
+    openEditClassModal,
+    closeClassModal,
+    openDeleteClassModal,
+    closeDeleteClassModal,
+    saveClass,
+    deleteClass,
     openCreateUserModal,
     openEditUserModal,
     closeUserModal,
@@ -566,9 +694,20 @@ export function useApp() {
     authLoading,
     availableCourses,
     booting,
+    classDeleting,
+    classFilters,
+    classForm,
+    classModalOpen,
+    classPage,
+    classPageSize,
+    classSaving,
+    classTotalPages,
+    classes,
     changePassword,
     closePasswordModal,
     closeProfileModal,
+    closeClassModal,
+    closeDeleteClassModal,
     closeUserModal,
     closeUserPasswordModal,
     completeAttendance,
@@ -576,11 +715,15 @@ export function useApp() {
     courseForm,
     courseSaving,
     courses,
+    deleteClass,
+    deleteClassModalOpen,
+    deletingClassName,
     createCourse,
     createUser,
     currentUserId,
     editFreeTime,
     editingFreeTimeId,
+    filteredClasses,
     filteredUsers,
     freeTimeForm,
     freeTimeSaving,
@@ -588,6 +731,7 @@ export function useApp() {
     initializeSystem,
     initialized,
     isAdmin,
+    isEditingClass,
     isEditingUser,
     isStudent,
     login,
@@ -596,11 +740,15 @@ export function useApp() {
     logout,
     me,
     openCourse,
+    openCreateClassModal,
     openCreateUserModal,
+    openDeleteClassModal,
+    openEditClassModal,
     openEditUserModal,
     openPasswordModal,
     openProfileModal,
     openUserPasswordModal,
+    paginatedClasses,
     paginatedUsers,
     passwordForm,
     passwordModalOpen,
@@ -614,6 +762,7 @@ export function useApp() {
     resetFreeTimeForm,
     resetUserPassword,
     roleName,
+    saveClass,
     saveFreeTime,
     selectedStudent,
     selectedStudentId,
@@ -628,6 +777,8 @@ export function useApp() {
     studentWorkspaceHandlers,
     studentWorkspaceProps,
     studentToast,
+    updateClassPage,
+    updateClassPageSize,
     updateAdminStatus,
     updateProfile,
     updateStudentStatus,

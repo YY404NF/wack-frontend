@@ -1,6 +1,8 @@
-import type { AttendanceResultItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
+import type { AttendanceResultItem, ClassItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import type {
+  AdminClassFilters,
+  AdminClassForm,
   AdminCourseForm,
   AdminPasswordForm,
   AdminProfileForm,
@@ -24,6 +26,22 @@ export type AdminCourseManageProps = {
   courses: CourseItem[]
   creatingCourse: boolean
   courseForm: AdminCourseForm
+}
+
+export type AdminClassManageProps = {
+  classes: ClassItem[]
+  classForm: AdminClassForm
+  classFilters: AdminClassFilters
+  classModalOpen: boolean
+  deleteClassModalOpen: boolean
+  isEditingClass: boolean
+  classSaving: boolean
+  classDeleting: boolean
+  classPage: number
+  classPageSize: number
+  classTotalPages: number
+  classPageOptions: number[]
+  deletingClassName: string
 }
 
 export type AdminFreeTimeCalendarProps = {

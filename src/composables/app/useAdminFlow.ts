@@ -1,8 +1,8 @@
 import type { Ref } from 'vue'
 
-import { api, type AttendanceResultItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type UserItem } from '../../api'
+import { api, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
-import { createCourseForm } from './forms'
+import { createClassForm, createCourseForm } from './forms'
 
 type UserForm = {
   studentId: string
@@ -37,9 +37,16 @@ type CourseForm = {
   roomName: string
 }
 
+type ClassForm = {
+  className: string
+  grade: number
+  majorName: string
+}
+
 type AdminFlowDeps = {
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
+  classes: Ref<ClassItem[]>
   courses: Ref<CourseItem[]>
   courseCalendar: Ref<CourseCalendarItem[]>
   dashboard: Ref<DashboardSummary | null>
@@ -49,23 +56,31 @@ type AdminFlowDeps = {
   profileForm: ProfileForm
   userPasswordForm: UserPasswordForm
   courseForm: CourseForm
+  classForm: ClassForm
   editingUserStudentId: Ref<string>
+  editingClassId: Ref<number | null>
   passwordTargetStudentId: Ref<string>
+  deletingClassId: Ref<number | null>
   userSaving: Ref<boolean>
   passwordResetting: Ref<boolean>
   profileSaving: Ref<boolean>
   courseSaving: Ref<boolean>
+  classSaving: Ref<boolean>
+  classDeleting: Ref<boolean>
   adminError: Ref<string>
   showAdminToast: (message: string) => void
   closeUserModal: () => void
   closeUserPasswordModal: () => void
   closeProfileModal: () => void
+  closeClassModal: () => void
+  closeDeleteClassModal: () => void
 }
 
 export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadAdminData() {
-    const [userPageResult, coursePage, calendar, summary, resultPage, freeTimeList] = await Promise.all([
+    const [userPageResult, classPageResult, coursePage, calendar, summary, resultPage, freeTimeList] = await Promise.all([
       api.listUsers({ page: 1, page_size: 500 }),
+      api.listClasses(),
       api.listCourses(),
       api.adminCourseCalendar(),
       api.adminAttendanceDashboard(),
@@ -73,11 +88,62 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       api.adminFreeTimeCalendar(),
     ])
     deps.users.value = userPageResult.items ?? []
+    deps.classes.value = classPageResult.items ?? []
     deps.courses.value = coursePage.items ?? []
     deps.courseCalendar.value = calendar ?? []
     deps.dashboard.value = summary
     deps.attendanceResults.value = resultPage.items ?? []
     deps.freeTimes.value = freeTimeList ?? []
+  }
+
+  async function saveClass() {
+    deps.classSaving.value = true
+    deps.adminError.value = ''
+    try {
+      const payload = {
+        class_name: deps.classForm.className.trim(),
+        grade: deps.classForm.grade,
+        major_name: deps.classForm.majorName.trim(),
+      }
+
+      if (deps.editingClassId.value !== null) {
+        await api.updateClass(deps.editingClassId.value, payload)
+        Object.assign(deps.classForm, createClassForm())
+        await loadAdminData()
+        deps.closeClassModal()
+        deps.showAdminToast('班级信息已更新')
+        return
+      }
+
+      await api.createClass(payload)
+      Object.assign(deps.classForm, createClassForm())
+      await loadAdminData()
+      deps.closeClassModal()
+      deps.showAdminToast('班级已创建')
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '保存班级失败'
+    } finally {
+      deps.classSaving.value = false
+    }
+  }
+
+  async function deleteClass() {
+    if (deps.deletingClassId.value === null) {
+      return
+    }
+
+    deps.classDeleting.value = true
+    deps.adminError.value = ''
+    try {
+      await api.deleteClass(deps.deletingClassId.value)
+      await loadAdminData()
+      deps.closeDeleteClassModal()
+      deps.showAdminToast('班级已删除')
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '删除班级失败'
+    } finally {
+      deps.classDeleting.value = false
+    }
   }
 
   async function createUser() {
@@ -225,6 +291,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     updateProfile,
     setUserStatus,
     createCourse,
+    saveClass,
+    deleteClass,
     updateAdminStatus,
   }
 }

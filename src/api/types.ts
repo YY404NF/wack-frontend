@@ -43,6 +43,16 @@ export interface UserPageQuery {
   keyword?: string
 }
 
+export interface ClassItem {
+  id: number
+  class_name: string
+  grade: number
+  major_name: string
+  student_count: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface CourseItem {
   id: number
   term: string

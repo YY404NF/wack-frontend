@@ -6,10 +6,11 @@ import AdminAttendancePanel from '../components/admin/AdminAttendancePanel.vue'
 import AdminFreeTimeCalendarPanel from '../components/admin/AdminFreeTimeCalendarPanel.vue'
 import AdminCourseCalendarPanel from '../components/admin/AdminCourseCalendarPanel.vue'
 import AdminCourseManagePanel from '../components/admin/AdminCourseManagePanel.vue'
+import AdminClassManagePanel from '../components/admin/AdminClassManagePanel.vue'
 import AdminUserManagePanel from '../components/admin/AdminUserManagePanel.vue'
 import AdminPlaceholderPanel from '../components/admin/AdminPlaceholderPanel.vue'
 import AdminSettingsPanel from '../components/admin/AdminSettingsPanel.vue'
-import type { UserItem } from '../api'
+import type { ClassItem, UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
 
 defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
@@ -17,6 +18,15 @@ defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
   logout: []
+  openCreateClassModal: []
+  openEditClassModal: [item: ClassItem]
+  closeClassModal: []
+  openDeleteClassModal: [item: ClassItem]
+  closeDeleteClassModal: []
+  saveClass: []
+  deleteClass: []
+  updateClassPage: [page: number]
+  updateClassPageSize: [size: number]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -97,10 +107,30 @@ function forwardUserStatus(studentId: string, status: number) {
             @create-course="emit('createCourse')"
           />
 
-          <AdminPlaceholderPanel
+          <AdminClassManagePanel
             v-if="activeTab === 'class-manage'"
-            title="班级管理"
-            description="这一页暂时留空，后续会补班级列表、成员关系和班级维护操作。"
+            :classes="classes"
+            :class-form="classForm"
+            :class-filters="classFilters"
+            :class-modal-open="classModalOpen"
+            :delete-class-modal-open="deleteClassModalOpen"
+            :is-editing-class="isEditingClass"
+            :class-saving="classSaving"
+            :class-deleting="classDeleting"
+            :class-page="classPage"
+            :class-page-size="classPageSize"
+            :class-total-pages="classTotalPages"
+            :class-page-options="classPageOptions"
+            :deleting-class-name="deletingClassName"
+            @open-create-class-modal="emit('openCreateClassModal')"
+            @open-edit-class-modal="emit('openEditClassModal', $event)"
+            @close-class-modal="emit('closeClassModal')"
+            @open-delete-class-modal="emit('openDeleteClassModal', $event)"
+            @close-delete-class-modal="emit('closeDeleteClassModal')"
+            @save-class="emit('saveClass')"
+            @delete-class="emit('deleteClass')"
+            @update-class-page="emit('updateClassPage', $event)"
+            @update-class-page-size="emit('updateClassPageSize', $event)"
           />
 
           <AdminUserManagePanel
