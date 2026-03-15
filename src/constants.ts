@@ -56,3 +56,7 @@ export const adminNavItems = [
   { key: 'logs', label: '系统日志' },
   { key: 'settings', label: '设置' },
 ] as const
+
+export const adminTabKeys = adminNavItems.map((item) => item.key)
+
+export const studentTabKeys = ['student', 'availability', 'settings'] as const

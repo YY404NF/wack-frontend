@@ -1,5 +1,5 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import type { Ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   api,
@@ -14,7 +14,7 @@ import {
   type SessionUser,
   type UserItem,
 } from '../api'
-import { type AppTab, type StatusCode } from '../constants'
+import { adminTabKeys, studentTabKeys, type AppTab, type StatusCode } from '../constants'
 import {
   createClassFilters,
   createClassForm,
@@ -34,6 +34,9 @@ import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
 
 export function useApp() {
+  const router = useRouter()
+  const route = useRoute()
+
   const loginForm = reactive(createLoginForm())
 
   const setupForm = reactive(createSetupForm())
@@ -105,6 +108,72 @@ export function useApp() {
   const userPasswordModalOpen = ref(false)
   const activeTab = ref<AppTab>('overview')
 
+  const studentSegmentToTab = {
+    check: 'student',
+    availability: 'availability',
+    settings: 'settings',
+  } as const
+
+  const tabToStudentSegment: Record<'student' | 'availability' | 'settings', keyof typeof studentSegmentToTab> = {
+    student: 'check',
+    availability: 'availability',
+    settings: 'settings',
+  }
+
+  function defaultTabForRole(role?: number): AppTab {
+    return role === 1 ? 'overview' : 'student'
+  }
+
+  function tabAllowedForRole(tab: string, role?: number): tab is AppTab {
+    if (!role) {
+      return false
+    }
+    return role === 1
+      ? (adminTabKeys as readonly string[]).includes(tab)
+      : (studentTabKeys as readonly string[]).includes(tab)
+  }
+
+  function readTabFromLocation() {
+    if (route.name === 'admin') {
+      const segment = typeof route.params.tab === 'string' ? route.params.tab : ''
+      if ((adminTabKeys as readonly string[]).includes(segment)) {
+        return segment
+      }
+      return null
+    }
+
+    if (route.name === 'student') {
+      const segment = typeof route.params.tab === 'string' ? route.params.tab : ''
+      return studentSegmentToTab[segment as keyof typeof studentSegmentToTab] ?? null
+    }
+
+    return null
+  }
+
+  async function writeTabToLocation(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
+    if (me.value?.role === 1 && (adminTabKeys as readonly string[]).includes(tab)) {
+      await router[mode]({ name: 'admin', params: { tab } })
+      return
+    }
+
+    if (me.value?.role === 2 && (studentTabKeys as readonly string[]).includes(tab)) {
+      await router[mode]({ name: 'student', params: { tab: tabToStudentSegment[tab as keyof typeof tabToStudentSegment] } })
+    }
+  }
+
+  async function setActiveTab(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
+    activeTab.value = tab
+    await writeTabToLocation(tab, mode)
+  }
+
+  function resolveTabForRole(role?: number): AppTab {
+    const tab = readTabFromLocation()
+    if (tab && tabAllowedForRole(tab, role)) {
+      return tab
+    }
+    return defaultTabForRole(role)
+  }
+
   const userPage = ref(1)
   const userPageSize = ref(10)
   const classPage = ref(1)
@@ -138,8 +207,7 @@ export function useApp() {
       const byGrade = !classFilters.grade || String(item.grade).includes(classFilters.grade.trim())
       const byMajor = !classFilters.majorName || item.major_name.includes(classFilters.majorName.trim())
       const byName = !classFilters.className || item.class_name.includes(classFilters.className.trim())
-      const byCount = !classFilters.studentCount || String(item.student_count).includes(classFilters.studentCount.trim())
-      return byGrade && byMajor && byName && byCount
+      return byGrade && byMajor && byName
     }),
   )
 
@@ -174,7 +242,7 @@ export function useApp() {
   )
 
   watch(
-    () => [classFilters.grade, classFilters.majorName, classFilters.className, classFilters.studentCount, classPageSize.value],
+    () => [classFilters.grade, classFilters.majorName, classFilters.className, classPageSize.value],
     () => {
       classPage.value = 1
     },
@@ -204,6 +272,21 @@ export function useApp() {
       studentToast.value = ''
     }
   })
+
+  watch(
+    () => [route.name, route.params.tab, me.value?.role] as const,
+    ([, , role]) => {
+      if (!role) {
+        return
+      }
+
+      const nextTab = resolveTabForRole(role)
+      if (nextTab !== activeTab.value) {
+        activeTab.value = nextTab
+      }
+    },
+    { immediate: true },
+  )
 
   function showScopedToast(target: 'admin' | 'student', message: string) {
     const toastRef = target === 'admin' ? adminToast : studentToast
@@ -447,10 +530,17 @@ export function useApp() {
     setupLoading,
     loginError,
     setupError,
-    activeTab: activeTab as Ref<string>,
     loginForm,
     setupForm,
     loadRoleData,
+    resolveTabForRole,
+    setActiveTab,
+    navigateToLogin: async () => {
+      await router.replace({ name: 'login' })
+    },
+    navigateToSetup: async () => {
+      await router.replace({ name: 'setup' })
+    },
     clearAllNotices,
     resetAppData,
     closeAllAdminModals,
@@ -478,7 +568,7 @@ export function useApp() {
 
   function editFreeTime(item: FreeTimeItem) {
     studentFlow.editFreeTime(item)
-    activeTab.value = 'availability'
+    void setActiveTab('availability', 'push')
   }
 
   async function removeFreeTime(id: number) {
@@ -555,6 +645,36 @@ export function useApp() {
     }
   }
 
+  watch(
+    () => [booting.value, initialized.value, me.value?.role, route.name] as const,
+    async ([isBooting, isInitialized, role, routeName]) => {
+      if (isBooting) {
+        return
+      }
+
+      if (!isInitialized) {
+        if (routeName !== 'setup') {
+          await router.replace({ name: 'setup' })
+        }
+        return
+      }
+
+      if (!role) {
+        if (routeName !== 'login') {
+          await router.replace({ name: 'login' })
+        }
+        return
+      }
+
+      const nextTab = resolveTabForRole(role)
+      const expectedRouteName = role === 1 ? 'admin' : 'student'
+      if (routeName !== expectedRouteName || nextTab !== activeTab.value) {
+        await setActiveTab(nextTab, 'replace')
+      }
+    },
+    { immediate: true },
+  )
+
   onMounted(() => {
     void restoreSession()
   })
@@ -613,7 +733,7 @@ export function useApp() {
 
   const adminWorkspaceHandlers = {
     'update:activeTab': (value: AppTab) => {
-      activeTab.value = value
+      void setActiveTab(value, 'push')
     },
     logout,
     openCreateClassModal,
@@ -667,7 +787,7 @@ export function useApp() {
 
   const studentWorkspaceHandlers = {
     'update:activeTab': (value: AppTab) => {
-      activeTab.value = value
+      void setActiveTab(value, 'push')
     },
     'update:selectedStudentId': (value: number) => {
       selectedStudentId.value = value

@@ -94,6 +94,5 @@ export function createClassFilters() {
     grade: '',
     majorName: '',
     className: '',
-    studentCount: '',
   }
 }

@@ -36,16 +36,16 @@ function onPageSizeChange(event: Event) {
         </div>
         <form class="form-grid single-column-form" @submit.prevent="emit('saveClass')">
           <label class="field">
-            <span>班级名称</span>
-            <input v-model="classForm.className" />
-          </label>
-          <label class="field">
             <span>年级</span>
             <input v-model.number="classForm.grade" type="number" min="2000" />
           </label>
           <label class="field">
             <span>专业名称</span>
             <input v-model="classForm.majorName" />
+          </label>
+          <label class="field">
+            <span>班级名称</span>
+            <input v-model="classForm.className" />
           </label>
           <button class="primary-button" type="submit" :disabled="classSaving">
             <span v-if="classSaving" class="button-spinner" aria-hidden="true"></span>
@@ -84,10 +84,6 @@ function onPageSizeChange(event: Event) {
       <label class="field">
         <span>班级名称</span>
         <input v-model="classFilters.className" />
-      </label>
-      <label class="field">
-        <span>人数</span>
-        <input v-model="classFilters.studentCount" inputmode="numeric" />
       </label>
     </div>
 

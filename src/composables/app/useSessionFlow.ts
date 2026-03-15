@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import { api, clearToken, getToken, setToken, type SessionUser } from '../../api'
+import type { AppTab } from '../../constants'
 import { createSetupForm } from './forms'
 
 type LoginForm = {
@@ -23,10 +24,13 @@ type SessionFlowDeps = {
   setupLoading: Ref<boolean>
   loginError: Ref<string>
   setupError: Ref<string>
-  activeTab: Ref<string>
   loginForm: LoginForm
   setupForm: SetupForm
   loadRoleData: () => Promise<void>
+  resolveTabForRole: (role: number) => AppTab
+  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => void
+  navigateToLogin: () => Promise<void>
+  navigateToSetup: () => Promise<void>
   clearAllNotices: () => void
   resetAppData: () => void
   closeAllAdminModals: () => void
@@ -56,6 +60,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       deps.loginForm.studentId = deps.setupForm.studentId
       deps.loginForm.password = deps.setupForm.password
       Object.assign(deps.setupForm, createSetupForm())
+      await deps.navigateToLogin()
     } catch (error) {
       deps.setupError.value = error instanceof Error ? error.message : '初始化失败'
     } finally {
@@ -71,7 +76,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       setToken(data.token)
       deps.me.value = data.user
       await deps.loadRoleData()
-      deps.activeTab.value = data.user.role === 1 ? 'overview' : 'student'
+      deps.setActiveTab(deps.resolveTabForRole(data.user.role), 'replace')
     } catch (error) {
       deps.loginError.value = error instanceof Error ? error.message : '登录失败'
     } finally {
@@ -86,18 +91,21 @@ export function useSessionFlow(deps: SessionFlowDeps) {
         clearToken()
         deps.me.value = null
         deps.loginError.value = ''
+        await deps.navigateToSetup()
         return
       }
       if (!getToken()) {
+        await deps.navigateToLogin()
         return
       }
 
       deps.me.value = await api.me()
       await deps.loadRoleData()
-      deps.activeTab.value = deps.me.value.role === 1 ? 'overview' : 'student'
+      deps.setActiveTab(deps.resolveTabForRole(deps.me.value.role), 'replace')
     } catch {
       clearToken()
       deps.me.value = null
+      await deps.navigateToLogin()
     } finally {
       deps.booting.value = false
     }
@@ -107,7 +115,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
     clearToken()
     deps.me.value = null
     deps.resetAppData()
-    deps.activeTab.value = 'overview'
+    void deps.navigateToLogin()
     deps.closeAllAdminModals()
     deps.clearAllNotices()
   }

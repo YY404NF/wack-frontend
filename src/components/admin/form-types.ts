@@ -38,7 +38,6 @@ export type AdminClassFilters = {
   grade: string
   majorName: string
   className: string
-  studentCount: string
 }
 
 export type AdminProfileForm = {
