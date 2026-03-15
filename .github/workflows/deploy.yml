@@ -1,0 +1,65 @@
+name: Build And Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
+        run: npm run build
+
+      - name: Package dist
+        run: |
+          mkdir -p dist_bundle
+          cp -r dist/* dist_bundle/
+          cp scripts/deploy-frontend.sh dist_bundle/
+          tar -C dist_bundle -czf frontend-dist.tar.gz .
+
+      - name: Upload bundle to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: frontend-dist.tar.gz
+          target: /tmp/wack-frontend-deploy
+
+      - name: Deploy frontend on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          FRONTEND_DEPLOY_PATH: ${{ secrets.FRONTEND_DEPLOY_PATH }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          envs: FRONTEND_DEPLOY_PATH
+          script: |
+            set -eu
+            mkdir -p /tmp/wack-frontend-deploy/extracted
+            tar -xzf /tmp/wack-frontend-deploy/frontend-dist.tar.gz -C /tmp/wack-frontend-deploy/extracted
+            chmod +x /tmp/wack-frontend-deploy/extracted/deploy-frontend.sh
+            /tmp/wack-frontend-deploy/extracted/deploy-frontend.sh \
+              /tmp/wack-frontend-deploy/extracted \
+              "$FRONTEND_DEPLOY_PATH"

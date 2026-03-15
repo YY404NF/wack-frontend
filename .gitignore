@@ -15,6 +15,8 @@ coverage
 .idea
 .DS_Store
 .cache
+.env.local
+.env.production.local
 
 # Editor directories and files
 .vscode/*
