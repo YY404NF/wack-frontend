@@ -2,9 +2,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import {
   api,
-  clearToken,
-  getToken,
-  setToken,
   type AttendanceCheckDetail,
   type AttendanceResultItem,
   type AvailableCourseItem,
@@ -28,6 +25,7 @@ import {
   createUserPasswordForm,
 } from './app/forms'
 import { useAdminFlow } from './app/useAdminFlow'
+import { useSessionFlow } from './app/useSessionFlow'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
 
@@ -254,76 +252,6 @@ export function useApp() {
     userPageSize.value = size
   }
 
-  async function loadSetupStatus() {
-    const status = await api.setupStatus()
-    initialized.value = status.initialized
-  }
-
-  async function initializeSystem() {
-    if (setupForm.password !== setupForm.confirmPassword) {
-      setupError.value = '两次输入的密码不一致'
-      return
-    }
-
-    setupLoading.value = true
-    setupError.value = ''
-    try {
-      await api.initializeSystem({
-        student_id: setupForm.studentId.trim(),
-        real_name: setupForm.realName.trim(),
-        password: setupForm.password,
-      })
-      initialized.value = true
-      loginForm.studentId = setupForm.studentId
-      loginForm.password = setupForm.password
-      Object.assign(setupForm, createSetupForm())
-    } catch (error) {
-      setupError.value = error instanceof Error ? error.message : '初始化失败'
-    } finally {
-      setupLoading.value = false
-    }
-  }
-
-  async function login() {
-    authLoading.value = true
-    loginError.value = ''
-    try {
-      const data = await api.login(loginForm.studentId.trim(), loginForm.password)
-      setToken(data.token)
-      me.value = data.user
-      await loadRoleData()
-      activeTab.value = data.user.role === 1 ? 'overview' : 'student'
-    } catch (error) {
-      loginError.value = error instanceof Error ? error.message : '登录失败'
-    } finally {
-      authLoading.value = false
-    }
-  }
-
-  async function restoreSession() {
-    try {
-      await loadSetupStatus()
-      if (!initialized.value) {
-        clearToken()
-        me.value = null
-        loginError.value = ''
-        return
-      }
-      if (!getToken()) {
-        return
-      }
-
-      me.value = await api.me()
-      await loadRoleData()
-      activeTab.value = me.value.role === 1 ? 'overview' : 'student'
-    } catch {
-      clearToken()
-      me.value = null
-    } finally {
-      booting.value = false
-    }
-  }
-
   const adminFlow = useAdminFlow({
     me,
     users,
@@ -379,9 +307,7 @@ export function useApp() {
     await studentFlow.loadStudentData()
   }
 
-  function logout() {
-    clearToken()
-    me.value = null
+  function resetAppData() {
     users.value = []
     courses.value = []
     courseCalendar.value = []
@@ -392,12 +318,46 @@ export function useApp() {
     activeCheck.value = null
     selectedStudentId.value = null
     editingFreeTimeId.value = null
-    activeTab.value = 'overview'
+  }
+
+  function closeAllAdminModals() {
     closeUserModal()
     closePasswordModal()
     closeProfileModal()
     closeUserPasswordModal()
-    clearAllNotices()
+  }
+
+  const sessionFlow = useSessionFlow({
+    me,
+    booting,
+    initialized,
+    authLoading,
+    setupLoading,
+    loginError,
+    setupError,
+    activeTab: activeTab as Ref<string>,
+    loginForm,
+    setupForm,
+    loadRoleData,
+    clearAllNotices,
+    resetAppData,
+    closeAllAdminModals,
+  })
+
+  async function initializeSystem() {
+    await sessionFlow.initializeSystem()
+  }
+
+  async function login() {
+    await sessionFlow.login()
+  }
+
+  async function restoreSession() {
+    await sessionFlow.restoreSession()
+  }
+
+  function logout() {
+    sessionFlow.logout()
   }
 
   async function saveFreeTime() {
