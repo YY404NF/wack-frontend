@@ -439,6 +439,111 @@ export function useApp() {
     void restoreSession()
   })
 
+  const adminWorkspaceProps = computed(() => ({
+    me: me.value!,
+    activeTab: activeTab.value,
+    pageError: adminError.value,
+    toast: adminToast.value,
+    adminActiveNavLabel: adminActiveNavLabel.value,
+    adminStats: adminStats.value,
+    courseCalendar: courseCalendar.value,
+    freeTimes: freeTimes.value,
+    users: paginatedUsers.value,
+    currentUserId: currentUserId.value,
+    courses: courses.value,
+    attendanceResults: attendanceResults.value,
+    userForm,
+    userFilters,
+    userModalOpen: userModalOpen.value,
+    isEditingUser: isEditingUser.value,
+    creatingUser: userSaving.value,
+    userPage: userPage.value,
+    userPageSize: userPageSize.value,
+    userTotalPages: userTotalPages.value,
+    userPageOptions: USER_PAGE_OPTIONS,
+    userPasswordModalOpen: userPasswordModalOpen.value,
+    userPasswordForm,
+    passwordTargetName: passwordTargetName.value,
+    passwordResetting: passwordResetting.value,
+    courseForm,
+    creatingCourse: courseSaving.value,
+    profileForm,
+    profileModalOpen: profileModalOpen.value,
+    profileSaving: profileSaving.value,
+    passwordForm,
+    passwordModalOpen: passwordModalOpen.value,
+    changingPassword: passwordSaving.value,
+    roleName,
+    statusName,
+    statusClass,
+    slotLabel,
+  }))
+
+  const adminWorkspaceHandlers = {
+    'update:activeTab': (value: AppTab) => {
+      activeTab.value = value
+    },
+    logout,
+    openCreateUserModal,
+    openEditUserModal,
+    closeUserModal,
+    openUserPasswordModal,
+    closeUserPasswordModal,
+    resetUserPassword,
+    updateUserPage,
+    updateUserPageSize,
+    openProfileModal,
+    closeProfileModal,
+    updateProfile,
+    openPasswordModal,
+    closePasswordModal,
+    createUser,
+    setUserStatus,
+    createCourse,
+    updateAdminStatus,
+    changePassword,
+  }
+
+  const studentWorkspaceProps = computed(() => ({
+    me: me.value!,
+    activeTab: activeTab.value,
+    pageError: studentError.value,
+    toast: studentToast.value,
+    availableCourses: availableCourses.value,
+    activeCheck: activeCheck.value,
+    selectedStudent: selectedStudent.value,
+    selectedStudentId: selectedStudentId.value,
+    freeTimes: freeTimes.value,
+    freeTimeForm,
+    editingFreeTimeId: editingFreeTimeId.value,
+    passwordForm,
+    savingFreeTime: freeTimeSaving.value,
+    completingAttendance: attendanceCompleting.value,
+    changingPassword: passwordSaving.value,
+    roleName,
+    statusName,
+    statusClass,
+    slotLabel,
+  }))
+
+  const studentWorkspaceHandlers = {
+    'update:activeTab': (value: AppTab) => {
+      activeTab.value = value
+    },
+    'update:selectedStudentId': (value: number) => {
+      selectedStudentId.value = value
+    },
+    logout,
+    openCourse,
+    updateStudentStatus,
+    completeAttendance,
+    saveFreeTime,
+    editFreeTime,
+    removeFreeTime,
+    resetFreeTimeForm,
+    changePassword,
+  }
+
   return {
     activeCheck,
     activeTab,
@@ -510,6 +615,8 @@ export function useApp() {
     statusClass,
     statusName,
     studentError,
+    studentWorkspaceHandlers,
+    studentWorkspaceProps,
     studentToast,
     updateAdminStatus,
     updateProfile,
@@ -527,5 +634,7 @@ export function useApp() {
     userSaving,
     userTotalPages,
     users,
+    adminWorkspaceHandlers,
+    adminWorkspaceProps,
   }
 }

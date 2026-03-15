@@ -1,0 +1,134 @@
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+}
+
+.ghost-button,
+.primary-button,
+.quick-button,
+.mini-select {
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.ghost-button,
+.primary-button,
+.quick-button {
+  padding: 12px 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.ghost-button {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.ghost-button.selected {
+  background: rgba(207, 90, 46, 0.14);
+  color: var(--accent-deep);
+}
+
+.primary-button {
+  background: linear-gradient(145deg, #cf5a2e, #a5431f);
+  color: #fff9f5;
+}
+
+.button-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: button-spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+
+.ghost-button:hover,
+.primary-button:hover,
+.quick-button:hover {
+  transform: translateY(-1px);
+}
+
+.form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.form-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+.compact-button {
+  padding: 10px 14px;
+}
+
+.mini-select {
+  min-width: 110px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+.narrow-form {
+  max-width: 560px;
+}
+
+.ghost-button:disabled,
+.success-button:disabled,
+.danger-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .form-grid.compact,
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .table-filters {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,73 @@
+.pill,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pill,
+.tag-muted {
+  background: rgba(92, 82, 75, 0.12);
+  color: var(--muted);
+}
+
+.tag-good {
+  background: rgba(45, 134, 102, 0.14);
+  color: var(--good);
+}
+
+.tag-warn {
+  background: rgba(185, 118, 18, 0.14);
+  color: var(--warn);
+}
+
+.tag-bad {
+  background: rgba(167, 68, 50, 0.14);
+  color: var(--bad);
+}
+
+.tag-calm {
+  background: rgba(55, 93, 140, 0.14);
+  color: var(--calm);
+}
+
+.empty-hint,
+.error-text,
+.error-banner,
+.toast-banner {
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.empty-hint {
+  background: rgba(92, 82, 75, 0.08);
+  color: var(--muted);
+}
+
+.error-text,
+.error-banner {
+  background: rgba(167, 68, 50, 0.12);
+  color: var(--bad);
+}
+
+.toast-banner {
+  background: rgba(45, 134, 102, 0.14);
+  color: var(--good);
+}
+
+.danger-button {
+  color: var(--bad);
+}
+
+.success-button {
+  color: var(--good);
+}
+
+.empty-cell {
+  text-align: center !important;
+  color: var(--muted);
+}

@@ -1,0 +1,137 @@
+.stats-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.stat-card {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+
+.stat-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.stat-card strong {
+  font-size: 2rem;
+}
+
+.tone-good {
+  background: rgba(45, 134, 102, 0.12);
+}
+
+.tone-warn {
+  background: rgba(185, 118, 18, 0.12);
+}
+
+.tone-bad {
+  background: rgba(167, 68, 50, 0.12);
+}
+
+.tone-calm {
+  background: rgba(55, 93, 140, 0.12);
+}
+
+.tone-muted {
+  background: rgba(92, 82, 75, 0.08);
+}
+
+.table-wrap,
+.user-table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.data-table th {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.settings-card {
+  max-width: 640px;
+}
+
+.admin-settings-card {
+  max-width: 760px;
+}
+
+.account-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.account-line {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+
+.account-line span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.user-manage-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-height: calc(100vh - 190px);
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.pagination-pages {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pagination-button {
+  min-width: 44px;
+}
+
+.pagination-size {
+  width: 112px;
+}
+
+.pagination-size select {
+  min-width: 0;
+}
+
+.table-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 1120px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
