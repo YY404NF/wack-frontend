@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import type { FreeTimeItem } from '../../api'
+import type { AdminFreeTimeCalendarProps } from './types'
 
-defineProps<{
-  freeTimes: FreeTimeItem[]
-  slotLabel: (weekday: number, section: number) => string
-}>()
+defineProps<AdminFreeTimeCalendarProps>()
 </script>
 
 <template>

@@ -1,24 +1,8 @@
 <script setup lang="ts">
-import type { CourseItem } from '../../api'
 import { sectionLabels, weekdayLabels } from '../../constants'
+import type { AdminCourseManageProps } from './types'
 
-defineProps<{
-  courses: CourseItem[]
-  creatingCourse: boolean
-  courseForm: {
-    courseId: string
-    term: string
-    courseName: string
-    teacherName: string
-    studentIds: string
-    sessionNo: number
-    weekNo: number
-    weekday: number
-    section: number
-    buildingName: string
-    roomName: string
-  }
-}>()
+defineProps<AdminCourseManageProps>()
 
 const emit = defineEmits<{
   createCourse: []

@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import type { AttendanceResultItem } from '../../api'
 import type { StatusCode } from '../../constants'
+import type { AdminAttendanceProps } from './types'
 
-defineProps<{
-  attendanceResults: AttendanceResultItem[]
-  statusName: (status: number) => string
-  statusClass: (status: number) => Record<string, boolean>
-}>()
+defineProps<AdminAttendanceProps>()
 
 const emit = defineEmits<{
   updateAdminStatus: [detailId: number, status: StatusCode]

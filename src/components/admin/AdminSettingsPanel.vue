@@ -1,13 +1,7 @@
 <script setup lang="ts">
-defineProps<{
-  me: { student_id: string; real_name: string; role: number; status: number }
-  profileForm: { studentId: string; realName: string }
-  profileModalOpen: boolean
-  profileSaving: boolean
-  passwordForm: { oldPassword: string; newPassword: string; confirmNewPassword: string }
-  passwordModalOpen: boolean
-  changingPassword: boolean
-}>()
+import type { AdminSettingsProps } from './types'
+
+defineProps<AdminSettingsProps>()
 
 const emit = defineEmits<{
   openProfileModal: []

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { AttendanceResultItem, CourseCalendarItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../api'
 import type { AppTab, StatusCode } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminOverviewPanel from '../components/admin/AdminOverviewPanel.vue'
@@ -10,58 +9,9 @@ import AdminCourseManagePanel from '../components/admin/AdminCourseManagePanel.v
 import AdminUserManagePanel from '../components/admin/AdminUserManagePanel.vue'
 import AdminPlaceholderPanel from '../components/admin/AdminPlaceholderPanel.vue'
 import AdminSettingsPanel from '../components/admin/AdminSettingsPanel.vue'
+import type { AdminWorkspaceProps } from '../components/admin/types'
 
-defineProps<{
-  me: SessionUser
-  activeTab: AppTab
-  pageError: string
-  toast: string
-  adminActiveNavLabel: string
-  adminStats: Array<{ label: string; value: number; tone: string }>
-  courseCalendar: CourseCalendarItem[]
-  freeTimes: FreeTimeItem[]
-  users: UserItem[]
-  currentUserId?: number
-  courses: CourseItem[]
-  attendanceResults: AttendanceResultItem[]
-  userForm: { studentId: string; realName: string; password: string; confirmPassword: string; role: number; status: number }
-  userFilters: { studentId: string; realName: string; role: string; status: string }
-  userModalOpen: boolean
-  isEditingUser: boolean
-  creatingUser: boolean
-  userPage: number
-  userPageSize: number
-  userTotalPages: number
-  userPageOptions: number[]
-  userPasswordModalOpen: boolean
-  userPasswordForm: { password: string; confirmPassword: string }
-  passwordTargetName: string
-  passwordResetting: boolean
-  courseForm: {
-    courseId: string
-    term: string
-    courseName: string
-    teacherName: string
-    studentIds: string
-    sessionNo: number
-    weekNo: number
-    weekday: number
-    section: number
-    buildingName: string
-    roomName: string
-  }
-  creatingCourse: boolean
-  profileForm: { studentId: string; realName: string }
-  profileModalOpen: boolean
-  profileSaving: boolean
-  passwordForm: { oldPassword: string; newPassword: string; confirmNewPassword: string }
-  passwordModalOpen: boolean
-  changingPassword: boolean
-  roleName: (role?: number) => string
-  statusName: (status: number) => string
-  statusClass: (status: number) => Record<string, boolean>
-  slotLabel: (weekday: number, section: number) => string
-}>()
+defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]

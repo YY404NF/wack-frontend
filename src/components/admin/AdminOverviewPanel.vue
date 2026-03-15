@@ -1,7 +1,7 @@
 <script setup lang="ts">
-defineProps<{
-  adminStats: Array<{ label: string; value: number; tone: string }>
-}>()
+import type { AdminOverviewProps } from './types'
+
+defineProps<AdminOverviewProps>()
 </script>
 
 <template>

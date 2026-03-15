@@ -1,24 +1,8 @@
 <script setup lang="ts">
 import type { UserItem } from '../../api'
+import type { AdminUserManageProps } from './types'
 
-defineProps<{
-  users: UserItem[]
-  currentUserId?: number
-  userForm: { studentId: string; realName: string; password: string; confirmPassword: string; role: number; status: number }
-  userFilters: { studentId: string; realName: string; role: string; status: string }
-  userModalOpen: boolean
-  isEditingUser: boolean
-  creatingUser: boolean
-  userPage: number
-  userPageSize: number
-  userTotalPages: number
-  userPageOptions: number[]
-  userPasswordModalOpen: boolean
-  userPasswordForm: { password: string; confirmPassword: string }
-  passwordTargetName: string
-  passwordResetting: boolean
-  roleName: (role?: number) => string
-}>()
+defineProps<AdminUserManageProps>()
 
 const emit = defineEmits<{
   openCreateUserModal: []
