@@ -27,6 +27,7 @@ export function useApp() {
     studentId: '',
     realName: '',
     password: '',
+    confirmPassword: '',
   })
 
   const passwordForm = reactive({
@@ -145,6 +146,11 @@ export function useApp() {
   }
 
   async function initializeSystem() {
+    if (setupForm.password !== setupForm.confirmPassword) {
+      pageError.value = '两次输入的密码不一致'
+      return
+    }
+
     setupLoading.value = true
     pageError.value = ''
     try {
@@ -159,6 +165,7 @@ export function useApp() {
       setupForm.studentId = ''
       setupForm.realName = ''
       setupForm.password = ''
+      setupForm.confirmPassword = ''
       showToast('系统初始化完成，请使用新管理员账号登录')
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '初始化失败'
