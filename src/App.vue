@@ -27,10 +27,7 @@ const {
 
 <template>
   <div class="page-shell">
-    <div v-if="booting" class="splash-card">
-      <p class="eyebrow">WACK</p>
-      <h1>正在恢复登录状态</h1>
-    </div>
+    <div v-if="booting" class="boot-screen" aria-hidden="true"></div>
 
     <SetupPage
       v-else-if="!initialized"

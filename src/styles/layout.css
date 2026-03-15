@@ -71,6 +71,10 @@
   margin: 12vh auto 0;
 }
 
+.boot-screen {
+  min-height: calc(100vh - 48px);
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
