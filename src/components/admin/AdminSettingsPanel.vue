@@ -42,7 +42,7 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <div v-if="profileModalOpen" class="modal-backdrop" @click.self="emit('closeProfileModal')">
+    <div v-if="profileModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>更改信息</h3>
@@ -65,7 +65,7 @@ const emit = defineEmits<{
       </article>
     </div>
 
-    <div v-if="passwordModalOpen" class="modal-backdrop" @click.self="emit('closePasswordModal')">
+    <div v-if="passwordModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>更改密码</h3>

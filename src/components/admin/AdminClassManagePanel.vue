@@ -28,7 +28,7 @@ function onPageSizeChange(event: Event) {
       <button class="primary-button" type="button" @click="emit('openCreateClassModal')">创建班级</button>
     </div>
 
-    <div v-if="classModalOpen" class="modal-backdrop" @click.self="emit('closeClassModal')">
+    <div v-if="classModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>{{ isEditingClass ? '更改信息' : '创建班级' }}</h3>
@@ -55,7 +55,7 @@ function onPageSizeChange(event: Event) {
       </article>
     </div>
 
-    <div v-if="deleteClassModalOpen" class="modal-backdrop" @click.self="emit('closeDeleteClassModal')">
+    <div v-if="deleteClassModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>确认删除</h3>

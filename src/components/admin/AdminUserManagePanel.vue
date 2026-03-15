@@ -36,7 +36,7 @@ function formatLastLogin(value?: string | null) {
       <button class="primary-button" type="button" @click="emit('openCreateUserModal')">创建用户</button>
     </div>
 
-    <div v-if="userModalOpen" class="modal-backdrop" @click.self="emit('closeUserModal')">
+    <div v-if="userModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>{{ isEditingUser ? '更改信息' : '创建用户' }}</h3>
@@ -76,7 +76,7 @@ function formatLastLogin(value?: string | null) {
       </article>
     </div>
 
-    <div v-if="userPasswordModalOpen" class="modal-backdrop" @click.self="emit('closeUserPasswordModal')">
+    <div v-if="userPasswordModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>更改密码</h3>
