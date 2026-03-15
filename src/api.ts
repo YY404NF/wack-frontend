@@ -15,6 +15,7 @@ export interface PageResult<T> {
 }
 
 export interface SessionUser {
+  id?: number
   student_id: string
   real_name: string
   role: number
@@ -31,8 +32,17 @@ export interface SetupStatus {
 }
 
 export interface UserItem extends SessionUser {
+  id?: number
   created_at?: string
   updated_at?: string
+}
+
+export interface UserPageQuery {
+  page?: number
+  page_size?: number
+  role?: string
+  status?: string
+  keyword?: string
 }
 
 export interface CourseItem {
@@ -112,9 +122,10 @@ export interface AvailableCourseItem {
 export interface AttendanceStudentItem {
   id: number
   attendance_check_id: number
+  user_id?: number
   student_id: string
   status: number
-  status_set_by?: string | null
+  status_set_by_user_id?: number | null
   status_set_at?: string | null
 }
 
@@ -122,7 +133,8 @@ export interface AttendanceCheckDetail {
   attendance_check: {
     id: number
     course_session_id: number
-    started_by: string
+    started_by_user_id: number
+    started_by_student_id: string
     started_at: string
   }
   course_session: {
@@ -197,13 +209,52 @@ export const api = {
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
     })
   },
-  listUsers() {
-    return request<PageResult<UserItem>>('/users?page=1&page_size=50')
+  updateProfile(input: { student_id: string; real_name: string }) {
+    return request<SessionUser>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  listUsers(query: UserPageQuery = {}) {
+    const params = new URLSearchParams()
+    params.set('page', String(query.page ?? 1))
+    params.set('page_size', String(query.page_size ?? 10))
+    if (query.role) params.set('role', query.role)
+    if (query.status) params.set('status', query.status)
+    if (query.keyword) params.set('keyword', query.keyword)
+    return request<PageResult<UserItem>>(`/users?${params.toString()}`)
   },
   createUser(input: { student_id: string; real_name: string; password: string; role: number; status: number }) {
     return request<UserItem>('/users', {
       method: 'POST',
       body: JSON.stringify(input),
+    })
+  },
+  updateUser(
+    studentId: string,
+    input: {
+      student_id: string
+      real_name: string
+      role: number
+      status: number
+      class_ids?: number[]
+    },
+  ) {
+    return request<{ user: UserItem }>('/users/' + studentId, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  updateUserStatus(studentId: string, status: number) {
+    return request<Record<string, never>>(`/users/${studentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+  },
+  resetUserPassword(studentId: string, newPassword: string) {
+    return request<Record<string, never>>(`/users/${studentId}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ new_password: newPassword }),
     })
   },
   listCourses() {

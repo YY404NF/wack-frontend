@@ -1,5 +1,17 @@
 export type StatusCode = 0 | 1 | 2 | 3 | 4
-export type AppTab = 'overview' | 'manage' | 'attendance' | 'student' | 'availability' | 'settings'
+export type AppTab =
+  | 'overview'
+  | 'attendance'
+  | 'free-time-calendar'
+  | 'free-time-manage'
+  | 'course-calendar'
+  | 'course-manage'
+  | 'class-manage'
+  | 'user-manage'
+  | 'logs'
+  | 'student'
+  | 'availability'
+  | 'settings'
 
 export const roleLabels: Record<number, string> = {
   1: '管理员',
@@ -33,8 +45,14 @@ export const sectionLabels: Record<number, string> = {
 }
 
 export const adminNavItems = [
-  { key: 'overview', label: '总览', desc: '课程表、统计和空闲视图' },
-  { key: 'manage', label: '用户与课程', desc: '创建用户与录入排课' },
-  { key: 'attendance', label: '查课结果', desc: '修正考勤明细状态' },
-  { key: 'settings', label: '设置', desc: '修改密码与账号设置' },
+  { key: 'overview', label: '总览' },
+  { key: 'attendance', label: '查课详情' },
+  { key: 'free-time-calendar', label: '查课学生空余时间日历' },
+  { key: 'free-time-manage', label: '查课学生空余时间管理' },
+  { key: 'course-calendar', label: '全院课程表' },
+  { key: 'course-manage', label: '课程管理' },
+  { key: 'class-manage', label: '班级管理' },
+  { key: 'user-manage', label: '系统用户管理' },
+  { key: 'logs', label: '系统日志' },
+  { key: 'settings', label: '设置' },
 ] as const

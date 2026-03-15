@@ -13,7 +13,7 @@ const emit = defineEmits<{
 <template>
   <section class="login-layout">
     <article class="login-panel">
-      <p class="eyebrow">WACK / 登录</p>
+      <p class="eyebrow">WACK / 网安查课</p>
       <h1>查课系统工作台</h1>
       <p class="hero-text">登陆失败请联系管理员</p>
       

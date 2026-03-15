@@ -1,0 +1,63 @@
+.course-button,
+.student-button {
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+
+.course-button.disabled {
+  opacity: 0.56;
+}
+
+.free-time-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.student-button.selected {
+  outline: 2px solid rgba(207, 90, 46, 0.3);
+}
+
+.quick-panel {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.quick-button {
+  color: white;
+}
+
+.quick-button.good {
+  background: var(--good);
+}
+
+.quick-button.warn {
+  background: var(--warn);
+}
+
+.quick-button.bad {
+  background: var(--bad);
+}
+
+.quick-button.calm {
+  background: var(--calm);
+}

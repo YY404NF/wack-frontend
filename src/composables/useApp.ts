@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import {
   api,
@@ -15,67 +15,60 @@ import {
   type SessionUser,
   type UserItem,
 } from '../api'
-import { adminNavItems, roleLabels, sectionLabels, statusLabels, type AppTab, type StatusCode, weekdayLabels } from '../constants'
+import { adminNavItems, type AppTab, type StatusCode } from '../constants'
+import {
+  createCourseForm,
+  createFreeTimeForm,
+  createLoginForm,
+  createPasswordForm,
+  createProfileForm,
+  createSetupForm,
+  createUserFilters,
+  createUserForm,
+  createUserPasswordForm,
+} from './app/forms'
+import { useAdminFlow } from './app/useAdminFlow'
+import { useStudentFlow } from './app/useStudentFlow'
+import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
 
 export function useApp() {
-  const loginForm = reactive({
-    studentId: '',
-    password: '',
-  })
+  const loginForm = reactive(createLoginForm())
 
-  const setupForm = reactive({
-    studentId: '',
-    realName: '',
-    password: '',
-    confirmPassword: '',
-  })
+  const setupForm = reactive(createSetupForm())
 
-  const passwordForm = reactive({
-    oldPassword: '',
-    newPassword: '',
-  })
+  const passwordForm = reactive(createPasswordForm())
 
-  const freeTimeForm = reactive({
-    term: '2025-2026-2',
-    weekday: 1,
-    section: 1,
-    freeWeeks: '',
-  })
+  const profileForm = reactive(createProfileForm())
 
-  const userForm = reactive({
-    studentId: '',
-    realName: '',
-    password: '123456',
-    role: 2,
-    status: 1,
-  })
+  const userPasswordForm = reactive(createUserPasswordForm())
 
-  const courseForm = reactive({
-    courseId: '',
-    term: '2025-2026-2',
-    courseName: '',
-    teacherName: '',
-    studentIds: '',
-    sessionNo: 1,
-    weekNo: 1,
-    weekday: 1,
-    section: 1,
-    buildingName: '教4',
-    roomName: '509',
-  })
+  const freeTimeForm = reactive(createFreeTimeForm())
+
+  const userForm = reactive(createUserForm())
+
+  const userFilters = reactive(createUserFilters())
+
+  const courseForm = reactive(createCourseForm())
 
   const me = ref<SessionUser | null>(null)
   const authLoading = ref(false)
   const setupLoading = ref(false)
   const userSaving = ref(false)
+  const passwordResetting = ref(false)
+  const profileSaving = ref(false)
   const courseSaving = ref(false)
   const passwordSaving = ref(false)
   const freeTimeSaving = ref(false)
   const attendanceCompleting = ref(false)
   const booting = ref(true)
   const initialized = ref(true)
-  const pageError = ref('')
-  const toast = ref('')
+
+  const setupError = ref('')
+  const loginError = ref('')
+  const adminError = ref('')
+  const studentError = ref('')
+  const adminToast = ref('')
+  const studentToast = ref('')
 
   const users = ref<UserItem[]>([])
   const courses = ref<CourseItem[]>([])
@@ -83,12 +76,23 @@ export function useApp() {
   const dashboard = ref<DashboardSummary | null>(null)
   const attendanceResults = ref<AttendanceResultItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
-  const editingFreeTimeId = ref<number | null>(null)
-
   const availableCourses = ref<AvailableCourseItem[]>([])
   const activeCheck = ref<AttendanceCheckDetail | null>(null)
+
+  const editingFreeTimeId = ref<number | null>(null)
+  const editingUserStudentId = ref('')
+  const passwordTargetStudentId = ref('')
+  const passwordTargetName = ref('')
   const selectedStudentId = ref<number | null>(null)
+
+  const userModalOpen = ref(false)
+  const passwordModalOpen = ref(false)
+  const profileModalOpen = ref(false)
+  const userPasswordModalOpen = ref(false)
   const activeTab = ref<AppTab>('overview')
+
+  const userPage = ref(1)
+  const userPageSize = ref(10)
 
   const adminStats = computed(() => {
     if (!dashboard.value) {
@@ -103,6 +107,22 @@ export function useApp() {
     ]
   })
 
+  const filteredUsers = computed(() =>
+    users.value.filter((user) => {
+      const byStudentId = !userFilters.studentId || user.student_id.includes(userFilters.studentId.trim())
+      const byRealName = !userFilters.realName || user.real_name.includes(userFilters.realName.trim())
+      const byRole = !userFilters.role || String(user.role) === userFilters.role
+      const byStatus = !userFilters.status || String(user.status) === userFilters.status
+      return byStudentId && byRealName && byRole && byStatus
+    }),
+  )
+
+  const userTotalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / userPageSize.value)))
+  const paginatedUsers = computed(() => {
+    const start = (userPage.value - 1) * userPageSize.value
+    return filteredUsers.value.slice(start, start + userPageSize.value)
+  })
+
   const selectedStudent = computed(() => {
     if (!activeCheck.value || selectedStudentId.value === null) {
       return null
@@ -112,37 +132,126 @@ export function useApp() {
 
   const isAdmin = computed(() => me.value?.role === 1)
   const isStudent = computed(() => me.value?.role === 2)
-  const adminActiveNav = computed(() => adminNavItems.find((item) => item.key === activeTab.value))
+  const currentUserId = computed(() => me.value?.id)
+  const isEditingUser = computed(() => editingUserStudentId.value.length > 0)
+  const adminActiveNavLabel = computed(() => adminNavItems.find((item) => item.key === activeTab.value)?.label ?? '管理员工作台')
 
-  function showToast(message: string) {
-    toast.value = message
+  watch(
+    () => [userFilters.studentId, userFilters.realName, userFilters.role, userFilters.status, userPageSize.value],
+    () => {
+      userPage.value = 1
+    },
+  )
+
+  watch(userTotalPages, (total) => {
+    if (userPage.value > total) {
+      userPage.value = total
+    }
+  })
+
+  function showScopedToast(target: 'admin' | 'student', message: string) {
+    const toastRef = target === 'admin' ? adminToast : studentToast
+    toastRef.value = message
     window.setTimeout(() => {
-      if (toast.value === message) {
-        toast.value = ''
+      if (toastRef.value === message) {
+        toastRef.value = ''
       }
     }, 2200)
   }
 
-  function roleName(role?: number) {
-    return role ? roleLabels[role] ?? `角色 ${role}` : '-'
+  function clearAdminNotices() {
+    adminError.value = ''
   }
 
-  function statusName(status: number) {
-    return statusLabels[status as StatusCode] ?? `状态 ${status}`
+  function clearStudentNotices() {
+    studentError.value = ''
   }
 
-  function slotLabel(weekday: number, section: number) {
-    return `${weekdayLabels[weekday] ?? `周${weekday}`} · ${sectionLabels[section] ?? `第 ${section} 段`}`
+  function clearAllNotices() {
+    setupError.value = ''
+    loginError.value = ''
+    adminError.value = ''
+    studentError.value = ''
+    adminToast.value = ''
+    studentToast.value = ''
   }
 
-  function statusClass(status: number) {
-    return {
-      'tag-good': status === 1,
-      'tag-warn': status === 2,
-      'tag-bad': status === 3,
-      'tag-calm': status === 4,
-      'tag-muted': status === 0,
-    }
+  function resetUserForm() {
+    Object.assign(userForm, createUserForm())
+    editingUserStudentId.value = ''
+  }
+
+  function resetUserPasswordForm() {
+    Object.assign(userPasswordForm, createUserPasswordForm())
+    passwordTargetStudentId.value = ''
+    passwordTargetName.value = ''
+  }
+
+  function resetFreeTimeForm() {
+    Object.assign(freeTimeForm, createFreeTimeForm())
+    editingFreeTimeId.value = null
+  }
+
+  function closeUserModal() {
+    userModalOpen.value = false
+    resetUserForm()
+  }
+
+  function openCreateUserModal() {
+    resetUserForm()
+    userModalOpen.value = true
+  }
+
+  function openEditUserModal(user: UserItem) {
+    userForm.studentId = user.student_id
+    userForm.realName = user.real_name
+    userForm.password = ''
+    userForm.confirmPassword = ''
+    userForm.role = user.role
+    userForm.status = user.status
+    editingUserStudentId.value = user.student_id
+    userModalOpen.value = true
+  }
+
+  function closePasswordModal() {
+    passwordModalOpen.value = false
+    Object.assign(passwordForm, createPasswordForm())
+  }
+
+  function openPasswordModal() {
+    closePasswordModal()
+    passwordModalOpen.value = true
+  }
+
+  function closeProfileModal() {
+    profileModalOpen.value = false
+    Object.assign(profileForm, createProfileForm())
+  }
+
+  function openProfileModal() {
+    profileForm.studentId = me.value?.student_id ?? ''
+    profileForm.realName = me.value?.real_name ?? ''
+    profileModalOpen.value = true
+  }
+
+  function closeUserPasswordModal() {
+    userPasswordModalOpen.value = false
+    resetUserPasswordForm()
+  }
+
+  function openUserPasswordModal(user: UserItem) {
+    resetUserPasswordForm()
+    passwordTargetStudentId.value = user.student_id
+    passwordTargetName.value = `${user.real_name}（${user.student_id}）`
+    userPasswordModalOpen.value = true
+  }
+
+  function updateUserPage(page: number) {
+    userPage.value = page
+  }
+
+  function updateUserPageSize(size: number) {
+    userPageSize.value = size
   }
 
   async function loadSetupStatus() {
@@ -152,12 +261,12 @@ export function useApp() {
 
   async function initializeSystem() {
     if (setupForm.password !== setupForm.confirmPassword) {
-      pageError.value = '两次输入的密码不一致'
+      setupError.value = '两次输入的密码不一致'
       return
     }
 
     setupLoading.value = true
-    pageError.value = ''
+    setupError.value = ''
     try {
       await api.initializeSystem({
         student_id: setupForm.studentId.trim(),
@@ -167,13 +276,9 @@ export function useApp() {
       initialized.value = true
       loginForm.studentId = setupForm.studentId
       loginForm.password = setupForm.password
-      setupForm.studentId = ''
-      setupForm.realName = ''
-      setupForm.password = ''
-      setupForm.confirmPassword = ''
-      showToast('系统初始化完成，请使用新管理员账号登录')
+      Object.assign(setupForm, createSetupForm())
     } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '初始化失败'
+      setupError.value = error instanceof Error ? error.message : '初始化失败'
     } finally {
       setupLoading.value = false
     }
@@ -181,16 +286,15 @@ export function useApp() {
 
   async function login() {
     authLoading.value = true
-    pageError.value = ''
+    loginError.value = ''
     try {
       const data = await api.login(loginForm.studentId.trim(), loginForm.password)
       setToken(data.token)
       me.value = data.user
       await loadRoleData()
       activeTab.value = data.user.role === 1 ? 'overview' : 'student'
-      showToast('登录成功')
     } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '登录失败'
+      loginError.value = error instanceof Error ? error.message : '登录失败'
     } finally {
       authLoading.value = false
     }
@@ -202,9 +306,9 @@ export function useApp() {
       if (!initialized.value) {
         clearToken()
         me.value = null
+        loginError.value = ''
         return
       }
-
       if (!getToken()) {
         return
       }
@@ -220,35 +324,59 @@ export function useApp() {
     }
   }
 
+  const adminFlow = useAdminFlow({
+    me,
+    users,
+    courses,
+    courseCalendar,
+    dashboard,
+    attendanceResults,
+    freeTimes,
+    userForm,
+    profileForm,
+    userPasswordForm,
+    courseForm,
+    editingUserStudentId,
+    passwordTargetStudentId,
+    userSaving,
+    passwordResetting,
+    profileSaving,
+    courseSaving,
+    adminError,
+    showAdminToast: (message) => showScopedToast('admin', message),
+    closeUserModal,
+    closeUserPasswordModal,
+    closeProfileModal,
+  })
+
+  const studentFlow = useStudentFlow({
+    availableCourses,
+    freeTimes,
+    activeCheck,
+    selectedStudentId,
+    editingFreeTimeId,
+    freeTimeForm,
+    freeTimeSaving,
+    attendanceCompleting,
+    studentError,
+    resetFreeTimeForm,
+    showStudentToast: (message) => showScopedToast('student', message),
+    statusName,
+  })
+
   async function loadRoleData() {
     if (!me.value) {
       return
     }
 
-    pageError.value = ''
     if (me.value.role === 1) {
-      const [userPage, coursePage, calendar, summary, resultPage, freeTimeList] = await Promise.all([
-        api.listUsers(),
-        api.listCourses(),
-        api.adminCourseCalendar(),
-        api.adminAttendanceDashboard(),
-        api.adminAttendanceResults(),
-        api.adminFreeTimeCalendar(),
-      ])
-      users.value = userPage.items ?? []
-      courses.value = coursePage.items ?? []
-      courseCalendar.value = calendar ?? []
-      dashboard.value = summary
-      attendanceResults.value = resultPage.items ?? []
-      freeTimes.value = freeTimeList ?? []
-    } else {
-      availableCourses.value = (await api.studentAvailableCourses()) ?? []
-      const freeTimePage = await api.listFreeTimes()
-      freeTimes.value = freeTimePage.items ?? []
-      if (availableCourses.value.length > 0 && availableCourses.value[0].attendance_check_id) {
-        await openCourse(availableCourses.value[0])
-      }
+      clearAdminNotices()
+      await adminFlow.loadAdminData()
+      return
     }
+
+    clearStudentNotices()
+    await studentFlow.loadStudentData()
   }
 
   function logout() {
@@ -264,200 +392,84 @@ export function useApp() {
     activeCheck.value = null
     selectedStudentId.value = null
     editingFreeTimeId.value = null
-  }
-
-  function resetFreeTimeForm() {
-    freeTimeForm.term = '2025-2026-2'
-    freeTimeForm.weekday = 1
-    freeTimeForm.section = 1
-    freeTimeForm.freeWeeks = ''
-    editingFreeTimeId.value = null
+    activeTab.value = 'overview'
+    closeUserModal()
+    closePasswordModal()
+    closeProfileModal()
+    closeUserPasswordModal()
+    clearAllNotices()
   }
 
   async function saveFreeTime() {
-    freeTimeSaving.value = true
-    pageError.value = ''
-    try {
-      const payload = {
-        term: freeTimeForm.term.trim(),
-        weekday: freeTimeForm.weekday,
-        section: freeTimeForm.section,
-        free_weeks: freeTimeForm.freeWeeks.trim(),
-      }
-      if (editingFreeTimeId.value) {
-        await api.updateFreeTime(editingFreeTimeId.value, payload)
-        showToast('空闲时间已更新')
-      } else {
-        await api.createFreeTime(payload)
-        showToast('空闲时间已新增')
-      }
-      const freeTimePage = await api.listFreeTimes()
-      freeTimes.value = freeTimePage.items ?? []
-      resetFreeTimeForm()
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '保存空闲时间失败'
-    } finally {
-      freeTimeSaving.value = false
-    }
+    await studentFlow.saveFreeTime()
   }
 
   function editFreeTime(item: FreeTimeItem) {
-    freeTimeForm.term = item.term
-    freeTimeForm.weekday = item.weekday
-    freeTimeForm.section = item.section
-    freeTimeForm.freeWeeks = item.free_weeks
-    editingFreeTimeId.value = item.id
+    studentFlow.editFreeTime(item)
     activeTab.value = 'availability'
   }
 
   async function removeFreeTime(id: number) {
-    pageError.value = ''
-    try {
-      await api.deleteFreeTime(id)
-      freeTimes.value = freeTimes.value.filter((item) => item.id !== id)
-      if (editingFreeTimeId.value === id) {
-        resetFreeTimeForm()
-      }
-      showToast('空闲时间已删除')
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '删除空闲时间失败'
-    }
+    await studentFlow.removeFreeTime(id)
   }
 
   async function createUser() {
-    userSaving.value = true
-    pageError.value = ''
-    try {
-      await api.createUser({
-        student_id: userForm.studentId.trim(),
-        real_name: userForm.realName.trim(),
-        password: userForm.password,
-        role: userForm.role,
-        status: userForm.status,
-      })
-      userForm.studentId = ''
-      userForm.realName = ''
-      await loadRoleData()
-      showToast('用户已创建')
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '创建用户失败'
-    } finally {
-      userSaving.value = false
-    }
+    await adminFlow.createUser()
+  }
+
+  async function resetUserPassword() {
+    await adminFlow.resetUserPassword()
+  }
+
+  async function updateProfile() {
+    await adminFlow.updateProfile()
+  }
+
+  async function setUserStatus(studentId: string, status: number) {
+    await adminFlow.setUserStatus(studentId, status)
   }
 
   async function createCourse() {
-    courseSaving.value = true
-    pageError.value = ''
-    try {
-      const courseId = Number(courseForm.courseId)
-      const studentIds = courseForm.studentIds
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-
-      await api.createCourse({
-        id: courseId,
-        term: courseForm.term.trim(),
-        course_name: courseForm.courseName.trim(),
-        teacher_name: courseForm.teacherName.trim(),
-        attendance_student_count: 0,
-      })
-      await api.replaceCourseStudents(courseId, studentIds)
-      await api.replaceCourseSessions(courseId, [
-        {
-          session_no: courseForm.sessionNo,
-          week_no: courseForm.weekNo,
-          weekday: courseForm.weekday,
-          section: courseForm.section,
-          building_name: courseForm.buildingName.trim(),
-          room_name: courseForm.roomName.trim(),
-        },
-      ])
-      courseForm.courseId = ''
-      courseForm.courseName = ''
-      courseForm.teacherName = ''
-      courseForm.studentIds = ''
-      await loadRoleData()
-      showToast('课程已创建')
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '创建课程失败'
-    } finally {
-      courseSaving.value = false
-    }
+    await adminFlow.createCourse()
   }
 
   async function openCourse(course: AvailableCourseItem) {
-    pageError.value = ''
-    try {
-      activeCheck.value = await api.enterAttendanceCheck(course.course_session_id)
-      selectedStudentId.value = activeCheck.value.students[0]?.id ?? null
-      availableCourses.value = (await api.studentAvailableCourses()) ?? []
-      showToast(`已进入 ${course.course_name}`)
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '进入查课失败'
-    }
+    await studentFlow.openCourse(course)
   }
 
   async function updateStudentStatus(detailId: number, status: StatusCode) {
-    pageError.value = ''
-    try {
-      await api.updateAttendanceStatus(detailId, status)
-      if (activeCheck.value) {
-        const target = activeCheck.value.students.find((student) => student.id === detailId)
-        if (target) {
-          target.status = status
-        }
-      }
-      const currentIndex = activeCheck.value?.students.findIndex((student) => student.id === detailId) ?? -1
-      const nextStudent = currentIndex >= 0 ? activeCheck.value?.students[currentIndex + 1] : null
-      selectedStudentId.value = nextStudent?.id ?? detailId
-      showToast(`状态已更新为${statusName(status)}`)
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '更新状态失败'
-    }
+    await studentFlow.updateStudentStatus(detailId, status)
   }
 
   async function updateAdminStatus(detailId: number, status: StatusCode) {
-    pageError.value = ''
-    try {
-      await api.adminUpdateAttendanceStatus(detailId, status)
-      await loadRoleData()
-      showToast('管理员修改已提交')
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '修改查课结果失败'
-    }
+    await adminFlow.updateAdminStatus(detailId, status)
   }
 
   async function completeAttendance() {
-    if (!activeCheck.value) {
-      return
-    }
-    attendanceCompleting.value = true
-    pageError.value = ''
-    try {
-      await api.completeAttendanceCheck(activeCheck.value.attendance_check.id)
-      await loadRoleData()
-      activeCheck.value = null
-      selectedStudentId.value = null
-      showToast('本次查课已结束')
-    } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '完成查课失败'
-    } finally {
-      attendanceCompleting.value = false
-    }
+    await studentFlow.completeAttendance(studentFlow.loadStudentData)
   }
 
   async function changePassword() {
     passwordSaving.value = true
-    pageError.value = ''
+    if (me.value?.role === 1) {
+      adminError.value = ''
+    } else {
+      studentError.value = ''
+    }
     try {
+      if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+        throw new Error('两次输入的新密码不一致')
+      }
       await api.changePassword(passwordForm.oldPassword, passwordForm.newPassword)
-      passwordForm.oldPassword = ''
-      passwordForm.newPassword = ''
-      showToast('密码已修改')
+      closePasswordModal()
+      showScopedToast(me.value?.role === 1 ? 'admin' : 'student', '密码已修改')
     } catch (error) {
-      pageError.value = error instanceof Error ? error.message : '修改密码失败'
+      const message = error instanceof Error ? error.message : '修改密码失败'
+      if (me.value?.role === 1) {
+        adminError.value = message
+      } else {
+        studentError.value = message
+      }
     } finally {
       passwordSaving.value = false
     }
@@ -470,55 +482,90 @@ export function useApp() {
   return {
     activeCheck,
     activeTab,
-    adminActiveNav,
+    adminActiveNavLabel,
+    adminError,
     adminStats,
-    authLoading,
+    adminToast,
     attendanceCompleting,
+    attendanceResults,
+    authLoading,
     availableCourses,
     booting,
     changePassword,
+    closePasswordModal,
+    closeProfileModal,
+    closeUserModal,
+    closeUserPasswordModal,
     completeAttendance,
     courseCalendar,
     courseForm,
-    courses,
     courseSaving,
+    courses,
     createCourse,
     createUser,
-    freeTimes,
+    currentUserId,
+    editFreeTime,
+    editingFreeTimeId,
+    filteredUsers,
     freeTimeForm,
     freeTimeSaving,
-    initialized,
+    freeTimes,
     initializeSystem,
+    initialized,
     isAdmin,
+    isEditingUser,
     isStudent,
     login,
+    loginError,
     loginForm,
     logout,
     me,
     openCourse,
-    pageError,
+    openCreateUserModal,
+    openEditUserModal,
+    openPasswordModal,
+    openProfileModal,
+    openUserPasswordModal,
+    paginatedUsers,
     passwordForm,
+    passwordModalOpen,
+    passwordResetting,
     passwordSaving,
-    editFreeTime,
-    editingFreeTimeId,
+    passwordTargetName,
+    profileForm,
+    profileModalOpen,
+    profileSaving,
     removeFreeTime,
-    roleName,
     resetFreeTimeForm,
+    resetUserPassword,
+    roleName,
     saveFreeTime,
     selectedStudent,
     selectedStudentId,
+    setUserStatus,
+    setupError,
     setupForm,
     setupLoading,
-    showToast,
     slotLabel,
     statusClass,
     statusName,
-    toast,
+    studentError,
+    studentToast,
     updateAdminStatus,
+    updateProfile,
     updateStudentStatus,
-    userSaving,
+    updateUserPage,
+    updateUserPageSize,
+    userFilters,
     userForm,
+    userModalOpen,
+    userPage,
+    userPageOptions: USER_PAGE_OPTIONS,
+    userPageSize,
+    userPasswordForm,
+    userPasswordModalOpen,
+    userSaving,
+    userTotalPages,
     users,
-    attendanceResults,
   }
 }

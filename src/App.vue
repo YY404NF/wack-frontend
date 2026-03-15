@@ -9,7 +9,7 @@ import type { AppTab } from './constants'
 const {
   activeCheck,
   activeTab,
-  adminActiveNav,
+  adminActiveNavLabel,
   adminStats,
   attendanceResults,
   authLoading,
@@ -17,13 +17,19 @@ const {
   availableCourses,
   booting,
   changePassword,
+  closeProfileModal,
+  closeUserModal,
+  closeUserPasswordModal,
   completeAttendance,
   courseCalendar,
   courseForm,
   courses,
   courseSaving,
+  currentUserId,
   createCourse,
   createUser,
+  adminError,
+  adminToast,
   editFreeTime,
   editingFreeTimeId,
   freeTimeForm,
@@ -32,31 +38,59 @@ const {
   initializeSystem,
   initialized,
   isAdmin,
+  isEditingUser,
   login,
+  loginError,
   loginForm,
   logout,
   me,
+  openProfileModal,
+  openPasswordModal,
+  openCreateUserModal,
+  openEditUserModal,
+  openUserPasswordModal,
   openCourse,
-  pageError,
   passwordForm,
+  passwordResetting,
+  passwordTargetName,
+  passwordModalOpen,
   passwordSaving,
+  closePasswordModal,
+  paginatedUsers,
+  profileForm,
+  profileModalOpen,
+  profileSaving,
   removeFreeTime,
+  resetUserPassword,
   resetFreeTimeForm,
   roleName,
   saveFreeTime,
   selectedStudent,
   selectedStudentId,
+  setUserStatus,
   setupForm,
+  setupError,
   setupLoading,
   slotLabel,
   statusClass,
   statusName,
-  toast,
+  studentError,
+  studentToast,
+  updateProfile,
+  updateUserPage,
+  updateUserPageSize,
   updateAdminStatus,
   updateStudentStatus,
+  userFilters,
+  userModalOpen,
+  userPage,
+  userPageOptions,
+  userPageSize,
+  userPasswordForm,
+  userPasswordModalOpen,
+  userTotalPages,
   userSaving,
   userForm,
-  users,
 } = useApp()
 
 function setActiveTab(value: AppTab) {
@@ -79,7 +113,7 @@ function setSelectedStudentId(value: number) {
       v-else-if="!initialized"
       v-model:setup-form="setupForm"
       :loading="setupLoading"
-      :error-message="pageError"
+      :error-message="setupError"
       @initialize="initializeSystem"
     />
 
@@ -87,7 +121,7 @@ function setSelectedStudentId(value: number) {
       v-else-if="!me"
       v-model:login-form="loginForm"
       :auth-loading="authLoading"
-      :error-message="pageError"
+      :error-message="loginError"
       @login="login"
     />
 
@@ -95,20 +129,36 @@ function setSelectedStudentId(value: number) {
       v-else-if="isAdmin"
       :me="me!"
       :active-tab="activeTab"
-      :page-error="pageError"
-      :toast="toast"
-      :admin-active-nav="adminActiveNav"
+      :page-error="adminError"
+      :toast="adminToast"
+      :admin-active-nav-label="adminActiveNavLabel"
       :admin-stats="adminStats"
       :course-calendar="courseCalendar"
       :free-times="freeTimes"
-      :users="users"
+      :users="paginatedUsers"
+      :current-user-id="currentUserId"
       :courses="courses"
       :attendance-results="attendanceResults"
       :user-form="userForm"
+      :user-filters="userFilters"
+      :user-modal-open="userModalOpen"
+      :is-editing-user="isEditingUser"
       :creating-user="userSaving"
+      :user-page="userPage"
+      :user-page-size="userPageSize"
+      :user-total-pages="userTotalPages"
+      :user-page-options="userPageOptions"
+      :user-password-modal-open="userPasswordModalOpen"
+      :user-password-form="userPasswordForm"
+      :password-target-name="passwordTargetName"
+      :password-resetting="passwordResetting"
       :course-form="courseForm"
       :creating-course="courseSaving"
+      :profile-form="profileForm"
+      :profile-modal-open="profileModalOpen"
+      :profile-saving="profileSaving"
       :password-form="passwordForm"
+      :password-modal-open="passwordModalOpen"
       :changing-password="passwordSaving"
       :role-name="roleName"
       :status-name="statusName"
@@ -116,7 +166,21 @@ function setSelectedStudentId(value: number) {
       :slot-label="slotLabel"
       @update:active-tab="setActiveTab"
       @logout="logout"
+      @open-create-user-modal="openCreateUserModal"
+      @open-edit-user-modal="openEditUserModal"
+      @close-user-modal="closeUserModal"
+      @open-user-password-modal="openUserPasswordModal"
+      @close-user-password-modal="closeUserPasswordModal"
+      @reset-user-password="resetUserPassword"
+      @update-user-page="updateUserPage"
+      @update-user-page-size="updateUserPageSize"
+      @open-profile-modal="openProfileModal"
+      @close-profile-modal="closeProfileModal"
+      @update-profile="updateProfile"
+      @open-password-modal="openPasswordModal"
+      @close-password-modal="closePasswordModal"
       @create-user="createUser"
+      @set-user-status="setUserStatus"
       @create-course="createCourse"
       @update-admin-status="updateAdminStatus"
       @change-password="changePassword"
@@ -126,8 +190,8 @@ function setSelectedStudentId(value: number) {
       v-else
       :me="me!"
       :active-tab="activeTab"
-      :page-error="pageError"
-      :toast="toast"
+      :page-error="studentError"
+      :toast="studentToast"
       :available-courses="availableCourses"
       :active-check="activeCheck"
       :selected-student="selectedStudent"

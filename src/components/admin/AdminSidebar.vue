@@ -17,23 +17,24 @@ const emit = defineEmits<{
 const greeting = computed(() => {
   const hour = new Date().getHours()
   if (hour < 11) {
-    return `🌤 早上好，${props.me.real_name}~`
+    return { emoji: '🌤', text: `上午好，${props.me.real_name}老师~` }
   }
   if (hour < 14) {
-    return `☀ 中午好，${props.me.real_name}~`
+    return { emoji: '☀', text: `中午好，${props.me.real_name}老师~` }
   }
   if (hour < 19) {
-    return `🌇 下午好，${props.me.real_name}~`
+    return { emoji: '🌇', text: `下午好，${props.me.real_name}老师~` }
   }
-  return `🌙 晚上好，${props.me.real_name}~`
+  return { emoji: '🌙', text: `晚上好，${props.me.real_name}老师~` }
 })
 </script>
 
 <template>
   <aside class="admin-sidebar">
     <div class="sidebar-brand">
-      <p class="eyebrow">WACK / 管理员端</p>
-      <h2>{{ greeting }}</h2>
+      <p class="eyebrow">WACK / 网安查课</p>
+      <div class="sidebar-emoji">{{ greeting.emoji }}</div>
+      <h2>{{ greeting.text }}</h2>
     </div>
 
     <nav class="sidebar-nav">
@@ -45,15 +46,10 @@ const greeting = computed(() => {
         @click="emit('update:activeTab', item.key)"
       >
         <strong>{{ item.label }}</strong>
-        <span>{{ item.desc }}</span>
       </button>
     </nav>
 
     <div class="sidebar-footer">
-      <div class="sidebar-meta">
-        <span>当前角色</span>
-        <strong>{{ roleName(me.role) }}</strong>
-      </div>
       <button class="ghost-button sidebar-logout" @click="emit('logout')">退出登录</button>
     </div>
   </aside>

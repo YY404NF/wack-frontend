@@ -21,10 +21,7 @@ function onStatusChange(event: Event, detailId: number) {
 <template>
   <section class="workspace-card">
     <div class="section-heading">
-      <div>
-        <p class="section-kicker">管理员端 · 查课结果</p>
-        <h2>明细修正</h2>
-      </div>
+      <h2>查课详情</h2>
       <span class="pill">{{ attendanceResults.length }} 条结果</span>
     </div>
     <div class="table-wrap">

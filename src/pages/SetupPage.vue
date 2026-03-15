@@ -13,7 +13,7 @@ const emit = defineEmits<{
 <template>
   <section class="setup-layout">
     <article class="setup-panel">
-      <p class="eyebrow">WACK / 初始化</p>
+      <p class="eyebrow">WACK / 网安查课</p>
       <h1>创建系统管理员</h1>
       <p class="hero-text">请为系统创建第一个管理员</p>
 
