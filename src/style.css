@@ -92,11 +92,23 @@ select {
   align-items: center;
 }
 
+.setup-layout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 48px);
+}
+
 .login-panel,
+.setup-panel,
 .feature-panel,
 .splash-card {
   border-radius: 28px;
   padding: 28px;
+}
+
+.setup-panel {
+  width: min(560px, 100%);
 }
 
 .splash-card {
@@ -490,6 +502,27 @@ h1 {
 
 .course-button.disabled {
   opacity: 0.56;
+}
+
+.inline-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compact-button {
+  padding: 10px 14px;
+}
+
+.danger-button {
+  color: var(--bad);
+}
+
+.free-time-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
 }
 
 .student-button.selected {

@@ -26,6 +26,10 @@ export interface LoginData {
   user: SessionUser
 }
 
+export interface SetupStatus {
+  initialized: boolean
+}
+
 export interface UserItem extends SessionUser {
   created_at?: string
   updated_at?: string
@@ -76,6 +80,14 @@ export interface FreeTimeItem {
   id: number
   term: string
   student_id: string
+  weekday: number
+  section: number
+  free_weeks: string
+}
+
+export interface FreeTimeInput {
+  term: string
+  student_id?: string
   weekday: number
   section: number
   free_weeks: string
@@ -161,6 +173,15 @@ async function request<T>(path: string, init?: RequestInit) {
 }
 
 export const api = {
+  setupStatus() {
+    return request<SetupStatus>('/setup/status')
+  },
+  initializeSystem(input: { student_id: string; real_name: string; password: string }) {
+    return request<{ initialized: boolean }>('/setup/initialize', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
   login(studentId: string, password: string) {
     return request<LoginData>('/auth/login', {
       method: 'POST',
@@ -227,6 +248,26 @@ export const api = {
   },
   adminFreeTimeCalendar() {
     return request<FreeTimeItem[] | null>('/admin/free-time-calendar')
+  },
+  listFreeTimes() {
+    return request<PageResult<FreeTimeItem>>('/free-times?page=1&page_size=50')
+  },
+  createFreeTime(input: FreeTimeInput) {
+    return request<FreeTimeItem>('/free-times', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+  updateFreeTime(id: number, input: FreeTimeInput) {
+    return request<Record<string, never>>(`/free-times/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  deleteFreeTime(id: number) {
+    return request<Record<string, never>>(`/free-times/${id}`, {
+      method: 'DELETE',
+    })
   },
   adminUpdateAttendanceStatus(detailId: number, status: number) {
     return request<Record<string, never>>(`/admin/attendance-details/${detailId}/status`, {
