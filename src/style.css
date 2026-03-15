@@ -83,13 +83,12 @@ select {
 }
 
 .login-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-  gap: 24px;
-  max-width: 1120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 680px;
   margin: 0 auto;
   min-height: calc(100vh - 48px);
-  align-items: center;
 }
 
 .setup-layout {
@@ -109,6 +108,23 @@ select {
 
 .setup-panel {
   width: min(560px, 100%);
+}
+
+.login-panel {
+  width: min(520px, 100%);
+  text-align: center;
+}
+
+.login-panel .form-grid,
+.login-panel .field,
+.login-panel .error-text {
+  text-align: left;
+}
+
+.login-panel .eyebrow,
+.login-panel h1,
+.login-panel .hero-text {
+  text-align: center;
 }
 
 .splash-card {
@@ -216,11 +232,6 @@ h1 {
 .admin-sidebar strong,
 .admin-sidebar span {
   color: inherit;
-}
-
-.sidebar-text {
-  margin: 0;
-  color: rgba(248, 239, 230, 0.74);
 }
 
 .sidebar-brand {

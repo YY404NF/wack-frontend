@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { SessionUser } from '../../api'
 import { adminNavItems, type AppTab } from '../../constants'
 
-defineProps<{
+const props = defineProps<{
   me: SessionUser
   activeTab: AppTab
   roleName: (role?: number) => string
@@ -12,14 +13,27 @@ const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
   logout: []
 }>()
+
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 11) {
+    return `🌤 早上好，${props.me.real_name}~`
+  }
+  if (hour < 14) {
+    return `☀ 中午好，${props.me.real_name}~`
+  }
+  if (hour < 19) {
+    return `🌇 下午好，${props.me.real_name}~`
+  }
+  return `🌙 晚上好，${props.me.real_name}~`
+})
 </script>
 
 <template>
   <aside class="admin-sidebar">
     <div class="sidebar-brand">
       <p class="eyebrow">WACK / 管理员端</p>
-      <h2>{{ me.real_name }}</h2>
-      <p class="sidebar-text">PC 工作台采用左侧导航，右侧集中处理课程、查课结果和账号管理。</p>
+      <h2>{{ greeting }}</h2>
     </div>
 
     <nav class="sidebar-nav">
