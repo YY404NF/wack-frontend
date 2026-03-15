@@ -1,16 +1,23 @@
 .login-panel .form-grid,
 .login-panel .field,
-.login-panel .error-text {
+.login-panel .error-text,
+.setup-panel .form-grid,
+.setup-panel .field,
+.setup-panel .error-text {
   text-align: left;
 }
 
 .login-panel .eyebrow,
 .login-panel h1,
-.login-panel .hero-text {
+.login-panel .hero-text,
+.setup-panel .eyebrow,
+.setup-panel h1,
+.setup-panel .hero-text {
   text-align: center;
 }
 
-.login-panel h1 {
+.login-panel h1,
+.setup-panel h1 {
   white-space: nowrap;
   font-size: clamp(2rem, 3vw, 3.4rem);
 }

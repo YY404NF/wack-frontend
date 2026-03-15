@@ -5,13 +5,16 @@
 
 .splash-card,
 .login-panel,
+.setup-panel,
 .feature-panel,
 .workspace-card,
 .topbar {
-  background: var(--paper);
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(253, 247, 239, 0.95));
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
 }
 
 .splash-card,
@@ -25,6 +28,20 @@
 .workspace-card {
   border-radius: 24px;
   padding: 24px;
+}
+
+.workspace-card::before,
+.topbar::before,
+.feature-panel::before,
+.login-panel::before,
+.setup-panel::before,
+.splash-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  pointer-events: none;
 }
 
 .login-layout,
@@ -68,10 +85,6 @@
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.topbar-admin {
-  margin-bottom: 0;
 }
 
 .section-heading {

@@ -41,6 +41,7 @@
 .toast-banner {
   border-radius: 16px;
   padding: 12px 14px;
+  margin: 0;
 }
 
 .empty-hint {

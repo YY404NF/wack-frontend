@@ -1,4 +1,4 @@
-import type { AttendanceResultItem, CourseCalendarItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
+import type { AttendanceResultItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import type {
   AdminCourseForm,

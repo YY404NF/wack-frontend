@@ -13,7 +13,6 @@ export type AdminWorkspaceProps = {
   me: SessionUser
   pageError: string
   toast: string
-  adminActiveNavLabel: string
   adminStats: AdminStatItem[]
   courseCalendar: CourseCalendarItem[]
   freeTimes: FreeTimeItem[]

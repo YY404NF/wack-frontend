@@ -20,6 +20,13 @@ const emit = defineEmits<{
 function onPageSizeChange(event: Event) {
   emit('updateUserPageSize', Number((event.target as HTMLSelectElement).value))
 }
+
+function formatLastLogin(value?: string | null) {
+  if (!value) {
+    return '-'
+  }
+  return value.replace('T', ' ').slice(0, 19)
+}
 </script>
 
 <template>
@@ -121,14 +128,23 @@ function onPageSizeChange(event: Event) {
     </div>
 
     <div class="table-wrap user-table-wrap">
-      <table class="data-table">
+      <table class="data-table user-manage-table">
+        <colgroup>
+          <col class="user-col-student-id" />
+          <col class="user-col-name" />
+          <col class="user-col-role" />
+          <col class="user-col-status" />
+          <col class="user-col-last-login" />
+          <col class="user-col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th>学号</th>
             <th>姓名</th>
             <th>角色</th>
             <th>状态</th>
-            <th>操作</th>
+            <th>上次登录时间</th>
+            <th class="actions-column">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -137,8 +153,9 @@ function onPageSizeChange(event: Event) {
             <td>{{ user.real_name }}</td>
             <td>{{ roleName(user.role) }}</td>
             <td>{{ user.status === 1 ? '正常' : '冻结' }}</td>
-            <td>
-              <div class="inline-actions">
+            <td>{{ formatLastLogin(user.last_login_at) }}</td>
+            <td class="actions-column">
+              <div class="inline-actions user-actions">
                 <button class="ghost-button compact-button" type="button" :disabled="user.id === currentUserId" @click="emit('openEditUserModal', user)">更改信息</button>
                 <button class="ghost-button compact-button" type="button" :disabled="user.id === currentUserId" @click="emit('openUserPasswordModal', user)">更改密码</button>
                 <button class="ghost-button compact-button danger-button" type="button" :disabled="user.id === currentUserId || user.status === 2" @click="emit('setUserStatus', user.student_id, 2)">冻结</button>
@@ -147,7 +164,7 @@ function onPageSizeChange(event: Event) {
             </td>
           </tr>
           <tr v-if="users.length === 0">
-            <td colspan="5" class="empty-cell">暂无符合条件的用户</td>
+            <td colspan="6" class="empty-cell">暂无符合条件的用户</td>
           </tr>
         </tbody>
       </table>

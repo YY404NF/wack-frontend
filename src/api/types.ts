@@ -17,6 +17,7 @@ export interface SessionUser {
   real_name: string
   role: number
   status: number
+  last_login_at?: string | null
 }
 
 export interface LoginData {

@@ -1,4 +1,5 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { Ref } from 'vue'
 
 import {
   api,
@@ -12,7 +13,7 @@ import {
   type SessionUser,
   type UserItem,
 } from '../api'
-import { adminNavItems, type AppTab, type StatusCode } from '../constants'
+import { type AppTab, type StatusCode } from '../constants'
 import {
   createCourseForm,
   createFreeTimeForm,
@@ -132,8 +133,6 @@ export function useApp() {
   const isStudent = computed(() => me.value?.role === 2)
   const currentUserId = computed(() => me.value?.id)
   const isEditingUser = computed(() => editingUserStudentId.value.length > 0)
-  const adminActiveNavLabel = computed(() => adminNavItems.find((item) => item.key === activeTab.value)?.label ?? '管理员工作台')
-
   watch(
     () => [userFilters.studentId, userFilters.realName, userFilters.role, userFilters.status, userPageSize.value],
     () => {
@@ -144,6 +143,19 @@ export function useApp() {
   watch(userTotalPages, (total) => {
     if (userPage.value > total) {
       userPage.value = total
+    }
+  })
+
+  watch(activeTab, () => {
+    if (isAdmin.value) {
+      adminError.value = ''
+      adminToast.value = ''
+      return
+    }
+
+    if (isStudent.value) {
+      studentError.value = ''
+      studentToast.value = ''
     }
   })
 
@@ -444,7 +456,6 @@ export function useApp() {
     activeTab: activeTab.value,
     pageError: adminError.value,
     toast: adminToast.value,
-    adminActiveNavLabel: adminActiveNavLabel.value,
     adminStats: adminStats.value,
     courseCalendar: courseCalendar.value,
     freeTimes: freeTimes.value,
@@ -547,7 +558,6 @@ export function useApp() {
   return {
     activeCheck,
     activeTab,
-    adminActiveNavLabel,
     adminError,
     adminStats,
     adminToast,
