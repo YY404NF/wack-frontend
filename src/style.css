@@ -420,6 +420,10 @@ h1 {
 .quick-button {
   padding: 12px 16px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .ghost-button {
@@ -436,6 +440,16 @@ h1 {
 .primary-button {
   background: linear-gradient(145deg, #cf5a2e, #a5431f);
   color: #fff9f5;
+}
+
+.button-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: button-spin 0.7s linear infinite;
+  flex: 0 0 auto;
 }
 
 .ghost-button:hover,
@@ -620,6 +634,12 @@ h1 {
 .toast-banner {
   background: rgba(45, 134, 102, 0.14);
   color: var(--good);
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1120px) {

@@ -20,6 +20,7 @@ defineProps<{
   courses: CourseItem[]
   attendanceResults: AttendanceResultItem[]
   userForm: { studentId: string; realName: string; password: string; role: number; status: number }
+  creatingUser: boolean
   courseForm: {
     courseId: string
     term: string
@@ -33,7 +34,9 @@ defineProps<{
     buildingName: string
     roomName: string
   }
+  creatingCourse: boolean
   passwordForm: { oldPassword: string; newPassword: string }
+  changingPassword: boolean
   roleName: (role?: number) => string
   statusName: (status: number) => string
   statusClass: (status: number) => Record<string, boolean>
@@ -84,7 +87,9 @@ function forwardUpdateStatus(detailId: number, status: StatusCode) {
           :users="users"
           :courses="courses"
           :user-form="userForm"
+          :creating-user="creatingUser"
           :course-form="courseForm"
+          :creating-course="creatingCourse"
           :role-name="roleName"
           @create-user="emit('createUser')"
           @create-course="emit('createCourse')"
@@ -101,6 +106,7 @@ function forwardUpdateStatus(detailId: number, status: StatusCode) {
         <AdminSettingsPanel
           v-if="activeTab === 'settings'"
           :password-form="passwordForm"
+          :changing-password="changingPassword"
           @change-password="emit('changePassword')"
         />
       </main>

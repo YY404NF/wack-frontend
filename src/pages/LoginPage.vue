@@ -16,6 +16,8 @@ const emit = defineEmits<{
       <p class="eyebrow">WACK / 登录</p>
       <h1>查课系统工作台</h1>
       <p class="hero-text">登陆失败请联系管理员</p>
+      
+      <p v-if="props.errorMessage" class="error-text">{{ props.errorMessage }}</p>
 
       <form class="form-grid" @submit.prevent="emit('login')">
         <label class="field">
@@ -27,11 +29,10 @@ const emit = defineEmits<{
           <input v-model="loginForm.password" type="password" autocomplete="current-password" />
         </label>
         <button class="primary-button" type="submit" :disabled="props.authLoading">
-          {{ props.authLoading ? '登录中...' : '登录系统' }}
+          <span v-if="props.authLoading" class="button-spinner" aria-hidden="true"></span>
+          <span>{{ props.authLoading ? '登录中...' : '登录' }}</span>
         </button>
       </form>
-
-      <p v-if="props.errorMessage" class="error-text">{{ props.errorMessage }}</p>
     </article>
   </section>
 </template>

@@ -6,6 +6,7 @@ defineProps<{
   users: UserItem[]
   courses: CourseItem[]
   userForm: { studentId: string; realName: string; password: string; role: number; status: number }
+  creatingUser: boolean
   courseForm: {
     courseId: string
     term: string
@@ -19,6 +20,7 @@ defineProps<{
     buildingName: string
     roomName: string
   }
+  creatingCourse: boolean
   roleName: (role?: number) => string
 }>()
 
@@ -57,7 +59,10 @@ const emit = defineEmits<{
             <option :value="1">管理员</option>
           </select>
         </label>
-        <button class="primary-button" type="submit">创建用户</button>
+        <button class="primary-button" type="submit" :disabled="creatingUser">
+          <span v-if="creatingUser" class="button-spinner" aria-hidden="true"></span>
+          <span>{{ creatingUser ? '创建中...' : '创建用户' }}</span>
+        </button>
       </form>
 
       <div class="table-wrap">
@@ -142,7 +147,10 @@ const emit = defineEmits<{
           <span>教室</span>
           <input v-model="courseForm.roomName" />
         </label>
-        <button class="primary-button" type="submit">创建课程</button>
+        <button class="primary-button" type="submit" :disabled="creatingCourse">
+          <span v-if="creatingCourse" class="button-spinner" aria-hidden="true"></span>
+          <span>{{ creatingCourse ? '创建中...' : '创建课程' }}</span>
+        </button>
       </form>
 
       <div class="list-grid dense-grid">

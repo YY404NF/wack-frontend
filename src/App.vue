@@ -13,6 +13,7 @@ const {
   adminStats,
   attendanceResults,
   authLoading,
+  attendanceCompleting,
   availableCourses,
   booting,
   changePassword,
@@ -20,11 +21,13 @@ const {
   courseCalendar,
   courseForm,
   courses,
+  courseSaving,
   createCourse,
   createUser,
   editFreeTime,
   editingFreeTimeId,
   freeTimeForm,
+  freeTimeSaving,
   freeTimes,
   initializeSystem,
   initialized,
@@ -36,6 +39,7 @@ const {
   openCourse,
   pageError,
   passwordForm,
+  passwordSaving,
   removeFreeTime,
   resetFreeTimeForm,
   roleName,
@@ -50,6 +54,7 @@ const {
   toast,
   updateAdminStatus,
   updateStudentStatus,
+  userSaving,
   userForm,
   users,
 } = useApp()
@@ -100,8 +105,11 @@ function setSelectedStudentId(value: number) {
       :courses="courses"
       :attendance-results="attendanceResults"
       :user-form="userForm"
+      :creating-user="userSaving"
       :course-form="courseForm"
+      :creating-course="courseSaving"
       :password-form="passwordForm"
+      :changing-password="passwordSaving"
       :role-name="roleName"
       :status-name="statusName"
       :status-class="statusClass"
@@ -128,6 +136,9 @@ function setSelectedStudentId(value: number) {
       :free-time-form="freeTimeForm"
       :editing-free-time-id="editingFreeTimeId"
       :password-form="passwordForm"
+      :saving-free-time="freeTimeSaving"
+      :completing-attendance="attendanceCompleting"
+      :changing-password="passwordSaving"
       :role-name="roleName"
       :status-name="statusName"
       :status-class="statusClass"

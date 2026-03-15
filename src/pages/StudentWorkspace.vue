@@ -15,6 +15,9 @@ defineProps<{
   freeTimeForm: { term: string; weekday: number; section: number; freeWeeks: string }
   editingFreeTimeId: number | null
   passwordForm: { oldPassword: string; newPassword: string }
+  savingFreeTime: boolean
+  completingAttendance: boolean
+  changingPassword: boolean
   roleName: (role?: number) => string
   statusName: (status: number) => string
   statusClass: (status: number) => Record<string, boolean>
@@ -95,8 +98,9 @@ const emit = defineEmits<{
               <p class="section-kicker">查课学生端 · 进行中</p>
               <h2>{{ activeCheck?.course.course_name ?? '请选择课程' }}</h2>
             </div>
-            <button v-if="activeCheck" class="primary-button" type="button" @click="emit('completeAttendance')">
-              完成查课
+            <button v-if="activeCheck" class="primary-button" type="button" :disabled="completingAttendance" @click="emit('completeAttendance')">
+              <span v-if="completingAttendance" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ completingAttendance ? '提交中...' : '完成查课' }}</span>
             </button>
           </div>
 
@@ -171,7 +175,10 @@ const emit = defineEmits<{
             <span>空闲周次</span>
             <input v-model="freeTimeForm.freeWeeks" placeholder="例如 1-4,6,8-10" />
           </label>
-          <button class="primary-button" type="submit">{{ editingFreeTimeId ? '保存修改' : '新增空闲时间' }}</button>
+          <button class="primary-button" type="submit" :disabled="savingFreeTime">
+            <span v-if="savingFreeTime" class="button-spinner" aria-hidden="true"></span>
+            <span>{{ savingFreeTime ? '保存中...' : editingFreeTimeId ? '保存修改' : '新增空闲时间' }}</span>
+          </button>
         </form>
       </article>
 
@@ -216,7 +223,10 @@ const emit = defineEmits<{
           <span>新密码</span>
           <input v-model="passwordForm.newPassword" type="password" />
         </label>
-        <button class="primary-button" type="submit">提交修改</button>
+        <button class="primary-button" type="submit" :disabled="changingPassword">
+          <span v-if="changingPassword" class="button-spinner" aria-hidden="true"></span>
+          <span>{{ changingPassword ? '提交中...' : '提交修改' }}</span>
+        </button>
       </form>
     </section>
   </main>

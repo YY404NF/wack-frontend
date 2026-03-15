@@ -67,6 +67,11 @@ export function useApp() {
   const me = ref<SessionUser | null>(null)
   const authLoading = ref(false)
   const setupLoading = ref(false)
+  const userSaving = ref(false)
+  const courseSaving = ref(false)
+  const passwordSaving = ref(false)
+  const freeTimeSaving = ref(false)
+  const attendanceCompleting = ref(false)
   const booting = ref(true)
   const initialized = ref(true)
   const pageError = ref('')
@@ -270,6 +275,7 @@ export function useApp() {
   }
 
   async function saveFreeTime() {
+    freeTimeSaving.value = true
     pageError.value = ''
     try {
       const payload = {
@@ -290,6 +296,8 @@ export function useApp() {
       resetFreeTimeForm()
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '保存空闲时间失败'
+    } finally {
+      freeTimeSaving.value = false
     }
   }
 
@@ -317,6 +325,7 @@ export function useApp() {
   }
 
   async function createUser() {
+    userSaving.value = true
     pageError.value = ''
     try {
       await api.createUser({
@@ -332,10 +341,13 @@ export function useApp() {
       showToast('用户已创建')
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '创建用户失败'
+    } finally {
+      userSaving.value = false
     }
   }
 
   async function createCourse() {
+    courseSaving.value = true
     pageError.value = ''
     try {
       const courseId = Number(courseForm.courseId)
@@ -370,6 +382,8 @@ export function useApp() {
       showToast('课程已创建')
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '创建课程失败'
+    } finally {
+      courseSaving.value = false
     }
   }
 
@@ -419,6 +433,7 @@ export function useApp() {
     if (!activeCheck.value) {
       return
     }
+    attendanceCompleting.value = true
     pageError.value = ''
     try {
       await api.completeAttendanceCheck(activeCheck.value.attendance_check.id)
@@ -428,10 +443,13 @@ export function useApp() {
       showToast('本次查课已结束')
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '完成查课失败'
+    } finally {
+      attendanceCompleting.value = false
     }
   }
 
   async function changePassword() {
+    passwordSaving.value = true
     pageError.value = ''
     try {
       await api.changePassword(passwordForm.oldPassword, passwordForm.newPassword)
@@ -440,6 +458,8 @@ export function useApp() {
       showToast('密码已修改')
     } catch (error) {
       pageError.value = error instanceof Error ? error.message : '修改密码失败'
+    } finally {
+      passwordSaving.value = false
     }
   }
 
@@ -453,6 +473,7 @@ export function useApp() {
     adminActiveNav,
     adminStats,
     authLoading,
+    attendanceCompleting,
     availableCourses,
     booting,
     changePassword,
@@ -460,10 +481,12 @@ export function useApp() {
     courseCalendar,
     courseForm,
     courses,
+    courseSaving,
     createCourse,
     createUser,
     freeTimes,
     freeTimeForm,
+    freeTimeSaving,
     initialized,
     initializeSystem,
     isAdmin,
@@ -475,6 +498,7 @@ export function useApp() {
     openCourse,
     pageError,
     passwordForm,
+    passwordSaving,
     editFreeTime,
     editingFreeTimeId,
     removeFreeTime,
@@ -492,6 +516,7 @@ export function useApp() {
     toast,
     updateAdminStatus,
     updateStudentStatus,
+    userSaving,
     userForm,
     users,
     attendanceResults,

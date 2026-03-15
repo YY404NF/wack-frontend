@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineProps<{
   passwordForm: { oldPassword: string; newPassword: string }
+  changingPassword: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,7 +26,10 @@ const emit = defineEmits<{
         <span>新密码</span>
         <input v-model="passwordForm.newPassword" type="password" />
       </label>
-      <button class="primary-button" type="submit">提交修改</button>
+      <button class="primary-button" type="submit" :disabled="changingPassword">
+        <span v-if="changingPassword" class="button-spinner" aria-hidden="true"></span>
+        <span>{{ changingPassword ? '提交中...' : '提交修改' }}</span>
+      </button>
     </form>
   </section>
 </template>
