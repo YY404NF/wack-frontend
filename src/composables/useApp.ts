@@ -260,7 +260,11 @@ export function useApp() {
     }
   })
 
-  watch(activeTab, () => {
+  watch(activeTab, (nextTab, previousTab) => {
+    if (nextTab !== previousTab && isAdmin.value) {
+      closeAllAdminModals()
+    }
+
     if (isAdmin.value) {
       adminError.value = ''
       adminToast.value = ''
