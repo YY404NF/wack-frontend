@@ -15,7 +15,7 @@ const emit = defineEmits<{
     <article class="login-panel">
       <p class="eyebrow">WACK / 登录</p>
       <h1>查课系统工作台</h1>
-      <p class="hero-text">请</p>
+      <p class="hero-text">登陆失败请联系管理员</p>
 
       <form class="form-grid" @submit.prevent="emit('login')">
         <label class="field">
