@@ -65,6 +65,16 @@ const majorOptions = computed(() =>
   ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
 )
 
+const classOptions = computed(() =>
+  Array.from(
+    new Set(
+      props.classes
+        .filter((item) => (!selectedGrade.value || String(item.grade) === selectedGrade.value) && (!selectedMajor.value || item.major_name === selectedMajor.value))
+        .map((item) => item.class_name),
+    ),
+  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
+
 const buildingOptions = computed(() =>
   Array.from(new Set(props.courseCalendar.map((item) => item.building_name)))
     .filter(Boolean)
@@ -316,6 +326,9 @@ watch([selectedGrade, selectedMajor], () => {
   if (selectedMajor.value && !majorOptions.value.includes(selectedMajor.value)) {
     selectedMajor.value = ''
   }
+  if (selectedClass.value && !classOptions.value.includes(selectedClass.value)) {
+    selectedClass.value = ''
+  }
 })
 
 watch(hoveredCourse, async (value) => {
@@ -406,7 +419,10 @@ onBeforeUnmount(() => {
       </label>
       <label class="field">
         <span>班级</span>
-        <input v-model="selectedClass" :disabled="showingFreeTime" />
+        <select v-model="selectedClass" :disabled="showingFreeTime">
+          <option value="">全部</option>
+          <option v-for="item in classOptions" :key="item" :value="item">{{ item }}</option>
+        </select>
       </label>
       <label class="field">
         <span>课程名称</span>

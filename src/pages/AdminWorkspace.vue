@@ -78,7 +78,7 @@ const emit = defineEmits<{
   removeCourseStudent: [studentId: string]
   saveCourseStudents: []
   deleteCourse: []
-  setCourseWeekSelected: [weekNo: number, selected: boolean]
+  setCourseWeekSelected: [payload: { weekNo: number; selected: boolean }]
   addCourseSessions: []
   editCourseSession: [sessionNo: number]
   removeCourseSession: [sessionNo: number]
@@ -140,7 +140,7 @@ function forwardUserStatus(studentId: string, status: number) {
           @remove-course-student="emit('removeCourseStudent', $event)"
           @save-course-students="emit('saveCourseStudents')"
           @delete-course="emit('deleteCourse')"
-          @set-course-week-selected="emit('setCourseWeekSelected', $event.weekNo, $event.selected)"
+          @set-course-week-selected="emit('setCourseWeekSelected', $event)"
           @add-course-sessions="emit('addCourseSessions')"
           @edit-course-session="emit('editCourseSession', $event)"
           @remove-course-session="emit('removeCourseSession', $event)"

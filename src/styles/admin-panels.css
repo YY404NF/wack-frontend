@@ -365,6 +365,24 @@
   overflow-y: auto;
 }
 
+.course-session-location-editor {
+  display: grid;
+  grid-template-columns: minmax(40px, 0.5fr) auto minmax(40px, 0.5fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 112px;
+}
+
+.course-session-location-editor input,
+.course-session-table-wrap td select {
+  width: 100%;
+  min-width: 0;
+}
+
+.course-session-location-separator {
+  color: var(--muted);
+}
+
 .course-calendar-panel {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);

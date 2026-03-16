@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { sectionLabels, weekdayLabels } from '../../constants'
 import type { CourseItem } from '../../api'
+import type { AdminCourseSessionForm } from './form-types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
 import type { AdminCourseManageProps } from './types'
 
@@ -63,6 +64,15 @@ const termOptions = computed(() => {
 })
 const touchedWeeks = ref<number[]>([])
 const pendingDeleteSessionNo = ref<number | null>(null)
+const editingSessionNo = ref<number | null>(null)
+const editingSessionForm = ref<AdminCourseSessionForm>({
+  sessionNo: 0,
+  weekNo: 1,
+  weekday: 1,
+  section: 1,
+  buildingName: '',
+  roomName: '',
+})
 const courseStudentClassKeyword = ref('')
 const courseStudentIdKeyword = ref('')
 const courseStudentNameKeyword = ref('')
@@ -213,7 +223,81 @@ function confirmDeleteSession() {
     return
   }
   emit('removeCourseSession', pendingDeleteSessionNo.value)
+  if (editingSessionNo.value === pendingDeleteSessionNo.value) {
+    resetEditingSession()
+  }
   pendingDeleteSessionNo.value = null
+}
+
+function resetEditingSession() {
+  editingSessionNo.value = null
+  editingSessionForm.value = {
+    sessionNo: 0,
+    weekNo: 1,
+    weekday: 1,
+    section: 1,
+    buildingName: '',
+    roomName: '',
+  }
+}
+
+function startEditSession(session: AdminCourseSessionForm) {
+  editingSessionNo.value = session.sessionNo
+  editingSessionForm.value = {
+    sessionNo: session.sessionNo,
+    weekNo: session.weekNo,
+    weekday: session.weekday,
+    section: session.section,
+    buildingName: session.buildingName,
+    roomName: session.roomName,
+  }
+}
+
+function normalizeSessions(sessions: AdminCourseSessionForm[]) {
+  return sessions
+    .slice()
+    .sort((left, right) => {
+      if (left.weekNo !== right.weekNo) {
+        return left.weekNo - right.weekNo
+      }
+      if (left.weekday !== right.weekday) {
+        return left.weekday - right.weekday
+      }
+      if (left.section !== right.section) {
+        return left.section - right.section
+      }
+      return left.roomName.localeCompare(right.roomName, 'zh-Hans-CN')
+    })
+    .map((item, index) => ({
+      ...item,
+      sessionNo: index + 1,
+    }))
+}
+
+function saveEditingSession() {
+  if (editingSessionNo.value === null) {
+    return
+  }
+  const buildingName = editingSessionForm.value.buildingName.trim()
+  const roomName = editingSessionForm.value.roomName.trim()
+  if (!buildingName || !roomName) {
+    return
+  }
+  props.courseForm.sessions = normalizeSessions(
+    props.courseForm.sessions.map((session) =>
+      session.sessionNo === editingSessionNo.value
+        ? {
+            ...session,
+            weekNo: editingSessionForm.value.weekNo,
+            weekday: editingSessionForm.value.weekday,
+            section: editingSessionForm.value.section,
+            buildingName,
+            roomName,
+          }
+        : session,
+    ),
+  )
+  resetEditingSession()
 }
 
 function classSelectedCount(classId: number) {
@@ -308,15 +392,59 @@ onBeforeUnmount(() => {
                 </thead>
                 <tbody>
                   <tr v-for="session in courseForm.sessions" :key="session.sessionNo">
-                    <td>{{ session.sessionNo }}</td>
-                    <td>第 {{ session.weekNo }} 周</td>
-                    <td>{{ weekdayLabels[session.weekday] }}</td>
-                    <td>{{ sectionLabels[session.section] }}</td>
-                    <td>{{ session.buildingName }}-{{ session.roomName }}</td>
+                    <td>{{ editingSessionNo === session.sessionNo ? editingSessionForm.sessionNo : session.sessionNo }}</td>
+                    <td>
+                      <select v-if="editingSessionNo === session.sessionNo" v-model.number="editingSessionForm.weekNo">
+                        <option v-for="weekNo in 16" :key="weekNo" :value="weekNo">第 {{ weekNo }} 周</option>
+                      </select>
+                      <template v-else>第 {{ session.weekNo }} 周</template>
+                    </td>
+                    <td>
+                      <select v-if="editingSessionNo === session.sessionNo" v-model.number="editingSessionForm.weekday">
+                        <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
+                      </select>
+                      <template v-else>{{ weekdayLabels[session.weekday] }}</template>
+                    </td>
+                    <td>
+                      <select v-if="editingSessionNo === session.sessionNo" v-model.number="editingSessionForm.section">
+                        <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
+                      </select>
+                      <template v-else>{{ sectionLabels[session.section] }}</template>
+                    </td>
+                    <td>
+                      <div v-if="editingSessionNo === session.sessionNo" class="course-session-location-editor">
+                        <input v-model="editingSessionForm.buildingName" aria-label="教学楼" />
+                        <span class="course-session-location-separator">-</span>
+                        <input v-model="editingSessionForm.roomName" aria-label="教室" />
+                      </div>
+                      <template v-else>{{ session.buildingName }}-{{ session.roomName }}</template>
+                    </td>
                     <td class="actions-column">
                       <div class="inline-actions user-actions">
-                        <button class="ghost-button compact-button" type="button" @click="emit('editCourseSession', session.sessionNo)">编辑信息</button>
-                        <button class="ghost-button compact-button danger-button" type="button" @click="requestDeleteSession(session.sessionNo)">删除</button>
+                        <button
+                          class="ghost-button compact-button"
+                          type="button"
+                          :disabled="editingSessionNo === session.sessionNo"
+                          @click="startEditSession(session)"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          class="ghost-button compact-button success-button"
+                          type="button"
+                          :disabled="editingSessionNo !== session.sessionNo || !editingSessionForm.buildingName.trim() || !editingSessionForm.roomName.trim()"
+                          @click="saveEditingSession"
+                        >
+                          保存
+                        </button>
+                        <button
+                          class="ghost-button compact-button danger-button"
+                          type="button"
+                          :disabled="editingSessionNo === session.sessionNo"
+                          @click="requestDeleteSession(session.sessionNo)"
+                        >
+                          删除
+                        </button>
                       </div>
                     </td>
                   </tr>

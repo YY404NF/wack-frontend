@@ -43,6 +43,9 @@ export function useSessionFlow(deps: SessionFlowDeps) {
   }
 
   async function initializeSystem() {
+    const studentId = deps.setupForm.studentId.trim()
+    const password = deps.setupForm.password
+
     if (deps.setupForm.password !== deps.setupForm.confirmPassword) {
       deps.setupError.value = '两次输入的密码不一致'
       return
@@ -52,15 +55,20 @@ export function useSessionFlow(deps: SessionFlowDeps) {
     deps.setupError.value = ''
     try {
       await api.initializeSystem({
-        student_id: deps.setupForm.studentId.trim(),
+        student_id: studentId,
         real_name: deps.setupForm.realName.trim(),
-        password: deps.setupForm.password,
+        password,
       })
+
+      const data = await api.login(studentId, password)
+      setToken(data.token)
       deps.initialized.value = true
-      deps.loginForm.studentId = deps.setupForm.studentId
-      deps.loginForm.password = deps.setupForm.password
+      deps.me.value = data.user
+      deps.loginForm.studentId = studentId
+      deps.loginForm.password = password
       Object.assign(deps.setupForm, createSetupForm())
-      await deps.navigateToLogin()
+      await deps.loadRoleData()
+      deps.setActiveTab(deps.resolveTabForRole(data.user.role), 'replace')
     } catch (error) {
       deps.setupError.value = error instanceof Error ? error.message : '初始化失败'
     } finally {
