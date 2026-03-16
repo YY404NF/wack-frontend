@@ -1,13 +1,243 @@
+import type { ComputedRef, Ref } from 'vue'
 import { computed } from 'vue'
 
+import type {
+  AttendanceResultItem,
+  ClassItem,
+  ClassStudentCandidateItem,
+  ClassStudentItem,
+  CourseDetail,
+  CourseItem,
+  FreeTimeItem,
+  SystemSetting,
+  UserItem,
+} from '../api'
 import { api } from '../api'
+import type {
+  AdminAttendanceLogFilters,
+  AdminClassFilters,
+  AdminClassStudentForm,
+  AdminClassStudentFilters,
+  AdminCourseFilters,
+  AdminPasswordForm,
+  AdminProfileForm,
+  AdminSystemLogFilters,
+  AdminUserFilters,
+  AdminUserPasswordForm,
+} from '../components/admin/form-types'
 import type { AppTab, StatusCode } from '../constants'
 import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, formatFreeWeeks, parseFreeWeeks } from '../utils/free-time'
 import { parseImportedClassFile, parseImportedCourseFile } from './app/importers'
-import { useAdminFlow } from './app/useAdminFlow'
+import type { AdminCollectionsState } from './app/useAdminCollections'
+import { useAdminFlow, type AdminFlowDeps } from './app/useAdminFlow'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
 
-type UseAdminAppDeps = any
+type AdminAppCoreDeps = Pick<
+  AdminFlowDeps,
+  | 'me'
+  | 'users'
+  | 'classes'
+  | 'courseStudentCandidates'
+  | 'courses'
+  | 'courseCalendar'
+  | 'dashboard'
+  | 'attendanceResults'
+  | 'freeTimes'
+  | 'systemSettings'
+  | 'logs'
+  | 'attendanceLogs'
+  | 'userForm'
+  | 'profileForm'
+  | 'userPasswordForm'
+  | 'courseForm'
+  | 'classForm'
+  | 'editingUserStudentId'
+  | 'editingCourseId'
+  | 'editingClassId'
+  | 'passwordTargetStudentId'
+  | 'deletingCourseId'
+  | 'deletingClassId'
+  | 'courseStudentTargetCourseId'
+  | 'courseStudentSelectedClassIds'
+  | 'courseStudentSelectedStudents'
+  | 'userSaving'
+  | 'passwordResetting'
+  | 'profileSaving'
+  | 'courseSaving'
+  | 'courseDeleting'
+  | 'courseStudentSaving'
+  | 'classSaving'
+  | 'classDeleting'
+  | 'adminError'
+>
+
+type AdminAppFlowUiDeps = Pick<
+  AdminFlowDeps,
+  | 'closeUserModal'
+  | 'closeUserPasswordModal'
+  | 'closeProfileModal'
+  | 'closeCourseModal'
+  | 'closeCourseStudentModal'
+  | 'closeDeleteCourseModal'
+  | 'closeClassModal'
+  | 'closeDeleteClassModal'
+> & {
+  showScopedToast: (target: 'admin' | 'student', message: string) => void
+}
+
+type AdminAppLocalStateDeps = {
+  activeTab: Ref<AppTab>
+  adminToast: Ref<string>
+  adminStats: ComputedRef<Array<{ label: string; value: number; tone: string }>>
+  classStudents: Ref<ClassStudentItem[]>
+  courseStudentCandidates: Ref<ClassStudentCandidateItem[]>
+  attendanceResults: Ref<AttendanceResultItem[]>
+  systemSettings: Ref<SystemSetting | null>
+  userFilters: AdminUserFilters
+  logFilters: AdminSystemLogFilters
+  attendanceLogFilters: AdminAttendanceLogFilters
+  classFilters: AdminClassFilters
+  classStudentForm: AdminClassStudentForm
+  classStudentFilters: AdminClassStudentFilters
+  courseFilters: AdminCourseFilters
+  courseLoading: Ref<boolean>
+  courseImporting: Ref<boolean>
+  userStatusUpdating: Ref<boolean>
+  classStudentSaving: Ref<boolean>
+  classStudentImporting: Ref<boolean>
+  courseStudentLoading: Ref<boolean>
+  passwordSaving: Ref<boolean>
+  userFreeTimeLoading: Ref<boolean>
+  userFreeTimeSaving: Ref<boolean>
+  systemSettingSaving: Ref<boolean>
+  editingClassStudentId: Ref<number | null>
+  classStudentTargetClassId: Ref<number | null>
+  courseStudentTargetName: Ref<string>
+  courseStudentSelectedStudentIds: Ref<string[]>
+  courseStudentClassStudentMap: Ref<Record<number, ClassStudentItem[]>>
+  courseStudentLooseStudents: Ref<Array<{ student_id: string; real_name: string }>>
+  passwordTargetName: Ref<string>
+  freeTimeTargetName: Ref<string>
+  freeTimeTargetStudentId: Ref<string>
+  userFreeTimeTerm: Ref<string>
+  userFreeTimeItems: Ref<FreeTimeItem[]>
+  userFreeTimeDraft: Ref<Record<string, number[]>>
+  deletingCourseName: Ref<string>
+  deletingClassName: Ref<string>
+  classStudentTargetName: Ref<string>
+  currentUserId: ComputedRef<number | undefined>
+  userModalOpen: Ref<boolean>
+  courseModalOpen: Ref<boolean>
+  classModalOpen: Ref<boolean>
+  classStudentModalOpen: Ref<boolean>
+  courseStudentModalOpen: Ref<boolean>
+  deleteCourseModalOpen: Ref<boolean>
+  deleteClassModalOpen: Ref<boolean>
+  bulkDeleteCourseModalOpen: Ref<boolean>
+  bulkDeleteClassModalOpen: Ref<boolean>
+  passwordModalOpen: Ref<boolean>
+  profileModalOpen: Ref<boolean>
+  userPasswordModalOpen: Ref<boolean>
+  userFreeTimeModalOpen: Ref<boolean>
+  editingClassStudentForm: AdminClassStudentForm
+  passwordForm: AdminPasswordForm
+  profileForm: AdminProfileForm
+  userPasswordForm: AdminUserPasswordForm
+  isEditingUser: ComputedRef<boolean>
+  isEditingClass: ComputedRef<boolean>
+  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  logout: () => void
+  changePassword: () => Promise<void>
+  loadClassStudents: (classId: number) => Promise<void>
+  loadUserFreeTimeItems: (studentId: string) => Promise<void>
+  resetClassStudentForm: () => void
+  resetEditingClassStudentForm: () => void
+  closeBulkDeleteCourseModal: () => void
+  closeBulkDeleteClassModal: () => void
+  closeClassStudentModal: () => void
+  closeUserFreeTimeModal: () => void
+  closePasswordModal: () => void
+  openCreateCourseModal: () => void
+  openEditCourseModal: (item: CourseItem) => Promise<void>
+  openCourseStudentModal: (item: CourseItem) => Promise<void>
+  openDeleteCourseModal: (item: CourseItem) => void
+  openBulkDeleteCourseModal: () => void
+  addCourseStudentClass: (classId: number) => Promise<void>
+  removeCourseStudentClass: (classId: number) => void
+  toggleCourseStudentClassSelection: (classId: number) => void
+  toggleCourseStudentSelection: (studentId: string) => void
+  addCourseStudent: (studentId: string) => void
+  removeCourseStudent: (studentId: string) => void
+  setCourseWeekSelected: (weekNo: number, selected: boolean) => void
+  addCourseSessions: () => void
+  editCourseSession: (sessionNo: number) => void
+  removeCourseSession: (sessionNo: number) => void
+  updateCoursePage: (page: number) => void
+  updateCoursePageSize: (size: number) => void
+  openCreateClassModal: () => void
+  openEditClassModal: (item: ClassItem) => void
+  openClassStudentModal: (item: ClassItem) => Promise<void>
+  openDeleteClassModal: (item: ClassItem) => void
+  openBulkDeleteClassModal: () => void
+  startEditClassStudent: (studentId: number) => void
+  updateClassPage: (page: number) => void
+  updateClassPageSize: (size: number) => void
+  openCreateUserModal: () => void
+  openEditUserModal: (user: UserItem) => void
+  openUserPasswordModal: (user: UserItem) => void
+  openUserFreeTimeModal: (user: UserItem) => Promise<void>
+  updateUserFreeTimeTerm: (term: string) => void
+  toggleUserFreeTimeWeek: (payload: { weekday: number; section: number; weekNo: number }) => void
+  updateAttendanceLogsPage: (page: number) => void
+  updateAttendanceLogsPageSize: (size: number) => void
+  updateLogsPage: (page: number) => void
+  updateLogsPageSize: (size: number) => void
+  updateUserPage: (page: number) => void
+  updateUserPageSize: (size: number) => void
+  openProfileModal: () => void
+  openPasswordModal: () => void
+}
+
+export type UseAdminAppDeps = AdminAppCoreDeps &
+  AdminAppFlowUiDeps &
+  AdminAppLocalStateDeps &
+  Pick<
+    AdminCollectionsState,
+    | 'paginatedLogs'
+    | 'paginatedAttendanceLogs'
+    | 'paginatedClasses'
+    | 'filteredClassStudents'
+    | 'paginatedUsers'
+    | 'paginatedCourses'
+    | 'userPage'
+    | 'userPageSize'
+    | 'userTotalPages'
+    | 'coursePage'
+    | 'coursePageSize'
+    | 'courseTotalPages'
+    | 'classPage'
+    | 'classPageSize'
+    | 'classTotalPages'
+    | 'logsPage'
+    | 'logsPageSize'
+    | 'logsTotalPages'
+    | 'attendanceLogsPage'
+    | 'attendanceLogsPageSize'
+    | 'attendanceLogsTotalPages'
+    | 'selectedCourseIds'
+    | 'selectedClassIds'
+    | 'selectedUserStudentIds'
+    | 'userFreeTimeTermOptions'
+    | 'courseStudentSelectedStudents'
+    | 'toggleCourseSelection'
+    | 'toggleCoursePageSelection'
+    | 'toggleClassSelection'
+    | 'toggleClassPageSelection'
+    | 'toggleUserSelection'
+    | 'toggleUserPageSelection'
+  >
+
+export type CourseDetailLoader = (id: number) => Promise<CourseDetail>
 
 export function useAdminApp(deps: UseAdminAppDeps) {
   const adminFlow = useAdminFlow({

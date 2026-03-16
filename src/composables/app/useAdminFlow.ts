@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AdminOperationLogItem, type AttendanceDetailLogItem, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type SystemSetting, type UserItem } from '../../api'
+import { api, type AdminOperationLogItem, type AttendanceDetailLogItem, type AttendanceResultItem, type ClassItem, type ClassStudentCandidateItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type SystemSetting, type UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import { createClassForm, createCourseForm } from './forms'
 
@@ -48,11 +48,11 @@ type ClassForm = {
   majorName: string
 }
 
-type AdminFlowDeps = {
+export type AdminFlowDeps = {
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
-  courseStudentCandidates: Ref<Array<{ student_id: string; real_name: string; class_id: number; class_name: string; grade: number; major_name: string }>>
+  courseStudentCandidates: Ref<ClassStudentCandidateItem[]>
   courses: Ref<CourseItem[]>
   courseCalendar: Ref<CourseCalendarItem[]>
   dashboard: Ref<DashboardSummary | null>

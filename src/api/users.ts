@@ -9,10 +9,10 @@ export const usersApi = {
     if (query.role) params.set('role', query.role)
     if (query.status) params.set('status', query.status)
     if (query.keyword) params.set('keyword', query.keyword)
-    return request<PageResult<UserItem>>(`/users?${params.toString()}`)
+    return request<PageResult<UserItem>>(`/admin/users?${params.toString()}`)
   },
   createUser(input: { student_id: string; real_name: string; password: string; role: number; status: number }) {
-    return request<UserItem>('/users', {
+    return request<UserItem>('/admin/users', {
       method: 'POST',
       body: JSON.stringify(input),
     })
@@ -26,19 +26,19 @@ export const usersApi = {
       status: number
     },
   ) {
-    return request<UserItem>('/users/' + studentId, {
+    return request<UserItem>('/admin/users/' + studentId, {
       method: 'PUT',
       body: JSON.stringify(input),
     })
   },
   updateUserStatus(studentId: string, status: number) {
-    return request<Record<string, never>>(`/users/${studentId}/status`, {
+    return request<Record<string, never>>(`/admin/users/${studentId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
   },
   resetUserPassword(studentId: string, newPassword: string) {
-    return request<Record<string, never>>(`/users/${studentId}/password`, {
+    return request<Record<string, never>>(`/admin/users/${studentId}/password`, {
       method: 'PATCH',
       body: JSON.stringify({ new_password: newPassword }),
     })
