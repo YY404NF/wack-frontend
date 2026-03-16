@@ -71,6 +71,7 @@ function onImportChange(event: Event) {
       </div>
     </div>
 
+    <Transition name="modal-float" appear>
     <div v-if="classModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -97,7 +98,9 @@ function onImportChange(event: Event) {
         </form>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="classStudentModalOpen" class="modal-backdrop modal-backdrop-contained">
       <article class="modal-card modal-card-wide class-student-modal">
         <div class="wide-modal-header class-student-modal-header">
@@ -182,7 +185,9 @@ function onImportChange(event: Event) {
         </div>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="deleteClassModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -199,7 +204,9 @@ function onImportChange(event: Event) {
         </div>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="bulkDeleteClassModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -216,6 +223,7 @@ function onImportChange(event: Event) {
         </div>
       </article>
     </div>
+    </Transition>
 
     <div class="table-wrap">
       <table class="data-table">

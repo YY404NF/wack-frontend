@@ -364,6 +364,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <Transition name="modal-float" appear>
     <div v-if="courseModalOpen" class="modal-backdrop modal-backdrop-contained">
       <article class="modal-card modal-card-wide course-manage-modal">
         <div class="wide-modal-header">
@@ -540,22 +541,26 @@ onBeforeUnmount(() => {
           </aside>
         </div>
 
-        <div v-if="pendingDeleteSessionNo !== null" class="modal-backdrop nested-modal-backdrop">
-          <article class="modal-card modal-card-narrow">
-            <div class="modal-header">
-              <h3>确认删除</h3>
-              <button class="ghost-button compact-button modal-close" type="button" @click="pendingDeleteSessionNo = null">关闭</button>
-            </div>
-            <p class="hint">确定删除第 {{ pendingDeleteSessionNo }} 次课吗？</p>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" @click="pendingDeleteSessionNo = null">取消</button>
-              <button class="ghost-button danger-button" type="button" @click="confirmDeleteSession">确认删除</button>
-            </div>
-          </article>
-        </div>
+        <Transition name="modal-float" appear>
+          <div v-if="pendingDeleteSessionNo !== null" class="modal-backdrop nested-modal-backdrop">
+            <article class="modal-card modal-card-narrow">
+              <div class="modal-header">
+                <h3>确认删除</h3>
+                <button class="ghost-button compact-button modal-close" type="button" @click="pendingDeleteSessionNo = null">关闭</button>
+              </div>
+              <p class="hint">确定删除第 {{ pendingDeleteSessionNo }} 次课吗？</p>
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" @click="pendingDeleteSessionNo = null">取消</button>
+                <button class="ghost-button danger-button" type="button" @click="confirmDeleteSession">确认删除</button>
+              </div>
+            </article>
+          </div>
+        </Transition>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="courseStudentModalOpen" class="modal-backdrop modal-backdrop-contained">
       <article class="modal-card modal-card-wide course-student-editor-modal">
         <div class="wide-modal-header">
@@ -731,7 +736,9 @@ onBeforeUnmount(() => {
         </div>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="deleteCourseModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -748,7 +755,9 @@ onBeforeUnmount(() => {
         </div>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="bulkDeleteCourseModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -765,6 +774,7 @@ onBeforeUnmount(() => {
         </div>
       </article>
     </div>
+    </Transition>
 
     <div class="table-wrap">
       <table class="data-table">

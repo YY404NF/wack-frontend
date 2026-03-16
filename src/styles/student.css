@@ -68,7 +68,7 @@
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
   column-gap: 16px;
-  row-gap: 4px;
+  row-gap: 16px;
   align-items: center;
 }
 
@@ -111,6 +111,14 @@
   margin-bottom: 14px;
 }
 
+.student-settings-page .student-mobile-section-heading {
+  margin-bottom: 4px;
+}
+
+.student-settings-page .student-mobile-section-heading h3 {
+  line-height: 1.08;
+}
+
 .student-page-meta {
   display: grid;
   gap: 6px;
@@ -142,6 +150,42 @@
 .student-stat-card strong {
   font-size: 1.05rem;
   line-height: 1.35;
+}
+
+.student-schedule-times {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.student-schedule-times p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.student-schedule-times span {
+  margin: 0;
+  color: rgba(92, 69, 57, 0.82);
+  font-size: 0.88rem;
+}
+
+.student-schedule-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.student-schedule-live-badge {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.student-schedule-times strong {
+  font-size: 0.96rem;
+  line-height: 1.4;
 }
 
 .student-stat-card-strong {
@@ -218,6 +262,18 @@
   gap: 14px;
 }
 
+.student-settings-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.student-settings-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .student-free-time-card {
   display: grid;
   gap: 12px;
@@ -237,6 +293,8 @@
 }
 
 .student-bottom-nav {
+  --nav-gap: 12px;
+  --nav-pad: 12px;
   position: fixed;
   left: 50%;
   bottom: 18px;
@@ -244,17 +302,34 @@
   z-index: 30;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--nav-gap);
   width: min(calc(100vw - 28px), 404px);
-  padding: 12px;
+  padding: var(--nav-pad);
   border-radius: 26px;
   background: rgba(255, 249, 243, 0.88);
   border: 1px solid rgba(83, 42, 19, 0.08);
   box-shadow: 0 18px 34px rgba(56, 31, 20, 0.12);
   backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.student-bottom-nav-indicator {
+  position: absolute;
+  top: var(--nav-pad);
+  bottom: var(--nav-pad);
+  left: var(--nav-pad);
+  width: calc((100% - (var(--nav-pad) * 2) - (var(--nav-gap) * 2)) / 3);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(87, 56, 43, 0.94), rgba(63, 40, 31, 0.94));
+  border: 1px solid rgba(83, 42, 19, 0.1);
+  box-shadow: 0 12px 20px rgba(56, 31, 20, 0.18);
+  transform: translateX(calc(var(--nav-active-index, 0) * (100% + var(--nav-gap))));
+  transition: transform 180ms ease;
 }
 
 .student-bottom-nav-button {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 6px;
   justify-items: center;
@@ -264,6 +339,10 @@
   background: transparent;
   color: rgba(75, 51, 40, 0.82);
   font-size: 1rem;
+  transition:
+    color 150ms ease,
+    opacity 150ms ease,
+    filter 150ms ease;
 }
 
 .student-bottom-nav-icon {
@@ -273,13 +352,15 @@
 }
 
 .student-bottom-nav-button:hover {
-  background: rgba(83, 42, 19, 0.04);
+  color: rgba(55, 36, 28, 0.94);
 }
 
 .student-bottom-nav-button.selected {
   color: #fff8f1;
-  background: linear-gradient(145deg, rgba(87, 56, 43, 0.94), rgba(63, 40, 31, 0.94));
-  border-color: rgba(83, 42, 19, 0.1);
+}
+
+.student-bottom-nav-button:not(.selected) {
+  filter: saturate(0.88);
 }
 
 @media (max-width: 760px) {

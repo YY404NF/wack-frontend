@@ -104,19 +104,23 @@ function forwardUserStatus(studentId: string, status: number) {
 
 <template>
   <div class="admin-panel-slot">
+    <Transition name="page-fade" mode="out-in">
     <AdminOverviewPanel
       v-if="activeTab === 'overview'"
+      key="overview"
       :admin-stats="adminStats"
     />
 
     <AdminPlaceholderPanel
       v-else-if="activeTab === 'attendance'"
+      key="attendance"
       title="查课记录"
       description="这一页先留空，后续再补查课记录列表、详情联查和状态维护。"
     />
 
     <AdminAttendanceLogsPanel
       v-else-if="activeTab === 'attendance-logs'"
+      key="attendance-logs"
       :attendance-logs="attendanceLogs"
       :attendance-log-filters="attendanceLogFilters"
       :attendance-logs-page="attendanceLogsPage"
@@ -130,6 +134,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminCourseCalendarPanel
       v-else-if="activeTab === 'course-calendar'"
+      key="course-calendar"
       :course-calendar="courseCalendar"
       :free-times="freeTimes"
       :classes="allClasses"
@@ -138,6 +143,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminCourseManagePanel
       v-else-if="activeTab === 'course-manage'"
+      key="course-manage"
       :courses="courses"
       :all-classes="allClasses"
       :course-student-candidates="courseStudentCandidates"
@@ -198,6 +204,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminClassManagePanel
       v-else-if="activeTab === 'class-manage'"
+      key="class-manage"
       :classes="classes"
       :class-form="classForm"
       :class-filters="classFilters"
@@ -248,6 +255,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminUserManagePanel
       v-else-if="activeTab === 'user-manage'"
+      key="user-manage"
       :users="users"
       :current-user-id="currentUserId"
       :user-form="userForm"
@@ -296,6 +304,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminLogsPanel
       v-else-if="activeTab === 'logs'"
+      key="logs"
       :logs="logs"
       :log-filters="logFilters"
       :logs-page="logsPage"
@@ -308,6 +317,7 @@ function forwardUserStatus(studentId: string, status: number) {
 
     <AdminSettingsPanel
       v-else-if="activeTab === 'settings'"
+      key="settings"
       :me="me"
       :system-settings="systemSettings"
       :system-setting-saving="systemSettingSaving"
@@ -325,5 +335,6 @@ function forwardUserStatus(studentId: string, status: number) {
       @close-password-modal="emit('closePasswordModal')"
       @change-password="emit('changePassword')"
     />
+    </Transition>
   </div>
 </template>

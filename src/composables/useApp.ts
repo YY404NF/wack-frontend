@@ -1101,6 +1101,7 @@ export function useApp() {
     freeTimeForm,
     editingFreeTimeId,
     passwordForm,
+    passwordModalOpen,
     freeTimeSaving,
     attendanceCompleting,
     passwordSaving,
@@ -1110,6 +1111,8 @@ export function useApp() {
     resetFreeTimeForm,
     showScopedToast,
     setActiveTab,
+    openPasswordModal,
+    closePasswordModal,
     changePassword,
   })
 
@@ -1507,6 +1510,8 @@ export function useApp() {
     setupLoading,
     studentWorkspaceHandlers: {
       ...studentApp.studentWorkspaceHandlers,
+      openPasswordModal,
+      closePasswordModal,
       logout,
     },
     studentWorkspaceProps: studentApp.studentWorkspaceProps,

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import type { AppTab } from '../../constants'
 
-defineProps<{
+const props = defineProps<{
   activeTab: AppTab
   navItems: Array<{ key: 'home' | 'student' | 'settings'; label: string; icon: unknown }>
 }>()
@@ -9,10 +11,16 @@ defineProps<{
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
 }>()
+
+const activeIndex = computed(() => {
+  const index = props.navItems.findIndex((item) => item.key === props.activeTab)
+  return index >= 0 ? index : 0
+})
 </script>
 
 <template>
-  <nav class="student-bottom-nav" aria-label="学生端导航">
+  <nav class="student-bottom-nav" :style="{ '--nav-active-index': activeIndex }" aria-label="学生端导航">
+    <span class="student-bottom-nav-indicator" aria-hidden="true"></span>
     <button
       v-for="item in navItems"
       :key="item.key"

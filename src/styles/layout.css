@@ -122,6 +122,16 @@
   gap: 14px;
 }
 
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+
 .dense-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

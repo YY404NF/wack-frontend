@@ -7,7 +7,7 @@ import StudentBottomNav from '../components/student/StudentBottomNav.vue'
 import StudentPanelContent from '../components/student/StudentPanelContent.vue'
 import type { StudentWorkspaceProps } from '../components/student/types'
 import { getGreetingMeta } from '../utils/greeting'
-import { formatSectionTimeRange, getScheduleType, scheduleLabelMap } from '../utils/schedule'
+import { formatSectionTimeRange, getScheduleType, getSectionTimeRange, scheduleLabelMap, scheduleMap } from '../utils/schedule'
 
 const props = defineProps<StudentWorkspaceProps>()
 const emit = defineEmits<{
@@ -21,6 +21,8 @@ const emit = defineEmits<{
   editFreeTime: [item: StudentWorkspaceProps['freeTimes'][number]]
   removeFreeTime: [id: number]
   resetFreeTimeForm: []
+  openPasswordModal: []
+  closePasswordModal: []
   changePassword: []
 }>()
 
@@ -29,6 +31,19 @@ let timerId = 0
 
 const scheduleType = computed(() => getScheduleType(props.systemSettings))
 const greeting = computed(() => getGreetingMeta(now.value))
+const scheduleItems = computed(() => scheduleMap[scheduleType.value])
+const activeScheduleSections = computed(() => {
+  const currentMinutes = now.value.getHours() * 60 + now.value.getMinutes()
+  return scheduleItems.value
+    .filter((item) => {
+      const range = getSectionTimeRange(item.section, scheduleType.value)
+      if (!range) {
+        return false
+      }
+      return currentMinutes >= range.start - 5 && currentMinutes <= range.end + 5
+    })
+    .map((item) => item.section)
+})
 const navItems: Array<{ key: 'home' | 'student' | 'settings'; label: string; icon: typeof HomeFilled }> = [
   { key: 'home', label: '首页', icon: HomeFilled },
   { key: 'student', label: '查课', icon: Calendar },
@@ -62,6 +77,8 @@ onBeforeUnmount(() => {
         v-bind="props"
         :greeting="greeting"
         :schedule-label="scheduleLabelMap[scheduleType]"
+        :schedule-items="scheduleItems"
+        :active-schedule-sections="activeScheduleSections"
         :section-time-text="sectionTimeText"
         @update:active-tab="emit('update:activeTab', $event)"
         @update:selected-student-id="emit('update:selectedStudentId', $event)"
@@ -73,6 +90,8 @@ onBeforeUnmount(() => {
         @edit-free-time="emit('editFreeTime', $event)"
         @remove-free-time="emit('removeFreeTime', $event)"
         @reset-free-time-form="emit('resetFreeTimeForm')"
+        @open-password-modal="emit('openPasswordModal')"
+        @close-password-modal="emit('closePasswordModal')"
         @change-password="emit('changePassword')"
       />
     </main>

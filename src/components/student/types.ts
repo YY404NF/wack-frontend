@@ -15,6 +15,7 @@ export type StudentWorkspaceProps = {
   freeTimeForm: { term: string; weekday: number; section: number; freeWeeks: string }
   editingFreeTimeId: number | null
   passwordForm: { oldPassword: string; newPassword: string; confirmNewPassword: string }
+  passwordModalOpen: boolean
   savingFreeTime: boolean
   completingAttendance: boolean
   changingPassword: boolean

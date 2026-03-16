@@ -64,6 +64,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <Transition name="modal-float" appear>
   <div v-if="open" class="modal-backdrop modal-backdrop-contained">
     <article class="modal-card modal-card-wide user-free-time-modal">
       <div class="wide-modal-header">
@@ -126,4 +127,5 @@ onBeforeUnmount(() => {
       </div>
     </article>
   </div>
+  </Transition>
 </template>

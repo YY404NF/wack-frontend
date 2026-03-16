@@ -31,6 +31,7 @@ type StudentAppDeps = {
   freeTimeForm: FreeTimeForm
   editingFreeTimeId: Ref<number | null>
   passwordForm: PasswordForm
+  passwordModalOpen: Ref<boolean>
   freeTimeSaving: Ref<boolean>
   attendanceCompleting: Ref<boolean>
   passwordSaving: Ref<boolean>
@@ -40,6 +41,8 @@ type StudentAppDeps = {
   resetFreeTimeForm: () => void
   showScopedToast: (target: 'admin' | 'student', message: string) => void
   setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  openPasswordModal: () => void
+  closePasswordModal: () => void
   changePassword: () => Promise<void>
 }
 
@@ -146,6 +149,7 @@ export function useStudentApp(deps: StudentAppDeps) {
     freeTimeForm: deps.freeTimeForm,
     editingFreeTimeId: deps.editingFreeTimeId.value,
     passwordForm: deps.passwordForm,
+    passwordModalOpen: deps.passwordModalOpen.value,
     savingFreeTime: deps.freeTimeSaving.value,
     completingAttendance: deps.attendanceCompleting.value,
     changingPassword: deps.passwordSaving.value,
@@ -169,6 +173,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     editFreeTime,
     removeFreeTime,
     resetFreeTimeForm: deps.resetFreeTimeForm,
+    openPasswordModal: deps.openPasswordModal,
+    closePasswordModal: deps.closePasswordModal,
     changePassword: deps.changePassword,
   }
 

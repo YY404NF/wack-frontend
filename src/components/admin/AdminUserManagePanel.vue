@@ -60,6 +60,7 @@ function formatLastLogin(value?: string | null) {
       <button class="primary-button" type="button" @click="emit('openCreateUserModal')">创建用户</button>
     </div>
 
+    <Transition name="modal-float" appear>
     <div v-if="userModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -99,7 +100,9 @@ function formatLastLogin(value?: string | null) {
         </form>
       </article>
     </div>
+    </Transition>
 
+    <Transition name="modal-float" appear>
     <div v-if="userPasswordModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
         <div class="modal-header">
@@ -123,6 +126,7 @@ function formatLastLogin(value?: string | null) {
         </form>
       </article>
     </div>
+    </Transition>
 
     <AdminUserFreeTimeModal
       :open="userFreeTimeModalOpen"

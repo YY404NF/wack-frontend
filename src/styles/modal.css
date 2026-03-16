@@ -33,6 +33,31 @@
   margin: auto;
 }
 
+.modal-float-enter-active,
+.modal-float-leave-active {
+  transition: opacity 150ms ease;
+}
+
+.modal-float-enter-active .modal-card,
+.modal-float-leave-active .modal-card {
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.modal-float-enter-from,
+.modal-float-leave-to {
+  opacity: 0;
+}
+
+.modal-float-enter-from .modal-card {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.modal-float-leave-to .modal-card {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
 .modal-card-narrow {
   width: min(480px, 100%);
   max-width: min(480px, 100%);

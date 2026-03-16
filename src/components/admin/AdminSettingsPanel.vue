@@ -66,54 +66,58 @@ const emit = defineEmits<{
       </section>
     </div>
 
-    <div v-if="profileModalOpen" class="modal-backdrop">
-      <article class="modal-card modal-card-narrow">
-        <div class="modal-header">
-          <h3>更改信息</h3>
-          <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeProfileModal')">关闭</button>
-        </div>
-        <form class="form-grid single-column-form" @submit.prevent="emit('updateProfile')">
-          <label class="field">
-            <span>学号</span>
-            <input v-model="profileForm.studentId" autocomplete="username" />
-          </label>
-          <label class="field">
-            <span>姓名</span>
-            <input v-model="profileForm.realName" />
-          </label>
-          <button class="primary-button" type="submit" :disabled="profileSaving">
-            <span v-if="profileSaving" class="button-spinner" aria-hidden="true"></span>
-            <span>{{ profileSaving ? '提交中...' : '保存' }}</span>
-          </button>
-        </form>
-      </article>
-    </div>
+    <Transition name="modal-float" appear>
+      <div v-if="profileModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>更改信息</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeProfileModal')">关闭</button>
+          </div>
+          <form class="form-grid single-column-form" @submit.prevent="emit('updateProfile')">
+            <label class="field">
+              <span>学号</span>
+              <input v-model="profileForm.studentId" autocomplete="username" />
+            </label>
+            <label class="field">
+              <span>姓名</span>
+              <input v-model="profileForm.realName" />
+            </label>
+            <button class="primary-button" type="submit" :disabled="profileSaving">
+              <span v-if="profileSaving" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ profileSaving ? '提交中...' : '保存' }}</span>
+            </button>
+          </form>
+        </article>
+      </div>
+    </Transition>
 
-    <div v-if="passwordModalOpen" class="modal-backdrop">
-      <article class="modal-card modal-card-narrow">
-        <div class="modal-header">
-          <h3>更改密码</h3>
-          <button class="ghost-button compact-button modal-close" type="button" @click="emit('closePasswordModal')">关闭</button>
-        </div>
-        <form class="form-grid single-column-form" @submit.prevent="emit('changePassword')">
-          <label class="field">
-            <span>旧密码</span>
-            <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
-          </label>
-          <label class="field">
-            <span>新密码</span>
-            <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
-          </label>
-          <label class="field">
-            <span>确认新密码</span>
-            <input v-model="passwordForm.confirmNewPassword" type="password" autocomplete="new-password" />
-          </label>
-          <button class="primary-button" type="submit" :disabled="changingPassword">
-            <span v-if="changingPassword" class="button-spinner" aria-hidden="true"></span>
-            <span>{{ changingPassword ? '提交中...' : '更改密码' }}</span>
-          </button>
-        </form>
-      </article>
-    </div>
+    <Transition name="modal-float" appear>
+      <div v-if="passwordModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>更改密码</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="emit('closePasswordModal')">关闭</button>
+          </div>
+          <form class="form-grid single-column-form" @submit.prevent="emit('changePassword')">
+            <label class="field">
+              <span>旧密码</span>
+              <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
+            </label>
+            <label class="field">
+              <span>新密码</span>
+              <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
+            </label>
+            <label class="field">
+              <span>确认新密码</span>
+              <input v-model="passwordForm.confirmNewPassword" type="password" autocomplete="new-password" />
+            </label>
+            <button class="primary-button" type="submit" :disabled="changingPassword">
+              <span v-if="changingPassword" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ changingPassword ? '提交中...' : '更改密码' }}</span>
+            </button>
+          </form>
+        </article>
+      </div>
+    </Transition>
   </div>
 </template>
