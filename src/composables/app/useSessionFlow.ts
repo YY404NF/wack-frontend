@@ -109,14 +109,17 @@ export function useSessionFlow(deps: SessionFlowDeps) {
 
       const me = await api.me()
       deps.me.value = me
-      await deps.loadRoleData()
       deps.setActiveTab(deps.resolveTabForRole(me.role), 'replace')
+      deps.booting.value = false
+      void deps.loadRoleData()
     } catch {
       clearToken()
       deps.me.value = null
       await deps.navigateToLogin()
     } finally {
-      deps.booting.value = false
+      if (deps.me.value === null) {
+        deps.booting.value = false
+      }
     }
   }
 

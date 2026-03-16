@@ -92,7 +92,7 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
-  updateSystemSettings: [payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }]
+  updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [detailId: number, status: StatusCode]
   changePassword: []
 }>()
@@ -110,13 +110,13 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminPlaceholderPanel
-      v-if="activeTab === 'attendance'"
+      v-else-if="activeTab === 'attendance'"
       title="查课记录"
       description="这一页先留空，后续再补查课记录列表、详情联查和状态维护。"
     />
 
     <AdminAttendanceLogsPanel
-      v-if="activeTab === 'attendance-logs'"
+      v-else-if="activeTab === 'attendance-logs'"
       :attendance-logs="attendanceLogs"
       :attendance-log-filters="attendanceLogFilters"
       :attendance-logs-page="attendanceLogsPage"
@@ -129,7 +129,7 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminCourseCalendarPanel
-      v-if="activeTab === 'course-calendar'"
+      v-else-if="activeTab === 'course-calendar'"
       :course-calendar="courseCalendar"
       :free-times="freeTimes"
       :classes="allClasses"
@@ -137,7 +137,7 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminCourseManagePanel
-      v-if="activeTab === 'course-manage'"
+      v-else-if="activeTab === 'course-manage'"
       :courses="courses"
       :all-classes="allClasses"
       :course-student-candidates="courseStudentCandidates"
@@ -197,7 +197,7 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminClassManagePanel
-      v-if="activeTab === 'class-manage'"
+      v-else-if="activeTab === 'class-manage'"
       :classes="classes"
       :class-form="classForm"
       :class-filters="classFilters"
@@ -247,7 +247,7 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminUserManagePanel
-      v-if="activeTab === 'user-manage'"
+      v-else-if="activeTab === 'user-manage'"
       :users="users"
       :current-user-id="currentUserId"
       :user-form="userForm"
@@ -295,7 +295,7 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminLogsPanel
-      v-if="activeTab === 'logs'"
+      v-else-if="activeTab === 'logs'"
       :logs="logs"
       :log-filters="logFilters"
       :logs-page="logsPage"
@@ -307,11 +307,10 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminSettingsPanel
-      v-if="activeTab === 'settings'"
+      v-else-if="activeTab === 'settings'"
       :me="me"
       :system-settings="systemSettings"
       :system-setting-saving="systemSettingSaving"
-      :schedule-options="scheduleOptions"
       :profile-form="profileForm"
       :profile-modal-open="profileModalOpen"
       :profile-saving="profileSaving"

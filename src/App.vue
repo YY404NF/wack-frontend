@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
+
 import LoginPage from './pages/LoginPage.vue'
 import SetupPage from './pages/SetupPage.vue'
-import AdminWorkspace from './pages/AdminWorkspace.vue'
 import StudentWorkspace from './pages/StudentWorkspace.vue'
 import { useApp } from './composables/useApp'
+
+const AdminWorkspace = defineAsyncComponent(() => import('./pages/AdminWorkspace.vue'))
 
 const {
   adminWorkspaceHandlers,
@@ -26,7 +29,10 @@ const {
 </script>
 
 <template>
-  <div class="page-shell" :class="{ 'admin-mode': !!me && isAdmin }">
+  <div
+    class="page-shell"
+    :class="{ 'admin-mode': !!me && isAdmin }"
+  >
     <div v-if="booting" class="boot-screen" aria-hidden="true"></div>
 
     <SetupPage
@@ -46,10 +52,12 @@ const {
     />
 
     <AdminWorkspace
-      v-else-if="isAdmin"
+      v-else-if="isAdmin && adminWorkspaceProps"
       v-bind="adminWorkspaceProps"
       v-on="adminWorkspaceHandlers"
     />
+
+    <div v-else-if="isAdmin" class="boot-screen" aria-hidden="true"></div>
 
     <StudentWorkspace
       v-else

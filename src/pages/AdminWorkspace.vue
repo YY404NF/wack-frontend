@@ -87,7 +87,7 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
-  updateSystemSettings: [payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }]
+  updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [detailId: number, status: StatusCode]
   changePassword: []
 }>()

@@ -1,6 +1,6 @@
 .admin-shell {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 268px minmax(0, 1fr);
   gap: 24px;
   align-items: stretch;
   min-height: calc(100vh - 48px);
@@ -14,7 +14,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 22px;
-  padding: 22px;
+  padding: 20px;
   border-radius: 28px;
   background: rgba(45, 28, 20, 0.9);
   color: #f8efe6;
@@ -42,6 +42,15 @@
 }
 
 .sidebar-emoji {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(24, 12, 8, 0.16);
   font-size: 2.8rem;
   line-height: 1;
 }
@@ -56,7 +65,9 @@
 
 .sidebar-link {
   width: 100%;
-  text-align: left;
+  display: flex;
+  justify-content: center;
+  text-align: center;
   padding: 16px 18px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.08);
@@ -67,6 +78,10 @@
 .sidebar-link strong,
 .sidebar-link span {
   display: block;
+}
+
+.sidebar-link-label {
+  text-align: center;
 }
 
 .sidebar-link.active {
@@ -142,4 +157,14 @@
 .admin-mobile-card .ghost-button {
   justify-self: center;
   min-width: 180px;
+}
+
+@media (max-width: 760px) {
+  .admin-mobile-guard {
+    display: block;
+  }
+
+  .admin-shell {
+    display: none;
+  }
 }

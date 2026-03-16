@@ -134,7 +134,6 @@ export type AdminWorkspaceProps = {
   passwordForm: AdminPasswordForm
   passwordModalOpen: boolean
   changingPassword: boolean
-  scheduleOptions: Array<{ value: 'summer' | 'winter'; label: string }>
   roleName: AdminRoleName
   statusName: AdminStatusName
   statusClass: AdminStatusClass

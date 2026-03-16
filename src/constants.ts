@@ -1,5 +1,6 @@
 export type StatusCode = 0 | 1 | 2 | 3 | 4
 export type AppTab =
+  | 'home'
   | 'overview'
   | 'attendance'
   | 'attendance-logs'
@@ -9,7 +10,6 @@ export type AppTab =
   | 'user-manage'
   | 'logs'
   | 'student'
-  | 'availability'
   | 'settings'
 
 export const roleLabels: Record<number, string> = {
@@ -57,4 +57,4 @@ export const adminNavItems = [
 
 export const adminTabKeys = adminNavItems.map((item) => item.key)
 
-export const studentTabKeys = ['student', 'availability', 'settings'] as const
+export const studentTabKeys = ['home', 'student', 'settings'] as const

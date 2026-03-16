@@ -39,7 +39,7 @@ const scheduleMap = {
     { section: 4, label: '下午 7-8 节', lines: ['16:30-17:15', '17:25-18:10'] },
     { section: 5, label: '晚上 9-10 节', lines: ['19:30-20:15', '20:25-21:10'] },
   ],
-  winter: [
+  autumn: [
     { section: 1, label: '上午 1-2 节', lines: ['08:10-08:55', '09:05-09:50'] },
     { section: 2, label: '上午 3-4 节', lines: ['10:20-11:05', '11:15-12:00'] },
     { section: 3, label: '下午 5-6 节', lines: ['14:00-14:45', '14:55-15:40'] },

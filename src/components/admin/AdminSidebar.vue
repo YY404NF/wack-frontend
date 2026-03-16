@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { SessionUser } from '../../api'
 import { adminNavItems, type AppTab } from '../../constants'
+import { getGreetingMeta } from '../../utils/greeting'
 
 const props = defineProps<{
   me: SessionUser
@@ -14,18 +15,22 @@ const emit = defineEmits<{
   logout: []
 }>()
 
+const now = ref(new Date())
+let timerId = 0
+
 const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 11) {
-    return { emoji: '🌤', text: `上午好，${props.me.real_name}老师~` }
-  }
-  if (hour < 14) {
-    return { emoji: '☀', text: `中午好，${props.me.real_name}老师~` }
-  }
-  if (hour < 19) {
-    return { emoji: '🌇', text: `下午好，${props.me.real_name}老师~` }
-  }
-  return { emoji: '🌙', text: `晚上好，${props.me.real_name}老师~` }
+  const meta = getGreetingMeta(now.value)
+  return { emoji: meta.emoji, prefix: `${meta.label}，`, suffix: `${props.me.real_name}老师~` }
+})
+
+onMounted(() => {
+  timerId = window.setInterval(() => {
+    now.value = new Date()
+  }, 30000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(timerId)
 })
 </script>
 
@@ -34,7 +39,8 @@ const greeting = computed(() => {
     <div class="sidebar-brand">
       <p class="eyebrow">WACK / 网安查课</p>
       <div class="sidebar-emoji">{{ greeting.emoji }}</div>
-      <h2>{{ greeting.text }}</h2>
+      <h2>{{ greeting.prefix }}</h2>
+      <h2>{{ greeting.suffix }}</h2>
     </div>
 
     <nav class="sidebar-nav">
@@ -45,7 +51,7 @@ const greeting = computed(() => {
         :class="{ active: activeTab === item.key }"
         @click="emit('update:activeTab', item.key)"
       >
-        <strong>{{ item.label }}</strong>
+        <strong class="sidebar-link-label">{{ item.label }}</strong>
       </button>
     </nav>
 

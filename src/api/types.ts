@@ -38,7 +38,7 @@ export interface UserItem extends SessionUser {
 export interface SystemSetting {
   id: number
   current_term_start_date: string
-  current_schedule: 'summer' | 'winter'
+  current_schedule: 'summer' | 'autumn'
   created_at?: string
   updated_at?: string
 }

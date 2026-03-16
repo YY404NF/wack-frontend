@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
@@ -20,7 +20,8 @@ import {
   type SystemSetting,
   type UserItem,
 } from '../api'
-import { adminTabKeys, studentTabKeys, type AppTab, type StatusCode } from '../constants'
+import { adminTabKeys, studentTabKeys, type AppTab } from '../constants'
+import type { AdminWorkspaceProps } from '../components/admin/types'
 import {
   createClassFilters,
   createClassForm,
@@ -39,23 +40,17 @@ import {
   createUserForm,
   createUserPasswordForm,
 } from './app/forms'
-import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, formatFreeWeeks, getCurrentAcademicTerm, parseFreeWeeks } from '../utils/free-time'
-import { parseImportedClassFile, parseImportedCourseFile } from './app/importers'
+import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, getCurrentAcademicTerm, parseFreeWeeks } from '../utils/free-time'
 import { usePagedCollection } from './app/usePagedCollection'
-import { useAdminFlow } from './app/useAdminFlow'
 import { useSessionFlow } from './app/useSessionFlow'
 import { useSelection } from './app/useSelection'
-import { useStudentFlow } from './app/useStudentFlow'
-import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
+import { useStudentApp } from './useStudentApp'
+
+type AdminAppInstance = ReturnType<(typeof import('./useAdminApp'))['useAdminApp']>
 
 export function useApp() {
   const router = useRouter()
   const route = useRoute()
-
-  const scheduleOptions = [
-    { value: 'summer', label: '夏季作息' },
-    { value: 'winter', label: '冬季作息' },
-  ] as const
 
   const loginForm = reactive(createLoginForm())
 
@@ -158,6 +153,9 @@ export function useApp() {
   const deletingClassName = ref('')
   const classStudentTargetName = ref('')
   const selectedStudentId = ref<number | null>(null)
+  const studentCoreLoaded = ref(false)
+  const studentFreeTimesLoaded = ref(false)
+  const studentActiveCheckLoaded = ref(false)
 
   const userModalOpen = ref(false)
   const courseModalOpen = ref(false)
@@ -175,19 +173,19 @@ export function useApp() {
   const activeTab = ref<AppTab>('overview')
 
   const studentSegmentToTab = {
+    home: 'home',
     check: 'student',
-    availability: 'availability',
     settings: 'settings',
   } as const
 
-  const tabToStudentSegment: Record<'student' | 'availability' | 'settings', keyof typeof studentSegmentToTab> = {
+  const tabToStudentSegment: Record<'home' | 'student' | 'settings', keyof typeof studentSegmentToTab> = {
+    home: 'home',
     student: 'check',
-    availability: 'availability',
     settings: 'settings',
   }
 
   function defaultTabForRole(role?: number): AppTab {
-    return role === 1 ? 'overview' : 'student'
+    return role === 1 ? 'overview' : 'home'
   }
 
   function tabAllowedForRole(tab: string, role?: number): tab is AppTab {
@@ -230,6 +228,15 @@ export function useApp() {
   async function setActiveTab(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
     activeTab.value = tab
     await writeTabToLocation(tab, mode)
+    if (me.value?.role !== 2) {
+      return
+    }
+    if (tab === 'settings') {
+      void ensureStudentFreeTimesLoaded()
+    }
+    if (tab === 'student') {
+      void ensureStudentActiveCheckLoaded()
+    }
   }
 
   function resolveTabForRole(role?: number): AppTab {
@@ -324,8 +331,6 @@ export function useApp() {
     resetDeps: () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate],
   })
 
-  const filteredUsers = usersView.filteredItems
-  const filteredClasses = classesView.filteredItems
   const filteredClassStudents = computed(() =>
     classStudents.value.filter((item) => {
       const byStudentId = !classStudentFilters.studentId || item.student_id.includes(classStudentFilters.studentId.trim())
@@ -333,9 +338,6 @@ export function useApp() {
       return byStudentId && byRealName
     }),
   )
-  const filteredCourses = coursesView.filteredItems
-  const filteredLogs = logsView.filteredItems
-  const filteredAttendanceLogs = attendanceLogsView.filteredItems
 
   const userPage = usersView.page
   const userPageSize = usersView.pageSize
@@ -380,12 +382,6 @@ export function useApp() {
   const selectedCourseIds = courseSelection.selectedIds
   const selectedClassIds = classSelection.selectedIds
   const selectedUserStudentIds = userSelection.selectedIds
-  const selectedStudent = computed(() => {
-    if (!activeCheck.value || selectedStudentId.value === null) {
-      return null
-    }
-    return activeCheck.value.students.find((student) => student.id === selectedStudentId.value) ?? null
-  })
 
   const courseStudentSelectedStudents = computed(() => {
     const realNameByStudentId = new Map<string, string>()
@@ -756,46 +752,6 @@ export function useApp() {
     courseModalOpen.value = true
   }
 
-  async function importCourses(files: File[]) {
-    if (files.length === 0) {
-      return
-    }
-    courseImporting.value = true
-    adminError.value = ''
-    const errors: string[] = []
-    let importedCount = 0
-
-    try {
-      for (const file of files) {
-        try {
-          const course = await parseImportedCourseFile(file)
-          const created = await api.createCourse(course)
-          try {
-            await api.replaceCourseSessions(created.id, course.sessions)
-          } catch (error) {
-            await api.deleteCourse(created.id).catch(() => undefined)
-            throw error
-          }
-          importedCount += 1
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '导入失败'
-          errors.push(`${file.name}: ${message}`)
-        }
-      }
-
-      if (importedCount > 0) {
-        await adminFlow.loadAdminData()
-        showScopedToast('admin', `已导入 ${importedCount} 门课程`)
-      }
-      if (errors.length > 0) {
-        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入课程失败，共 ${errors.length} 个文件失败：`
-        adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
-      }
-    } finally {
-      courseImporting.value = false
-    }
-  }
-
   async function openEditCourseModal(item: CourseItem) {
     courseLoading.value = true
     adminError.value = ''
@@ -1129,175 +1085,261 @@ export function useApp() {
     userSelection.togglePageSelection()
   }
 
-  async function bulkDeleteCourses() {
-    const ids = [...selectedCourseIds.value]
-    if (ids.length === 0) {
-      return
-    }
+  const adminApp = shallowRef<AdminAppInstance | null>(null)
+  let adminAppLoader: Promise<AdminAppInstance> | null = null
 
-    courseDeleting.value = true
-    adminError.value = ''
-    const nameById = new Map(courses.value.map((item) => [item.id, item.course_name]))
-    const failed: string[] = []
-    let deletedCount = 0
-    try {
-      for (const id of ids) {
-        try {
-          await api.deleteCourse(id)
-          deletedCount += 1
-        } catch (error) {
-          const label = nameById.get(id) ?? `ID ${id}`
-          const message = error instanceof Error ? error.message : '删除失败'
-          failed.push(`${label}（${message}）`)
-        }
-      }
-      await adminFlow.loadAdminData()
-      closeBulkDeleteCourseModal()
-      selectedCourseIds.value = failed.length === 0 ? [] : selectedCourseIds.value.filter((id) => ids.includes(id))
-      if (deletedCount > 0) {
-        showScopedToast('admin', `已删除 ${deletedCount} 门课程`)
-      }
-      if (failed.length > 0) {
-        adminError.value = `部分删除失败：${failed.join('；')}`
-      }
-    } finally {
-      courseDeleting.value = false
-    }
-  }
-
-  async function bulkDeleteClasses() {
-    const ids = [...selectedClassIds.value]
-    if (ids.length === 0) {
-      return
-    }
-
-    classDeleting.value = true
-    adminError.value = ''
-    const nameById = new Map(classes.value.map((item) => [item.id, item.class_name]))
-    const failed: string[] = []
-    let deletedCount = 0
-    try {
-      for (const id of ids) {
-        try {
-          await api.deleteClass(id)
-          deletedCount += 1
-        } catch (error) {
-          const label = nameById.get(id) ?? `ID ${id}`
-          const message = error instanceof Error ? error.message : '删除失败'
-          failed.push(`${label}（${message}）`)
-        }
-      }
-      await adminFlow.loadAdminData()
-      closeBulkDeleteClassModal()
-      selectedClassIds.value = failed.length === 0 ? [] : selectedClassIds.value.filter((id) => ids.includes(id))
-      if (deletedCount > 0) {
-        showScopedToast('admin', `已删除 ${deletedCount} 个班级`)
-      }
-      if (failed.length > 0) {
-        adminError.value = `部分删除失败：${failed.join('；')}`
-      }
-    } finally {
-      classDeleting.value = false
-    }
-  }
-
-  async function bulkSetUserStatus(status: number) {
-    const studentIds = [...selectedUserStudentIds.value]
-    if (studentIds.length === 0) {
-      return
-    }
-
-    userStatusUpdating.value = true
-    adminError.value = ''
-    const actionLabel = status === 1 ? '解冻' : '冻结'
-    const nameByStudentId = new Map(users.value.map((item) => [item.student_id, item.real_name]))
-    const failed: string[] = []
-    let updatedCount = 0
-    try {
-      for (const studentId of studentIds) {
-        try {
-          await api.updateUserStatus(studentId, status)
-          updatedCount += 1
-        } catch (error) {
-          const label = nameByStudentId.get(studentId) ?? studentId
-          const message = error instanceof Error ? error.message : '更新失败'
-          failed.push(`${label}（${studentId}，${message}）`)
-        }
-      }
-      await adminFlow.loadAdminData()
-      selectedUserStudentIds.value = failed.length === 0 ? [] : selectedUserStudentIds.value.filter((studentId) => studentIds.includes(studentId))
-      if (updatedCount > 0) {
-        showScopedToast('admin', `已${actionLabel} ${updatedCount} 个用户`)
-      }
-      if (failed.length > 0) {
-        adminError.value = `部分${actionLabel}失败：${failed.join('；')}`
-      }
-    } finally {
-      userStatusUpdating.value = false
-    }
-  }
-
-  const adminFlow = useAdminFlow({
+  const studentApp = useStudentApp({
     me,
-    users,
-    classes,
-    courseStudentCandidates,
-    courses,
-    courseCalendar,
-    dashboard,
-    attendanceResults,
-    freeTimes,
+    activeTab,
+    studentError,
+    studentToast,
     systemSettings,
-    logs,
-    attendanceLogs,
-    userForm,
-    profileForm,
-    userPasswordForm,
-    courseForm,
-    classForm,
-    editingUserStudentId,
-    editingCourseId,
-    editingClassId,
-    passwordTargetStudentId,
-    deletingCourseId,
-    deletingClassId,
-    courseStudentTargetCourseId,
-    courseStudentSelectedClassIds,
-    courseStudentSelectedStudents,
-    userSaving,
-    passwordResetting,
-    profileSaving,
-    courseSaving,
-    courseDeleting,
-    courseStudentSaving,
-    classSaving,
-    classDeleting,
-    adminError,
-    showAdminToast: (message) => showScopedToast('admin', message),
-    closeUserModal,
-    closeUserPasswordModal,
-    closeProfileModal,
-    closeCourseModal,
-    closeCourseStudentModal,
-    closeDeleteCourseModal,
-    closeClassModal,
-    closeDeleteClassModal,
-  })
-
-  const studentFlow = useStudentFlow({
     availableCourses,
-    freeTimes,
     activeCheck,
     selectedStudentId,
-    editingFreeTimeId,
+    freeTimes,
     freeTimeForm,
+    editingFreeTimeId,
+    passwordForm,
     freeTimeSaving,
     attendanceCompleting,
-    studentError,
+    passwordSaving,
+    studentCoreLoaded,
+    studentFreeTimesLoaded,
+    studentActiveCheckLoaded,
     resetFreeTimeForm,
-    showStudentToast: (message) => showScopedToast('student', message),
-    statusName,
+    showScopedToast,
+    setActiveTab,
+    changePassword,
   })
+
+  async function ensureStudentFreeTimesLoaded(force = false) {
+    await studentApp.ensureStudentFreeTimesLoaded(force)
+  }
+
+  async function ensureStudentActiveCheckLoaded(force = false) {
+    await studentApp.ensureStudentActiveCheckLoaded(force)
+  }
+
+  async function ensureAdminApp() {
+    if (adminApp.value) {
+      return adminApp.value
+    }
+    if (!adminAppLoader) {
+      adminAppLoader = import('./useAdminApp').then(({ useAdminApp }) => {
+        adminApp.value = useAdminApp({
+          me,
+          activeTab,
+          adminError,
+          adminToast,
+          adminStats,
+          users,
+          classes,
+          courseStudentCandidates,
+          classStudents,
+          courses,
+          courseCalendar,
+          dashboard,
+          attendanceResults,
+          freeTimes,
+          logs,
+          attendanceLogs,
+          systemSettings,
+          userForm,
+          userFilters,
+          logFilters,
+          attendanceLogFilters,
+          classForm,
+          classFilters,
+          classStudentForm,
+          classStudentFilters,
+          editingClassStudentForm,
+          courseForm,
+          courseFilters,
+          profileForm,
+          userPasswordForm,
+          passwordForm,
+          userSaving,
+          passwordResetting,
+          profileSaving,
+          courseLoading,
+          courseSaving,
+          courseImporting,
+          courseDeleting,
+          classSaving,
+          classDeleting,
+          userStatusUpdating,
+          classStudentSaving,
+          classStudentImporting,
+          courseStudentLoading,
+          courseStudentSaving,
+          passwordSaving,
+          userFreeTimeLoading,
+          userFreeTimeSaving,
+          systemSettingSaving,
+          editingUserStudentId,
+          editingCourseId,
+          editingClassId,
+          editingClassStudentId,
+          classStudentTargetClassId,
+          courseStudentTargetCourseId,
+          courseStudentTargetName,
+          courseStudentSelectedClassIds,
+          courseStudentSelectedStudentIds,
+          courseStudentSelectedStudents,
+          courseStudentClassStudentMap,
+          courseStudentLooseStudents,
+          passwordTargetStudentId,
+          passwordTargetName,
+          freeTimeTargetName,
+          freeTimeTargetStudentId,
+          userFreeTimeTerm,
+          userFreeTimeItems,
+          userFreeTimeDraft,
+          deletingCourseId,
+          deletingCourseName,
+          deletingClassId,
+          deletingClassName,
+          classStudentTargetName,
+          currentUserId,
+          userModalOpen,
+          courseModalOpen,
+          classModalOpen,
+          classStudentModalOpen,
+          courseStudentModalOpen,
+          deleteCourseModalOpen,
+          deleteClassModalOpen,
+          bulkDeleteCourseModalOpen,
+          bulkDeleteClassModalOpen,
+          passwordModalOpen,
+          profileModalOpen,
+          userPasswordModalOpen,
+          userFreeTimeModalOpen,
+          paginatedLogs,
+          paginatedAttendanceLogs,
+          paginatedClasses,
+          filteredClassStudents,
+          paginatedUsers,
+          paginatedCourses,
+          userPage,
+          userPageSize,
+          userTotalPages,
+          coursePage,
+          coursePageSize,
+          courseTotalPages,
+          classPage,
+          classPageSize,
+          classTotalPages,
+          logsPage,
+          logsPageSize,
+          logsTotalPages,
+          attendanceLogsPage,
+          attendanceLogsPageSize,
+          attendanceLogsTotalPages,
+          selectedCourseIds,
+          selectedClassIds,
+          selectedUserStudentIds,
+          userFreeTimeTermOptions,
+          isEditingUser,
+          isEditingClass,
+          showScopedToast,
+          setActiveTab,
+          logout,
+          changePassword,
+          loadClassStudents,
+          loadUserFreeTimeItems,
+          resetClassStudentForm,
+          resetEditingClassStudentForm,
+          closeUserModal,
+          closeUserPasswordModal,
+          closeProfileModal,
+          closeCourseModal,
+          closeCourseStudentModal,
+          closeDeleteCourseModal,
+          closeClassModal,
+          closeDeleteClassModal,
+          closeBulkDeleteCourseModal,
+          closeBulkDeleteClassModal,
+          closeClassStudentModal,
+          closeUserFreeTimeModal,
+          closePasswordModal,
+          openCreateCourseModal,
+          openEditCourseModal,
+          openCourseStudentModal,
+          openDeleteCourseModal,
+          openBulkDeleteCourseModal,
+          addCourseStudentClass,
+          removeCourseStudentClass,
+          toggleCourseStudentClassSelection,
+          toggleCourseStudentSelection,
+          addCourseStudent,
+          removeCourseStudent,
+          setCourseWeekSelected,
+          addCourseSessions,
+          editCourseSession,
+          removeCourseSession,
+          updateCoursePage,
+          updateCoursePageSize,
+          toggleCourseSelection,
+          toggleCoursePageSelection,
+          openCreateClassModal,
+          openEditClassModal,
+          openClassStudentModal,
+          openDeleteClassModal,
+          openBulkDeleteClassModal,
+          startEditClassStudent,
+          updateClassPage,
+          updateClassPageSize,
+          toggleClassSelection,
+          toggleClassPageSelection,
+          openCreateUserModal,
+          updateAttendanceLogsPage,
+          updateAttendanceLogsPageSize,
+          updateLogsPage,
+          updateLogsPageSize,
+          openEditUserModal,
+          openUserPasswordModal,
+          openUserFreeTimeModal,
+          updateUserFreeTimeTerm,
+          toggleUserFreeTimeWeek,
+          updateUserPage,
+          updateUserPageSize,
+          toggleUserSelection,
+          toggleUserPageSelection,
+          openProfileModal,
+          openPasswordModal,
+        })
+        return adminApp.value
+      })
+    }
+    return adminAppLoader
+  }
+
+  async function changePassword() {
+    passwordSaving.value = true
+    if (me.value?.role === 1) {
+      adminError.value = ''
+    } else {
+      studentError.value = ''
+    }
+    try {
+      if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+        throw new Error('两次输入的新密码不一致')
+      }
+      await api.changePassword(passwordForm.oldPassword, passwordForm.newPassword)
+      closePasswordModal()
+      showScopedToast(me.value?.role === 1 ? 'admin' : 'student', '密码已修改')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '修改密码失败'
+      if (me.value?.role === 1) {
+        adminError.value = message
+      } else {
+        studentError.value = message
+      }
+    } finally {
+      passwordSaving.value = false
+    }
+  }
 
   async function loadRoleData() {
     if (!me.value) {
@@ -1306,12 +1348,19 @@ export function useApp() {
 
     if (me.value.role === 1) {
       clearAdminNotices()
-      await adminFlow.loadAdminData()
+      const app = await ensureAdminApp()
+      try {
+        await app.loadAdminData()
+      } catch (error) {
+        adminError.value = error instanceof Error ? error.message : '加载管理数据失败'
+      }
       return
     }
 
     clearStudentNotices()
-    await studentFlow.loadStudentData()
+    adminApp.value = null
+    adminAppLoader = null
+    await studentApp.loadRoleData()
   }
 
   function resetAppData() {
@@ -1327,10 +1376,9 @@ export function useApp() {
     systemSettings.value = null
     logs.value = []
     attendanceLogs.value = []
-    availableCourses.value = []
-    activeCheck.value = null
-    selectedStudentId.value = null
-    editingFreeTimeId.value = null
+    studentApp.resetStudentState()
+    adminApp.value = null
+    adminAppLoader = null
   }
 
   function closeAllAdminModals() {
@@ -1389,273 +1437,6 @@ export function useApp() {
     sessionFlow.logout()
   }
 
-  async function saveFreeTime() {
-    await studentFlow.saveFreeTime()
-  }
-
-  function editFreeTime(item: FreeTimeItem) {
-    studentFlow.editFreeTime(item)
-    void setActiveTab('availability', 'push')
-  }
-
-  async function removeFreeTime(id: number) {
-    await studentFlow.removeFreeTime(id)
-  }
-
-  async function createUser() {
-    await adminFlow.createUser()
-  }
-
-  async function resetUserPassword() {
-    await adminFlow.resetUserPassword()
-  }
-
-  async function updateProfile() {
-    await adminFlow.updateProfile()
-  }
-
-  async function setUserStatus(studentId: string, status: number) {
-    await adminFlow.setUserStatus(studentId, status)
-  }
-
-  async function saveCourse() {
-    await adminFlow.saveCourse()
-  }
-
-  async function deleteCourse() {
-    await adminFlow.deleteCourse()
-  }
-
-  async function saveClass() {
-    await adminFlow.saveClass()
-  }
-
-  async function deleteClass() {
-    await adminFlow.deleteClass()
-  }
-
-  async function createClassStudent() {
-    if (classStudentTargetClassId.value === null) {
-      return
-    }
-    classStudentSaving.value = true
-    adminError.value = ''
-    try {
-      await api.createClassStudent(classStudentTargetClassId.value, {
-        student_id: classStudentForm.studentId.trim(),
-        real_name: classStudentForm.realName.trim(),
-      })
-      await loadClassStudents(classStudentTargetClassId.value)
-      resetClassStudentForm()
-      await adminFlow.loadAdminData()
-      showScopedToast('admin', '班级学生已保存')
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '创建班级学生失败'
-    } finally {
-      classStudentSaving.value = false
-    }
-  }
-
-  async function saveEditingClassStudent() {
-    if (classStudentTargetClassId.value === null || editingClassStudentId.value === null) {
-      return false
-    }
-    classStudentSaving.value = true
-    adminError.value = ''
-    try {
-      await api.updateClassStudent(classStudentTargetClassId.value, editingClassStudentId.value, {
-        student_id: editingClassStudentForm.studentId.trim(),
-        real_name: editingClassStudentForm.realName.trim(),
-      })
-      await loadClassStudents(classStudentTargetClassId.value)
-      resetEditingClassStudentForm()
-      await adminFlow.loadAdminData()
-      showScopedToast('admin', '班级学生已更新')
-      return true
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '更新班级学生失败'
-      return false
-    } finally {
-      classStudentSaving.value = false
-    }
-  }
-
-  async function deleteClassStudent(studentId: number) {
-    if (classStudentTargetClassId.value === null) {
-      return
-    }
-    classStudentSaving.value = true
-    adminError.value = ''
-    try {
-      await api.deleteClassStudent(classStudentTargetClassId.value, studentId)
-      if (editingClassStudentId.value === studentId) {
-        resetEditingClassStudentForm()
-      }
-      await loadClassStudents(classStudentTargetClassId.value)
-      await adminFlow.loadAdminData()
-      showScopedToast('admin', '班级学生已删除')
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '删除班级学生失败'
-    } finally {
-      classStudentSaving.value = false
-    }
-  }
-
-  async function importClasses(files: File[]) {
-    if (files.length === 0) {
-      return
-    }
-    classStudentImporting.value = true
-    adminError.value = ''
-    const errors: string[] = []
-    let importedCount = 0
-
-    try {
-      for (const file of files) {
-        try {
-          const payload = await parseImportedClassFile(file)
-          const created = await api.createClass(payload)
-          try {
-            await api.importClassStudents(created.id, payload.students)
-          } catch (error) {
-            await api.deleteClass(created.id).catch(() => undefined)
-            throw error
-          }
-          importedCount += 1
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '导入失败'
-          errors.push(`${file.name}: ${message}`)
-        }
-      }
-
-      if (importedCount > 0) {
-        await adminFlow.loadAdminData()
-        showScopedToast('admin', `已导入 ${importedCount} 个班级`)
-      }
-      if (errors.length > 0) {
-        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入班级失败，共 ${errors.length} 个文件失败：`
-        adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
-      }
-    } finally {
-      classStudentImporting.value = false
-    }
-  }
-
-  async function saveUserFreeTime() {
-    if (!freeTimeTargetStudentId.value) {
-      return
-    }
-    userFreeTimeSaving.value = true
-    adminError.value = ''
-    try {
-      const term = userFreeTimeTerm.value.trim()
-      const originalItems = userFreeTimeItems.value.filter((item) => item.term === term)
-      const originalMap = new Map(originalItems.map((item) => [buildFreeTimeCellKey(item.weekday, item.section), item]))
-      const tasks: Promise<unknown>[] = []
-
-      for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
-        for (const section of FREE_TIME_VISIBLE_SECTIONS) {
-          const key = buildFreeTimeCellKey(weekday, section)
-          const weeks = userFreeTimeDraft.value[key] ?? []
-          const currentValue = formatFreeWeeks(weeks)
-          const currentItem = originalMap.get(key)
-          const originalValue = currentItem ? formatFreeWeeks(parseFreeWeeks(currentItem.free_weeks)) : ''
-
-          if (!currentValue && currentItem) {
-            tasks.push(api.deleteFreeTime(currentItem.id))
-            continue
-          }
-
-          if (!currentValue) {
-            continue
-          }
-
-          const payload = {
-            term,
-            student_id: freeTimeTargetStudentId.value,
-            weekday,
-            section,
-            free_weeks: currentValue,
-          }
-
-          if (!currentItem) {
-            tasks.push(api.createFreeTime(payload))
-            continue
-          }
-
-          if (originalValue !== currentValue) {
-            tasks.push(api.updateFreeTime(currentItem.id, payload))
-          }
-        }
-      }
-
-      await Promise.all(tasks)
-      await loadUserFreeTimeItems(freeTimeTargetStudentId.value)
-      await adminFlow.loadAdminData()
-      showScopedToast('admin', '空闲时间已保存')
-      closeUserFreeTimeModal()
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '保存空闲时间失败'
-    } finally {
-      userFreeTimeSaving.value = false
-    }
-  }
-
-  async function openCourse(course: AvailableCourseItem) {
-    await studentFlow.openCourse(course)
-  }
-
-  async function updateStudentStatus(detailId: number, status: StatusCode) {
-    await studentFlow.updateStudentStatus(detailId, status)
-  }
-
-  async function updateAdminStatus(detailId: number, status: StatusCode) {
-    await adminFlow.updateAdminStatus(detailId, status)
-  }
-
-  async function updateSystemSettings(payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }) {
-    systemSettingSaving.value = true
-    adminError.value = ''
-    try {
-      systemSettings.value = await api.updateSystemSettings(payload)
-      showScopedToast('admin', '系统设置已更新')
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '更新系统设置失败'
-    } finally {
-      systemSettingSaving.value = false
-    }
-  }
-
-  async function completeAttendance() {
-    await studentFlow.completeAttendance(studentFlow.loadStudentData)
-  }
-
-  async function changePassword() {
-    passwordSaving.value = true
-    if (me.value?.role === 1) {
-      adminError.value = ''
-    } else {
-      studentError.value = ''
-    }
-    try {
-      if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
-        throw new Error('两次输入的新密码不一致')
-      }
-      await api.changePassword(passwordForm.oldPassword, passwordForm.newPassword)
-      closePasswordModal()
-      showScopedToast(me.value?.role === 1 ? 'admin' : 'student', '密码已修改')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '修改密码失败'
-      if (me.value?.role === 1) {
-        adminError.value = message
-      } else {
-        studentError.value = message
-      }
-    } finally {
-      passwordSaving.value = false
-    }
-  }
-
   watch(
     () => [booting.value, initialized.value, me.value?.role, route.name] as const,
     async ([isBooting, isInitialized, role, routeName]) => {
@@ -1690,470 +1471,45 @@ export function useApp() {
     void restoreSession()
   })
 
-  const adminWorkspaceProps = computed(() => ({
-    me: me.value!,
-    activeTab: activeTab.value,
-    pageError: adminError.value,
-    toast: adminToast.value,
-    adminStats: adminStats.value,
-    courseCalendar: courseCalendar.value,
-    freeTimes: freeTimes.value,
-    systemSettings: systemSettings.value,
-    systemSettingSaving: systemSettingSaving.value,
-    logs: paginatedLogs.value,
-    attendanceLogs: paginatedAttendanceLogs.value,
-    classes: paginatedClasses.value,
-    allClasses: classes.value,
-    classStudents: filteredClassStudents.value,
-    users: paginatedUsers.value,
-    courseStudentCandidates: courseStudentCandidates.value,
-    currentUserId: currentUserId.value,
-    courses: paginatedCourses.value,
-    attendanceResults: attendanceResults.value,
-    userForm,
-    userFilters,
-    userModalOpen: userModalOpen.value,
-    isEditingUser: isEditingUser.value,
-    creatingUser: userSaving.value,
-    userStatusUpdating: userStatusUpdating.value,
-    userPage: userPage.value,
-    userPageSize: userPageSize.value,
-    userTotalPages: userTotalPages.value,
-    userPageOptions: USER_PAGE_OPTIONS,
-    selectedUserStudentIds: selectedUserStudentIds.value,
-    userPasswordModalOpen: userPasswordModalOpen.value,
-    userPasswordForm,
-    passwordTargetName: passwordTargetName.value,
-    passwordResetting: passwordResetting.value,
-    userFreeTimeModalOpen: userFreeTimeModalOpen.value,
-    freeTimeTargetName: freeTimeTargetName.value,
-    userFreeTimeTerm: userFreeTimeTerm.value,
-    userFreeTimeTermOptions: userFreeTimeTermOptions.value,
-    userFreeTimeLoading: userFreeTimeLoading.value,
-    userFreeTimeSaving: userFreeTimeSaving.value,
-    userFreeTimeDraft: userFreeTimeDraft.value,
-    courseFilters,
-    courseForm,
-    courseModalOpen: courseModalOpen.value,
-    deleteCourseModalOpen: deleteCourseModalOpen.value,
-    bulkDeleteCourseModalOpen: bulkDeleteCourseModalOpen.value,
-    courseStudentModalOpen: courseStudentModalOpen.value,
-    courseStudentLoading: courseStudentLoading.value,
-    courseStudentSaving: courseStudentSaving.value,
-    courseImporting: courseImporting.value,
-    courseStudentTargetName: courseStudentTargetName.value,
-    courseStudentSelectedClassIds: courseStudentSelectedClassIds.value,
-    courseStudentSelectedStudentIds: courseStudentSelectedStudentIds.value,
-    courseStudentClassStudentMap: courseStudentClassStudentMap.value,
-    courseStudentLooseStudents: courseStudentLooseStudents.value,
-    courseSaving: courseSaving.value,
-    courseLoading: courseLoading.value,
-    courseDeleting: courseDeleting.value,
-    isEditingCourse: editingCourseId.value !== null,
-    coursePage: coursePage.value,
-    coursePageSize: coursePageSize.value,
-    courseTotalPages: courseTotalPages.value,
-    coursePageOptions: USER_PAGE_OPTIONS,
-    selectedCourseIds: selectedCourseIds.value,
-    selectedCourseCount: selectedCourseIds.value.length,
-    deletingCourseName: deletingCourseName.value,
-    classForm,
-    classFilters,
-    classStudentForm,
-    editingClassStudentForm,
-    classStudentFilters,
-    classStudentModalOpen: classStudentModalOpen.value,
-    classStudentSaving: classStudentSaving.value,
-    classStudentImporting: classStudentImporting.value,
-    editingClassStudentId: editingClassStudentId.value,
-    classStudentTargetName: classStudentTargetName.value,
-    classModalOpen: classModalOpen.value,
-    deleteClassModalOpen: deleteClassModalOpen.value,
-    bulkDeleteClassModalOpen: bulkDeleteClassModalOpen.value,
-    isEditingClass: isEditingClass.value,
-    classSaving: classSaving.value,
-    classDeleting: classDeleting.value,
-    classPage: classPage.value,
-    classPageSize: classPageSize.value,
-    classTotalPages: classTotalPages.value,
-    classPageOptions: USER_PAGE_OPTIONS,
-    selectedClassIds: selectedClassIds.value,
-    selectedClassCount: selectedClassIds.value.length,
-    deletingClassName: deletingClassName.value,
-    logFilters,
-    logsPage: logsPage.value,
-    logsPageSize: logsPageSize.value,
-    logsTotalPages: logsTotalPages.value,
-    logsPageOptions: USER_PAGE_OPTIONS,
-    attendanceLogFilters,
-    attendanceLogsPage: attendanceLogsPage.value,
-    attendanceLogsPageSize: attendanceLogsPageSize.value,
-    attendanceLogsTotalPages: attendanceLogsTotalPages.value,
-    attendanceLogsPageOptions: USER_PAGE_OPTIONS,
-    profileForm,
-    profileModalOpen: profileModalOpen.value,
-    profileSaving: profileSaving.value,
-    passwordForm,
-    passwordModalOpen: passwordModalOpen.value,
-    changingPassword: passwordSaving.value,
-    scheduleOptions: [...scheduleOptions],
-    roleName,
-    statusName,
-    statusClass,
-    slotLabel,
-  }))
+  const adminWorkspaceProps = computed<(AdminWorkspaceProps & { activeTab: AppTab }) | null>(() => {
+    if (!isAdmin.value || !adminApp.value) {
+      return null
+    }
 
-  const adminWorkspaceHandlers = {
-    'update:activeTab': (value: AppTab) => {
-      void setActiveTab(value, 'push')
-    },
-    logout,
-    openCreateCourseModal,
-    openEditCourseModal,
-    openCourseStudentModal,
-    closeCourseModal,
-    closeCourseStudentModal,
-    openDeleteCourseModal,
-    closeDeleteCourseModal,
-    openBulkDeleteCourseModal,
-    closeBulkDeleteCourseModal,
-    saveCourse,
-    importCourses,
-    saveCourseStudents: async () => {
-      await adminFlow.saveCourseStudents()
-    },
-    addCourseStudentClass,
-    removeCourseStudentClass,
-    toggleCourseStudentClassSelection,
-    toggleCourseStudentSelection,
-    addCourseStudent,
-    removeCourseStudent,
-    deleteCourse,
-    setCourseWeekSelected,
-    addCourseSessions,
-    editCourseSession,
-    removeCourseSession,
-    updateCoursePage,
-    updateCoursePageSize,
-    toggleCourseSelection,
-    toggleCoursePageSelection,
-    bulkDeleteCourses,
-    updateSystemSettings,
-    openCreateClassModal,
-    openEditClassModal,
-    openClassStudentModal,
-    closeClassModal,
-    closeClassStudentModal,
-    openDeleteClassModal,
-    closeDeleteClassModal,
-    openBulkDeleteClassModal,
-    closeBulkDeleteClassModal,
-    saveClass,
-    deleteClass,
-    createClassStudent,
-    startEditClassStudent,
-    saveEditingClassStudent,
-    deleteClassStudent,
-    importClasses,
-    updateClassPage,
-    updateClassPageSize,
-    toggleClassSelection,
-    toggleClassPageSelection,
-    bulkDeleteClasses,
-    openCreateUserModal,
-    updateAttendanceLogsPage,
-    updateAttendanceLogsPageSize,
-    updateLogsPage,
-    updateLogsPageSize,
-    openEditUserModal,
-    closeUserModal,
-    openUserPasswordModal,
-    closeUserPasswordModal,
-    openUserFreeTimeModal,
-    closeUserFreeTimeModal,
-    updateUserFreeTimeTerm,
-    toggleUserFreeTimeWeek,
-    saveUserFreeTime,
-    resetUserPassword,
-    updateUserPage,
-    updateUserPageSize,
-    toggleUserSelection,
-    toggleUserPageSelection,
-    bulkFreezeUsers: () => bulkSetUserStatus(2),
-    bulkUnfreezeUsers: () => bulkSetUserStatus(1),
-    openProfileModal,
-    closeProfileModal,
-    updateProfile,
-    openPasswordModal,
-    closePasswordModal,
-    createUser,
-    setUserStatus,
-    updateAdminStatus,
-    changePassword,
-  }
+    const props = adminApp.value.adminWorkspaceProps.value
+    if (!props.logFilters || !props.attendanceLogFilters) {
+      return null
+    }
 
-  const studentWorkspaceProps = computed(() => ({
-    me: me.value!,
-    activeTab: activeTab.value,
-    pageError: studentError.value,
-    toast: studentToast.value,
-    availableCourses: availableCourses.value,
-    activeCheck: activeCheck.value,
-    selectedStudent: selectedStudent.value,
-    selectedStudentId: selectedStudentId.value,
-    freeTimes: freeTimes.value,
-    freeTimeForm,
-    editingFreeTimeId: editingFreeTimeId.value,
-    passwordForm,
-    savingFreeTime: freeTimeSaving.value,
-    completingAttendance: attendanceCompleting.value,
-    changingPassword: passwordSaving.value,
-    roleName,
-    statusName,
-    statusClass,
-    slotLabel,
-  }))
+    return props
+  })
 
-  const studentWorkspaceHandlers = {
-    'update:activeTab': (value: AppTab) => {
-      void setActiveTab(value, 'push')
-    },
-    'update:selectedStudentId': (value: number) => {
-      selectedStudentId.value = value
-    },
-    logout,
-    openCourse,
-    updateStudentStatus,
-    completeAttendance,
-    saveFreeTime,
-    editFreeTime,
-    removeFreeTime,
-    resetFreeTimeForm,
-    changePassword,
-  }
+  const adminWorkspaceHandlers = computed(() => {
+    if (!isAdmin.value || !adminApp.value || !adminWorkspaceProps.value) {
+      return null
+    }
+
+    return adminApp.value.adminWorkspaceHandlers
+  })
 
   return {
-    activeCheck,
-    activeTab,
-    adminError,
-    adminStats,
-    adminToast,
-    attendanceCompleting,
-    attendanceLogFilters,
-    attendanceLogs,
-    attendanceLogsPage,
-    attendanceLogsPageSize,
-    attendanceLogsTotalPages,
-    attendanceResults,
     authLoading,
-    availableCourses,
     booting,
-    classDeleting,
-    classFilters,
-    classForm,
-    classStudentFilters,
-    classStudentForm,
-    classStudentImporting,
-    classStudentModalOpen,
-    courseStudentModalOpen,
-    classStudentSaving,
-    classStudentTargetName,
-    classStudents,
-    classModalOpen,
-    classPage,
-    classPageSize,
-    classSaving,
-    classTotalPages,
-    classes,
-    changePassword,
-    closePasswordModal,
-    closeProfileModal,
-    closeCourseModal,
-    closeCourseStudentModal,
-    closeClassModal,
-    closeClassStudentModal,
-    closeDeleteCourseModal,
-    closeDeleteClassModal,
-    closeBulkDeleteCourseModal,
-    closeBulkDeleteClassModal,
-    closeUserModal,
-    closeUserFreeTimeModal,
-    closeUserPasswordModal,
-    completeAttendance,
-    courseCalendar,
-    courseDeleting,
-    courseFilters,
-    courseForm,
-    courseLoading,
-    courseStudentLoading,
-    courseModalOpen,
-    coursePage,
-    coursePageSize,
-    courseSaving,
-    courseStudentSaving,
-    courseTotalPages,
-    courses,
-    addCourseStudentClass,
-    removeCourseStudentClass,
-    toggleCourseStudentClassSelection,
-    toggleCourseStudentSelection,
-    addCourseStudent,
-    removeCourseStudent,
-    createClassStudent,
-    deleteCourse,
-    deleteClass,
-    deleteClassStudent,
-    deleteCourseModalOpen,
-    deleteClassModalOpen,
-    bulkDeleteCourseModalOpen,
-    bulkDeleteClassModalOpen,
-    deletingCourseName,
-    deletingClassName,
-    createUser,
-    currentUserId,
-    editFreeTime,
-    editingClassStudentForm,
-    editingClassStudentId,
-    editingFreeTimeId,
-    filteredClasses,
-    filteredClassStudents,
-    filteredLogs,
-    filteredAttendanceLogs,
-    filteredCourses,
-    filteredUsers,
-    freeTimeTargetName,
-    freeTimeTargetStudentId,
-    freeTimeForm,
-    freeTimeSaving,
-    freeTimes,
-    logFilters,
-    logs,
-    logsPage,
-    logsPageSize,
-    logsTotalPages,
     initializeSystem,
     initialized,
     isAdmin,
-    isEditingClass,
-    isEditingUser,
-    isStudent,
     login,
     loginError,
     loginForm,
-    logout,
     me,
-    openCourse,
-    openClassStudentModal,
-    openCreateCourseModal,
-    openCreateClassModal,
-    openCreateUserModal,
-    openDeleteCourseModal,
-    openDeleteClassModal,
-    openBulkDeleteCourseModal,
-    openBulkDeleteClassModal,
-    openEditCourseModal,
-    openCourseStudentModal,
-    openEditClassModal,
-    openEditUserModal,
-    openPasswordModal,
-    openProfileModal,
-    openUserFreeTimeModal,
-    importCourses,
-    updateUserFreeTimeTerm,
-    openUserPasswordModal,
-    paginatedCourses,
-    paginatedClasses,
-    paginatedAttendanceLogs,
-    paginatedLogs,
-    paginatedUsers,
-    passwordForm,
-    passwordModalOpen,
-    passwordResetting,
-    passwordSaving,
-    passwordTargetName,
-    profileForm,
-    profileModalOpen,
-    profileSaving,
-    removeFreeTime,
-    resetFreeTimeForm,
-    resetUserPassword,
-    roleName,
-    saveCourse,
-    bulkDeleteCourses,
-    saveCourseStudents: adminFlow.saveCourseStudents,
-    saveEditingClassStudent,
-    saveUserFreeTime,
-    saveClass,
-    bulkDeleteClasses,
-    saveFreeTime,
-    selectedStudent,
-    selectedStudentId,
-    selectedCourseIds,
-    selectedClassIds,
-    selectedUserStudentIds,
-    setUserStatus,
     setupError,
     setupForm,
     setupLoading,
-    slotLabel,
-    statusClass,
-    statusName,
-    studentError,
-    studentWorkspaceHandlers,
-    studentWorkspaceProps,
-    studentToast,
-    systemSettingSaving,
-    systemSettings,
-    scheduleOptions,
-    courseStudentTargetName,
-    courseStudentSelectedClassIds,
-    courseStudentSelectedStudentIds,
-    courseStudentClassStudentMap,
-    courseStudentLooseStudents,
-    courseStudentCandidates,
-    userFreeTimeDraft,
-    userFreeTimeLoading,
-    userFreeTimeSaving,
-    userFreeTimeTerm,
-    userFreeTimeTermOptions,
-    toggleUserFreeTimeWeek,
-    updateCoursePage,
-    updateCoursePageSize,
-    updateSystemSettings,
-    updateClassPage,
-    updateClassPageSize,
-    updateAttendanceLogsPage,
-    updateAttendanceLogsPageSize,
-    updateLogsPage,
-    updateLogsPageSize,
-    updateAdminStatus,
-    updateProfile,
-    updateStudentStatus,
-    updateUserPage,
-    updateUserPageSize,
-    userFilters,
-    userForm,
-    userModalOpen,
-    userPage,
-    userPageOptions: USER_PAGE_OPTIONS,
-    userPageSize,
-    userStatusUpdating,
-    userPasswordForm,
-    userPasswordModalOpen,
-    userFreeTimeModalOpen,
-    userSaving,
-    userTotalPages,
-    users,
-    allClasses: classes,
-    importClasses,
-    startEditClassStudent,
-    toggleCourseSelection,
-    toggleCoursePageSelection,
-    toggleClassSelection,
-    toggleClassPageSelection,
-    toggleUserSelection,
-    toggleUserPageSelection,
-    bulkSetUserStatus,
+    studentWorkspaceHandlers: {
+      ...studentApp.studentWorkspaceHandlers,
+      logout,
+    },
+    studentWorkspaceProps: studentApp.studentWorkspaceProps,
     adminWorkspaceHandlers,
     adminWorkspaceProps,
   }

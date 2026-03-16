@@ -132,7 +132,6 @@ export type AdminSettingsProps = {
   passwordForm: AdminPasswordForm
   passwordModalOpen: boolean
   changingPassword: boolean
-  scheduleOptions: Array<{ value: 'summer' | 'winter'; label: string }>
 }
 
 export type AdminUserManageProps = {

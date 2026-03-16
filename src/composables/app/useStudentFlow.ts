@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AttendanceCheckDetail, type AvailableCourseItem, type FreeTimeItem } from '../../api'
+import { api, type AttendanceCheckDetail, type AvailableCourseItem, type FreeTimeItem, type SystemSetting } from '../../api'
 import type { StatusCode } from '../../constants'
 
 type FreeTimeForm = {
@@ -13,6 +13,7 @@ type FreeTimeForm = {
 type StudentFlowDeps = {
   availableCourses: Ref<AvailableCourseItem[]>
   freeTimes: Ref<FreeTimeItem[]>
+  systemSettings: Ref<SystemSetting | null>
   activeCheck: Ref<AttendanceCheckDetail | null>
   selectedStudentId: Ref<number | null>
   editingFreeTimeId: Ref<number | null>
@@ -39,13 +40,28 @@ export function useStudentFlow(deps: StudentFlowDeps) {
     }
   }
 
-  async function loadStudentData() {
-    deps.availableCourses.value = (await api.studentAvailableCourses()) ?? []
+  async function loadStudentCoreData() {
+    const [courses, systemSettings] = await Promise.all([
+      api.studentAvailableCourses(),
+      api.getSystemSettings(),
+    ])
+    deps.availableCourses.value = courses ?? []
+    deps.systemSettings.value = systemSettings
+  }
+
+  async function loadStudentFreeTimes() {
     const freeTimePage = await api.listFreeTimes()
     deps.freeTimes.value = freeTimePage.items ?? []
-    if (deps.availableCourses.value.length > 0 && deps.availableCourses.value[0].attendance_check_id) {
-      await openCourse(deps.availableCourses.value[0])
+  }
+
+  async function ensureActiveCheck() {
+    const resumableCourse = deps.availableCourses.value.find((course) => Boolean(course.attendance_check_id))
+    if (resumableCourse) {
+      await openCourse(resumableCourse)
+      return
     }
+    deps.activeCheck.value = null
+    deps.selectedStudentId.value = null
   }
 
   async function saveFreeTime() {
@@ -136,7 +152,9 @@ export function useStudentFlow(deps: StudentFlowDeps) {
   }
 
   return {
-    loadStudentData,
+    loadStudentCoreData,
+    loadStudentFreeTimes,
+    ensureActiveCheck,
     saveFreeTime,
     editFreeTime,
     removeFreeTime,

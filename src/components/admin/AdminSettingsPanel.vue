@@ -9,7 +9,7 @@ const emit = defineEmits<{
   updateProfile: []
   openPasswordModal: []
   closePasswordModal: []
-  updateSystemSettings: [payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }]
+  updateSystemSettings: [payload: { current_term_start_date: string }]
   changePassword: []
 }>()
 </script>
@@ -58,20 +58,8 @@ const emit = defineEmits<{
               :value="systemSettings?.current_term_start_date ?? ''"
               type="date"
               :disabled="systemSettingSaving"
-              @change="emit('updateSystemSettings', { current_term_start_date: ($event.target as HTMLInputElement).value, current_schedule: systemSettings?.current_schedule ?? 'summer' })"
+              @change="emit('updateSystemSettings', { current_term_start_date: ($event.target as HTMLInputElement).value })"
             />
-          </div>
-        </div>
-        <div class="account-line">
-          <span>当前作息</span>
-          <div class="system-setting-row">
-            <select
-              :value="systemSettings?.current_schedule ?? 'summer'"
-              :disabled="systemSettingSaving"
-              @change="emit('updateSystemSettings', { current_term_start_date: systemSettings?.current_term_start_date ?? '', current_schedule: ($event.target as HTMLSelectElement).value as 'summer' | 'winter' })"
-            >
-              <option v-for="item in scheduleOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
           </div>
         </div>
       </div>
