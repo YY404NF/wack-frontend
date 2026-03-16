@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AdminOperationLogItem, type AttendanceDetailLogItem, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type UserItem } from '../../api'
+import { api, type AdminOperationLogItem, type AttendanceDetailLogItem, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type SystemSetting, type UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import { createClassForm, createCourseForm } from './forms'
 
@@ -24,17 +24,22 @@ type UserPasswordForm = {
 }
 
 type CourseForm = {
-  courseId: string
   term: string
   courseName: string
   teacherName: string
-  studentIds: string
-  sessionNo: number
-  weekNo: number
-  weekday: number
-  section: number
+  weekday: number | null
+  section: number | null
   buildingName: string
   roomName: string
+  selectedWeeks: number[]
+  sessions: Array<{
+    sessionNo: number
+    weekNo: number
+    weekday: number
+    section: number
+    buildingName: string
+    roomName: string
+  }>
 }
 
 type ClassForm = {
@@ -47,11 +52,13 @@ type AdminFlowDeps = {
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
+  courseStudentCandidates: Ref<Array<{ student_id: string; real_name: string; class_id: number; class_name: string; grade: number; major_name: string }>>
   courses: Ref<CourseItem[]>
   courseCalendar: Ref<CourseCalendarItem[]>
   dashboard: Ref<DashboardSummary | null>
   attendanceResults: Ref<AttendanceResultItem[]>
   freeTimes: Ref<FreeTimeItem[]>
+  systemSettings: Ref<SystemSetting | null>
   logs: Ref<AdminOperationLogItem[]>
   attendanceLogs: Ref<AttendanceDetailLogItem[]>
   userForm: UserForm
@@ -60,13 +67,20 @@ type AdminFlowDeps = {
   courseForm: CourseForm
   classForm: ClassForm
   editingUserStudentId: Ref<string>
+  editingCourseId: Ref<number | null>
   editingClassId: Ref<number | null>
   passwordTargetStudentId: Ref<string>
+  deletingCourseId: Ref<number | null>
   deletingClassId: Ref<number | null>
+  courseStudentTargetCourseId: Ref<number | null>
+  courseStudentSelectedClassIds: Ref<number[]>
+  courseStudentSelectedStudents: Ref<Array<{ student_id: string; real_name: string }>>
   userSaving: Ref<boolean>
   passwordResetting: Ref<boolean>
   profileSaving: Ref<boolean>
   courseSaving: Ref<boolean>
+  courseDeleting: Ref<boolean>
+  courseStudentSaving: Ref<boolean>
   classSaving: Ref<boolean>
   classDeleting: Ref<boolean>
   adminError: Ref<string>
@@ -74,15 +88,19 @@ type AdminFlowDeps = {
   closeUserModal: () => void
   closeUserPasswordModal: () => void
   closeProfileModal: () => void
+  closeCourseModal: () => void
+  closeCourseStudentModal: () => void
+  closeDeleteCourseModal: () => void
   closeClassModal: () => void
   closeDeleteClassModal: () => void
 }
 
 export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadAdminData() {
-    const [userPageResult, classPageResult, coursePage, calendar, summary, resultPage, freeTimeList, logPageResult, attendanceLogPageResult] = await Promise.all([
+    const [userPageResult, classPageResult, candidateList, coursePage, calendar, summary, resultPage, freeTimeList, logPageResult, attendanceLogPageResult, settings] = await Promise.all([
       api.listUsers({ page: 1, page_size: 500 }),
       api.listClasses(),
+      api.listClassStudentCandidates(),
       api.listCourses(),
       api.adminCourseCalendar(),
       api.adminAttendanceDashboard(),
@@ -90,14 +108,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       api.adminFreeTimeCalendar(),
       api.listAdminOperationLogs(),
       api.listAttendanceDetailLogs(),
+      api.getSystemSettings(),
     ])
     deps.users.value = userPageResult.items ?? []
     deps.classes.value = classPageResult.items ?? []
+    deps.courseStudentCandidates.value = candidateList ?? []
     deps.courses.value = coursePage.items ?? []
     deps.courseCalendar.value = calendar ?? []
     deps.dashboard.value = summary
     deps.attendanceResults.value = resultPage.items ?? []
     deps.freeTimes.value = freeTimeList ?? []
+    deps.systemSettings.value = settings
     deps.logs.value = logPageResult.items ?? []
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
   }
@@ -166,7 +187,6 @@ export function useAdminFlow(deps: AdminFlowDeps) {
           real_name: deps.userForm.realName.trim(),
           role: deps.userForm.role,
           status: deps.userForm.status,
-          class_ids: [],
         })
         await loadAdminData()
         deps.closeUserModal()
@@ -241,41 +261,87 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     }
   }
 
-  async function createCourse() {
+  async function saveCourse() {
     deps.courseSaving.value = true
     deps.adminError.value = ''
     try {
-      const courseId = Number(deps.courseForm.courseId)
-      const studentIds = deps.courseForm.studentIds
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
+      const isEditing = deps.editingCourseId.value !== null
+      if (deps.courseForm.sessions.length === 0) {
+        throw new Error('请至少添加一个上课时间')
+      }
+      const sessions = deps.courseForm.sessions.map((session, index) => ({
+        session_no: index + 1,
+        week_no: session.weekNo,
+        weekday: session.weekday,
+        section: session.section,
+        building_name: session.buildingName.trim(),
+        room_name: session.roomName.trim(),
+      }))
 
-      await api.createCourse({
-        id: courseId,
+      const payload = {
         term: deps.courseForm.term.trim(),
         course_name: deps.courseForm.courseName.trim(),
         teacher_name: deps.courseForm.teacherName.trim(),
-        attendance_student_count: 0,
-      })
-      await api.replaceCourseStudents(courseId, studentIds)
-      await api.replaceCourseSessions(courseId, [
-        {
-          session_no: deps.courseForm.sessionNo,
-          week_no: deps.courseForm.weekNo,
-          weekday: deps.courseForm.weekday,
-          section: deps.courseForm.section,
-          building_name: deps.courseForm.buildingName.trim(),
-          room_name: deps.courseForm.roomName.trim(),
-        },
-      ])
+        attendance_student_count:
+          deps.editingCourseId.value === null
+            ? 0
+            : (deps.courses.value.find((item) => item.id === deps.editingCourseId.value)?.attendance_student_count ?? 0),
+      }
+
+      if (deps.editingCourseId.value !== null) {
+        await api.updateCourse(deps.editingCourseId.value, payload)
+        await api.replaceCourseSessions(deps.editingCourseId.value, sessions)
+      } else {
+        const created = await api.createCourse(payload)
+        await api.replaceCourseSessions(created.id, sessions)
+      }
       Object.assign(deps.courseForm, createCourseForm())
       await loadAdminData()
-      deps.showAdminToast('课程已创建')
+      deps.closeCourseModal()
+      deps.showAdminToast(isEditing ? '课程信息已更新' : '课程已创建')
     } catch (error) {
-      deps.adminError.value = error instanceof Error ? error.message : '创建课程失败'
+      deps.adminError.value = error instanceof Error ? error.message : '保存课程失败'
     } finally {
       deps.courseSaving.value = false
+    }
+  }
+
+  async function deleteCourse() {
+    if (deps.deletingCourseId.value === null) {
+      return
+    }
+
+    deps.courseDeleting.value = true
+    deps.adminError.value = ''
+    try {
+      await api.deleteCourse(deps.deletingCourseId.value)
+      await loadAdminData()
+      deps.closeDeleteCourseModal()
+      deps.showAdminToast('课程已删除')
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '删除课程失败'
+    } finally {
+      deps.courseDeleting.value = false
+    }
+  }
+
+  async function saveCourseStudents() {
+    if (deps.courseStudentTargetCourseId.value === null) {
+      return
+    }
+
+    deps.courseStudentSaving.value = true
+    deps.adminError.value = ''
+    try {
+      await api.replaceCourseClasses(deps.courseStudentTargetCourseId.value, deps.courseStudentSelectedClassIds.value)
+      await api.replaceCourseStudents(deps.courseStudentTargetCourseId.value, deps.courseStudentSelectedStudents.value)
+      await loadAdminData()
+      deps.closeCourseStudentModal()
+      deps.showAdminToast('课程学生已更新')
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '保存课程学生失败'
+    } finally {
+      deps.courseStudentSaving.value = false
     }
   }
 
@@ -296,7 +362,9 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     resetUserPassword,
     updateProfile,
     setUserStatus,
-    createCourse,
+    saveCourse,
+    saveCourseStudents,
+    deleteCourse,
     saveClass,
     deleteClass,
     updateAdminStatus,

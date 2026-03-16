@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import type { AppTab, StatusCode } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
-import AdminOverviewPanel from '../components/admin/AdminOverviewPanel.vue'
-import AdminAttendanceLogsPanel from '../components/admin/AdminAttendanceLogsPanel.vue'
-import AdminFreeTimeCalendarPanel from '../components/admin/AdminFreeTimeCalendarPanel.vue'
-import AdminCourseCalendarPanel from '../components/admin/AdminCourseCalendarPanel.vue'
-import AdminCourseManagePanel from '../components/admin/AdminCourseManagePanel.vue'
-import AdminClassManagePanel from '../components/admin/AdminClassManagePanel.vue'
-import AdminLogsPanel from '../components/admin/AdminLogsPanel.vue'
-import AdminUserManagePanel from '../components/admin/AdminUserManagePanel.vue'
-import AdminPlaceholderPanel from '../components/admin/AdminPlaceholderPanel.vue'
-import AdminSettingsPanel from '../components/admin/AdminSettingsPanel.vue'
-import type { ClassItem, UserItem } from '../api'
+import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
+import type { ClassItem, CourseItem, UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
 
 defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
@@ -21,13 +12,25 @@ const emit = defineEmits<{
   logout: []
   openCreateClassModal: []
   openEditClassModal: [item: ClassItem]
+  openClassStudentModal: [item: ClassItem]
   closeClassModal: []
+  closeClassStudentModal: []
   openDeleteClassModal: [item: ClassItem]
   closeDeleteClassModal: []
+  openBulkDeleteClassModal: []
+  closeBulkDeleteClassModal: []
   saveClass: []
   deleteClass: []
+  bulkDeleteClasses: []
+  createClassStudent: []
+  startEditClassStudent: [studentId: number]
+  saveEditingClassStudent: []
+  deleteClassStudent: [studentId: number]
+  importClasses: [files: File[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
+  toggleClassSelection: [classId: number]
+  toggleClassPageSelection: []
   updateLogsPage: [page: number]
   updateLogsPageSize: [size: number]
   updateAttendanceLogsPage: [page: number]
@@ -37,9 +40,18 @@ const emit = defineEmits<{
   closeUserModal: []
   openUserPasswordModal: [user: UserItem]
   closeUserPasswordModal: []
+  openUserFreeTimeModal: [user: UserItem]
+  closeUserFreeTimeModal: []
+  updateUserFreeTimeTerm: [term: string]
+  toggleUserFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  saveUserFreeTime: []
   resetUserPassword: []
   updateUserPage: [page: number]
   updateUserPageSize: [size: number]
+  toggleUserSelection: [studentId: string]
+  toggleUserPageSelection: []
+  bulkFreezeUsers: []
+  bulkUnfreezeUsers: []
   openProfileModal: []
   closeProfileModal: []
   updateProfile: []
@@ -47,7 +59,35 @@ const emit = defineEmits<{
   closePasswordModal: []
   createUser: []
   setUserStatus: [studentId: string, status: number]
-  createCourse: []
+  openCreateCourseModal: []
+  openEditCourseModal: [item: CourseItem]
+  openCourseStudentModal: [item: CourseItem]
+  closeCourseModal: []
+  closeCourseStudentModal: []
+  openDeleteCourseModal: [item: CourseItem]
+  closeDeleteCourseModal: []
+  openBulkDeleteCourseModal: []
+  closeBulkDeleteCourseModal: []
+  saveCourse: []
+  importCourses: [files: File[]]
+  addCourseStudentClass: [classId: number]
+  removeCourseStudentClass: [classId: number]
+  toggleCourseStudentClassSelection: [classId: number]
+  toggleCourseStudentSelection: [studentId: string]
+  addCourseStudent: [studentId: string]
+  removeCourseStudent: [studentId: string]
+  saveCourseStudents: []
+  deleteCourse: []
+  setCourseWeekSelected: [weekNo: number, selected: boolean]
+  addCourseSessions: []
+  editCourseSession: [sessionNo: number]
+  removeCourseSession: [sessionNo: number]
+  updateCoursePage: [page: number]
+  updateCoursePageSize: [size: number]
+  toggleCourseSelection: [courseId: number]
+  toggleCoursePageSelection: []
+  bulkDeleteCourses: []
+  updateSystemSettings: [payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }]
   updateAdminStatus: [detailId: number, status: StatusCode]
   changePassword: []
 }>()
@@ -58,6 +98,17 @@ function forwardUserStatus(studentId: string, status: number) {
 </script>
 
 <template>
+  <div class="admin-mobile-guard">
+    <section class="workspace-card admin-mobile-card">
+      <div>
+        <p class="section-kicker">管理员端</p>
+        <h2>请在 PC 上打开</h2>
+        <p class="hint">当前界面仅支持桌面端操作。你可以在电脑浏览器中打开后继续管理课程、班级和系统设置。</p>
+      </div>
+      <button class="ghost-button" type="button" @click="emit('logout')">退出登录</button>
+    </section>
+  </div>
+
   <div class="admin-shell">
     <AdminSidebar :me="me" :active-tab="activeTab" :role-name="roleName" @update:active-tab="emit('update:activeTab', $event)" @logout="emit('logout')" />
 
@@ -68,142 +119,88 @@ function forwardUserStatus(studentId: string, status: number) {
           <p v-if="toast" class="toast-banner">{{ toast }}</p>
         </div>
 
-        <div class="admin-panel-slot">
-          <AdminOverviewPanel
-            v-if="activeTab === 'overview'"
-            :admin-stats="adminStats"
-          />
-
-          <AdminPlaceholderPanel
-            v-if="activeTab === 'attendance'"
-            title="查课记录"
-            description="这一页先留空，后续再补查课记录列表、详情联查和状态维护。"
-          />
-
-          <AdminAttendanceLogsPanel
-            v-if="activeTab === 'attendance-logs'"
-            :attendance-logs="attendanceLogs"
-            :attendance-log-filters="attendanceLogFilters"
-            :attendance-logs-page="attendanceLogsPage"
-            :attendance-logs-page-size="attendanceLogsPageSize"
-            :attendance-logs-total-pages="attendanceLogsTotalPages"
-            :attendance-logs-page-options="attendanceLogsPageOptions"
-            :status-name="statusName"
-            @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
-            @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
-          />
-
-          <AdminFreeTimeCalendarPanel
-            v-if="activeTab === 'free-time-calendar'"
-            :free-times="freeTimes"
-            :slot-label="slotLabel"
-          />
-
-          <AdminPlaceholderPanel
-            v-if="activeTab === 'free-time-manage'"
-            title="查课学生空余时间管理"
-            description="这一页暂时留空，后续会补空余时间的新增、编辑、筛选和批量维护。"
-          />
-
-          <AdminCourseCalendarPanel
-            v-if="activeTab === 'course-calendar'"
-            :course-calendar="courseCalendar"
-            :slot-label="slotLabel"
-          />
-
-          <AdminCourseManagePanel
-            v-if="activeTab === 'course-manage'"
-            :courses="courses"
-            :course-form="courseForm"
-            :creating-course="creatingCourse"
-            @create-course="emit('createCourse')"
-          />
-
-          <AdminClassManagePanel
-            v-if="activeTab === 'class-manage'"
-            :classes="classes"
-            :class-form="classForm"
-            :class-filters="classFilters"
-            :class-modal-open="classModalOpen"
-            :delete-class-modal-open="deleteClassModalOpen"
-            :is-editing-class="isEditingClass"
-            :class-saving="classSaving"
-            :class-deleting="classDeleting"
-            :class-page="classPage"
-            :class-page-size="classPageSize"
-            :class-total-pages="classTotalPages"
-            :class-page-options="classPageOptions"
-            :deleting-class-name="deletingClassName"
-            @open-create-class-modal="emit('openCreateClassModal')"
-            @open-edit-class-modal="emit('openEditClassModal', $event)"
-            @close-class-modal="emit('closeClassModal')"
-            @open-delete-class-modal="emit('openDeleteClassModal', $event)"
-            @close-delete-class-modal="emit('closeDeleteClassModal')"
-            @save-class="emit('saveClass')"
-            @delete-class="emit('deleteClass')"
-            @update-class-page="emit('updateClassPage', $event)"
-            @update-class-page-size="emit('updateClassPageSize', $event)"
-          />
-
-          <AdminUserManagePanel
-            v-if="activeTab === 'user-manage'"
-            :users="users"
-            :current-user-id="currentUserId"
-            :user-form="userForm"
-            :user-filters="userFilters"
-            :user-modal-open="userModalOpen"
-            :is-editing-user="isEditingUser"
-            :creating-user="creatingUser"
-            :user-page="userPage"
-            :user-page-size="userPageSize"
-            :user-total-pages="userTotalPages"
-            :user-page-options="userPageOptions"
-            :user-password-modal-open="userPasswordModalOpen"
-            :user-password-form="userPasswordForm"
-            :password-target-name="passwordTargetName"
-            :password-resetting="passwordResetting"
-            :role-name="roleName"
-            @open-create-user-modal="emit('openCreateUserModal')"
-            @open-edit-user-modal="emit('openEditUserModal', $event)"
-            @close-user-modal="emit('closeUserModal')"
-            @open-user-password-modal="emit('openUserPasswordModal', $event)"
-            @close-user-password-modal="emit('closeUserPasswordModal')"
-            @reset-user-password="emit('resetUserPassword')"
-            @update-user-page="emit('updateUserPage', $event)"
-            @update-user-page-size="emit('updateUserPageSize', $event)"
-            @create-user="emit('createUser')"
-            @set-user-status="forwardUserStatus"
-          />
-
-          <AdminLogsPanel
-            v-if="activeTab === 'logs'"
-            :logs="logs"
-            :log-filters="logFilters"
-            :logs-page="logsPage"
-            :logs-page-size="logsPageSize"
-            :logs-total-pages="logsTotalPages"
-            :logs-page-options="logsPageOptions"
-            @update-logs-page="emit('updateLogsPage', $event)"
-            @update-logs-page-size="emit('updateLogsPageSize', $event)"
-          />
-
-          <AdminSettingsPanel
-            v-if="activeTab === 'settings'"
-            :me="me"
-            :profile-form="profileForm"
-            :profile-modal-open="profileModalOpen"
-            :profile-saving="profileSaving"
-            :password-form="passwordForm"
-            :password-modal-open="passwordModalOpen"
-            :changing-password="changingPassword"
-            @open-profile-modal="emit('openProfileModal')"
-            @close-profile-modal="emit('closeProfileModal')"
-            @update-profile="emit('updateProfile')"
-            @open-password-modal="emit('openPasswordModal')"
-            @close-password-modal="emit('closePasswordModal')"
-            @change-password="emit('changePassword')"
-          />
-        </div>
+        <AdminPanelContent
+          v-bind="$props"
+          @open-create-course-modal="emit('openCreateCourseModal')"
+          @open-edit-course-modal="emit('openEditCourseModal', $event)"
+          @open-course-student-modal="emit('openCourseStudentModal', $event)"
+          @close-course-modal="emit('closeCourseModal')"
+          @close-course-student-modal="emit('closeCourseStudentModal')"
+          @open-delete-course-modal="emit('openDeleteCourseModal', $event)"
+          @close-delete-course-modal="emit('closeDeleteCourseModal')"
+          @open-bulk-delete-course-modal="emit('openBulkDeleteCourseModal')"
+          @close-bulk-delete-course-modal="emit('closeBulkDeleteCourseModal')"
+          @save-course="emit('saveCourse')"
+          @import-courses="emit('importCourses', $event)"
+          @add-course-student-class="emit('addCourseStudentClass', $event)"
+          @remove-course-student-class="emit('removeCourseStudentClass', $event)"
+          @toggle-course-student-class-selection="emit('toggleCourseStudentClassSelection', $event)"
+          @toggle-course-student-selection="emit('toggleCourseStudentSelection', $event)"
+          @add-course-student="emit('addCourseStudent', $event)"
+          @remove-course-student="emit('removeCourseStudent', $event)"
+          @save-course-students="emit('saveCourseStudents')"
+          @delete-course="emit('deleteCourse')"
+          @set-course-week-selected="emit('setCourseWeekSelected', $event.weekNo, $event.selected)"
+          @add-course-sessions="emit('addCourseSessions')"
+          @edit-course-session="emit('editCourseSession', $event)"
+          @remove-course-session="emit('removeCourseSession', $event)"
+          @update-course-page="emit('updateCoursePage', $event)"
+          @update-course-page-size="emit('updateCoursePageSize', $event)"
+          @toggle-course-selection="emit('toggleCourseSelection', $event)"
+          @toggle-course-page-selection="emit('toggleCoursePageSelection')"
+          @bulk-delete-courses="emit('bulkDeleteCourses')"
+          @open-create-class-modal="emit('openCreateClassModal')"
+          @open-edit-class-modal="emit('openEditClassModal', $event)"
+          @open-class-student-modal="emit('openClassStudentModal', $event)"
+          @close-class-modal="emit('closeClassModal')"
+          @close-class-student-modal="emit('closeClassStudentModal')"
+          @open-delete-class-modal="emit('openDeleteClassModal', $event)"
+          @close-delete-class-modal="emit('closeDeleteClassModal')"
+          @open-bulk-delete-class-modal="emit('openBulkDeleteClassModal')"
+          @close-bulk-delete-class-modal="emit('closeBulkDeleteClassModal')"
+          @save-class="emit('saveClass')"
+          @delete-class="emit('deleteClass')"
+          @create-class-student="emit('createClassStudent')"
+          @start-edit-class-student="emit('startEditClassStudent', $event)"
+          @save-editing-class-student="emit('saveEditingClassStudent')"
+          @delete-class-student="emit('deleteClassStudent', $event)"
+          @import-classes="emit('importClasses', $event)"
+          @update-class-page="emit('updateClassPage', $event)"
+          @update-class-page-size="emit('updateClassPageSize', $event)"
+          @toggle-class-selection="emit('toggleClassSelection', $event)"
+          @toggle-class-page-selection="emit('toggleClassPageSelection')"
+          @bulk-delete-classes="emit('bulkDeleteClasses')"
+          @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
+          @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
+          @update-logs-page="emit('updateLogsPage', $event)"
+          @update-logs-page-size="emit('updateLogsPageSize', $event)"
+          @open-create-user-modal="emit('openCreateUserModal')"
+          @open-edit-user-modal="emit('openEditUserModal', $event)"
+          @close-user-modal="emit('closeUserModal')"
+          @open-user-password-modal="emit('openUserPasswordModal', $event)"
+          @close-user-password-modal="emit('closeUserPasswordModal')"
+          @open-user-free-time-modal="emit('openUserFreeTimeModal', $event)"
+          @close-user-free-time-modal="emit('closeUserFreeTimeModal')"
+          @update-user-free-time-term="emit('updateUserFreeTimeTerm', $event)"
+          @toggle-user-free-time-week="emit('toggleUserFreeTimeWeek', $event)"
+          @save-user-free-time="emit('saveUserFreeTime')"
+          @reset-user-password="emit('resetUserPassword')"
+          @update-user-page="emit('updateUserPage', $event)"
+          @update-user-page-size="emit('updateUserPageSize', $event)"
+          @toggle-user-selection="emit('toggleUserSelection', $event)"
+          @toggle-user-page-selection="emit('toggleUserPageSelection')"
+          @bulk-freeze-users="emit('bulkFreezeUsers')"
+          @bulk-unfreeze-users="emit('bulkUnfreezeUsers')"
+          @create-user="emit('createUser')"
+          @set-user-status="forwardUserStatus"
+          @update-system-settings="emit('updateSystemSettings', $event)"
+          @open-profile-modal="emit('openProfileModal')"
+          @close-profile-modal="emit('closeProfileModal')"
+          @update-profile="emit('updateProfile')"
+          @open-password-modal="emit('openPasswordModal')"
+          @close-password-modal="emit('closePasswordModal')"
+          @change-password="emit('changePassword')"
+        />
       </main>
     </div>
   </div>

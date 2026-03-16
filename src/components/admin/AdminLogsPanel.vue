@@ -23,33 +23,6 @@ function formatDateTime(value: string) {
       <h2>系统日志</h2>
     </div>
 
-    <div class="table-filters log-filters">
-      <label class="field">
-        <span>操作人</span>
-        <input v-model="logFilters.operatorStudentId" />
-      </label>
-      <label class="field">
-        <span>目标表</span>
-        <input v-model="logFilters.targetTable" />
-      </label>
-      <label class="field">
-        <span>操作类型</span>
-        <input v-model="logFilters.actionType" />
-      </label>
-      <label class="field">
-        <span>目标 ID</span>
-        <input v-model="logFilters.targetId" inputmode="numeric" />
-      </label>
-      <label class="field">
-        <span>新值关键词</span>
-        <input v-model="logFilters.keyword" />
-      </label>
-      <label class="field">
-        <span>日期</span>
-        <input v-model="logFilters.createdDate" type="date" />
-      </label>
-    </div>
-
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -60,6 +33,26 @@ function formatDateTime(value: string) {
             <th>目标 ID</th>
             <th>操作类型</th>
             <th>新值</th>
+          </tr>
+          <tr class="table-filter-row">
+            <th class="table-filter-cell">
+              <input v-model="logFilters.createdDate" type="date" aria-label="按日期筛选系统日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="logFilters.operatorStudentId" aria-label="按操作人筛选系统日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="logFilters.targetTable" aria-label="按目标表筛选系统日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="logFilters.targetId" inputmode="numeric" aria-label="按目标 ID 筛选系统日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="logFilters.actionType" aria-label="按操作类型筛选系统日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="logFilters.keyword" aria-label="按新值关键词筛选系统日志" />
+            </th>
           </tr>
         </thead>
         <tbody>

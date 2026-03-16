@@ -35,6 +35,14 @@ export interface UserItem extends SessionUser {
   updated_at?: string
 }
 
+export interface SystemSetting {
+  id: number
+  current_term_start_date: string
+  current_schedule: 'summer' | 'winter'
+  created_at?: string
+  updated_at?: string
+}
+
 export interface UserPageQuery {
   page?: number
   page_size?: number
@@ -53,15 +61,32 @@ export interface ClassItem {
   updated_at?: string
 }
 
+export interface ClassStudentItem {
+  id: number
+  class_id: number
+  student_id: string
+  real_name: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ClassStudentCandidateItem extends ClassStudentItem {
+  class_name: string
+  grade: number
+  major_name: string
+}
+
 export interface CourseItem {
   id: number
   term: string
   course_name: string
   teacher_name: string
   attendance_student_count: number
+  class_names: string[]
+  class_ids: number[]
 }
 
-export interface CourseCalendarItem {
+export interface CourseSessionItem {
   id: number
   course_id: number
   session_no: number
@@ -70,8 +95,50 @@ export interface CourseCalendarItem {
   section: number
   building_name: string
   room_name: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CourseStudentDetailItem {
+  id: number
+  course_id: number
+  student_id: string
+  real_name: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CourseClassItem {
+  id: number
+  course_id: number
+  class_id: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CourseDetail {
+  course: CourseItem
+  students: CourseStudentDetailItem[]
+  classes: CourseClassItem[]
+  sessions: CourseSessionItem[]
+}
+
+export interface CourseCalendarItem {
+  id: number
+  course_id: number
+  session_no: number
+  term: string
+  week_no: number
+  weekday: number
+  section: number
+  building_name: string
+  room_name: string
   course_name: string
   teacher_name: string
+  class_names: string[]
+  class_ids: number[]
+  grades: number[]
+  major_names: string[]
 }
 
 export interface AdminOperationLogItem {
@@ -90,8 +157,8 @@ export interface AttendanceDetailLogItem {
   id: number
   attendance_detail_id: number
   attendance_check_id: number
-  user_id: number
   student_id: string
+  real_name: string
   operator_user_id: number
   operator_student_id: string
   old_status?: number | null
@@ -125,6 +192,7 @@ export interface FreeTimeItem {
   id: number
   term: string
   student_id: string
+  real_name: string
   weekday: number
   section: number
   free_weeks: string
@@ -136,6 +204,13 @@ export interface FreeTimeInput {
   weekday: number
   section: number
   free_weeks: string
+}
+
+export interface FreeTimeQuery {
+  page?: number
+  page_size?: number
+  term?: string
+  student_id?: string
 }
 
 export interface AvailableCourseItem {
@@ -157,8 +232,8 @@ export interface AvailableCourseItem {
 export interface AttendanceStudentItem {
   id: number
   attendance_check_id: number
-  user_id?: number
   student_id: string
+  real_name: string
   status: number
   status_set_by_user_id?: number | null
   status_set_at?: string | null

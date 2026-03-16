@@ -9,37 +9,73 @@ const emit = defineEmits<{
   updateProfile: []
   openPasswordModal: []
   closePasswordModal: []
+  updateSystemSettings: [payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }]
   changePassword: []
 }>()
 </script>
 
 <template>
-  <section class="workspace-card settings-card admin-settings-card">
-    <div class="section-heading">
-      <h2>当前帐号</h2>
-      <div class="inline-actions">
-        <button class="ghost-button" type="button" @click="emit('openProfileModal')">更改信息</button>
-        <button class="primary-button" type="button" @click="emit('openPasswordModal')">更改密码</button>
+  <div>
+    <div class="settings-layout-grid">
+      <section class="workspace-card settings-card account-settings-card">
+      <div class="section-heading">
+        <h2>账号设置</h2>
+        <div class="inline-actions">
+          <button class="ghost-button" type="button" @click="emit('openProfileModal')">编辑信息</button>
+          <button class="primary-button" type="button" @click="emit('openPasswordModal')">更改密码</button>
+        </div>
       </div>
-    </div>
 
-    <div class="account-summary">
-      <div class="account-line">
-        <span>账号 / 学号</span>
-        <strong>{{ me.student_id }}</strong>
+      <div class="account-summary">
+        <div class="account-line">
+          <span>账号 / 学号</span>
+          <strong>{{ me.student_id }}</strong>
+        </div>
+        <div class="account-line">
+          <span>姓名</span>
+          <strong>{{ me.real_name }}</strong>
+        </div>
+        <div class="account-line">
+          <span>角色</span>
+          <strong>{{ me.role === 1 ? '管理员' : '查课学生' }}</strong>
+        </div>
+        <div class="account-line">
+          <span>状态</span>
+          <strong>{{ me.status === 1 ? '正常' : '冻结' }}</strong>
+        </div>
       </div>
-      <div class="account-line">
-        <span>姓名</span>
-        <strong>{{ me.real_name }}</strong>
+      </section>
+
+      <section class="workspace-card settings-card system-settings-card">
+      <div class="section-heading">
+        <h2>系统设置</h2>
       </div>
-      <div class="account-line">
-        <span>角色</span>
-        <strong>{{ me.role === 1 ? '管理员' : '查课学生' }}</strong>
+      <div class="account-summary">
+        <div class="account-line">
+          <span>当前学期开学日期（周一）</span>
+          <div class="system-setting-row">
+            <input
+              :value="systemSettings?.current_term_start_date ?? ''"
+              type="date"
+              :disabled="systemSettingSaving"
+              @change="emit('updateSystemSettings', { current_term_start_date: ($event.target as HTMLInputElement).value, current_schedule: systemSettings?.current_schedule ?? 'summer' })"
+            />
+          </div>
+        </div>
+        <div class="account-line">
+          <span>当前作息</span>
+          <div class="system-setting-row">
+            <select
+              :value="systemSettings?.current_schedule ?? 'summer'"
+              :disabled="systemSettingSaving"
+              @change="emit('updateSystemSettings', { current_term_start_date: systemSettings?.current_term_start_date ?? '', current_schedule: ($event.target as HTMLSelectElement).value as 'summer' | 'winter' })"
+            >
+              <option v-for="item in scheduleOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="account-line">
-        <span>状态</span>
-        <strong>{{ me.status === 1 ? '正常' : '冻结' }}</strong>
-      </div>
+      </section>
     </div>
 
     <div v-if="profileModalOpen" class="modal-backdrop">
@@ -91,5 +127,5 @@ const emit = defineEmits<{
         </form>
       </article>
     </div>
-  </section>
+  </div>
 </template>

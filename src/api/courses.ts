@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { CourseCalendarItem, CourseItem } from './types'
+import type { CourseCalendarItem, CourseDetail, CourseItem } from './types'
 
 export const coursesApi = {
   listCourses() {
@@ -8,16 +8,36 @@ export const coursesApi = {
       items: page.items ?? [],
     }))
   },
-  createCourse(input: { id: number; term: string; course_name: string; teacher_name: string; attendance_student_count: number }) {
+  getCourse(courseId: number) {
+    return request<CourseDetail>(`/courses/${courseId}`)
+  },
+  createCourse(input: { term: string; course_name: string; teacher_name: string; attendance_student_count: number }) {
     return request<CourseItem>('/courses', {
       method: 'POST',
       body: JSON.stringify(input),
     })
   },
-  replaceCourseStudents(courseId: number, studentIds: string[]) {
+  updateCourse(courseId: number, input: { term: string; course_name: string; teacher_name: string; attendance_student_count: number }) {
+    return request<CourseItem>(`/courses/${courseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  deleteCourse(courseId: number) {
+    return request<Record<string, never>>(`/courses/${courseId}`, {
+      method: 'DELETE',
+    })
+  },
+  replaceCourseStudents(courseId: number, students: Array<{ student_id: string; real_name: string }>) {
     return request<Record<string, never>>(`/courses/${courseId}/students`, {
       method: 'PUT',
-      body: JSON.stringify({ student_ids: studentIds }),
+      body: JSON.stringify({ students }),
+    })
+  },
+  replaceCourseClasses(courseId: number, classIds: number[]) {
+    return request<Record<string, never>>(`/courses/${courseId}/classes`, {
+      method: 'PUT',
+      body: JSON.stringify({ class_ids: classIds }),
     })
   },
   replaceCourseSessions(

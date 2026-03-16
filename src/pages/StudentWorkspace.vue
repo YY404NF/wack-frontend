@@ -59,8 +59,10 @@ const emit = defineEmits<{
     </div>
   </header>
 
-  <p v-if="pageError" class="error-banner">{{ pageError }}</p>
-  <p v-if="toast" class="toast-banner">{{ toast }}</p>
+  <div v-if="pageError || toast" class="notice-stack">
+    <p v-if="pageError" class="error-banner">{{ pageError }}</p>
+    <p v-if="toast" class="toast-banner">{{ toast }}</p>
+  </div>
 
   <main class="layout">
     <template v-if="activeTab === 'student'">

@@ -15,7 +15,7 @@ function onStatusChange(event: Event, detailId: number) {
 </script>
 
 <template>
-  <section class="workspace-card">
+  <section class="workspace-card user-manage-panel">
     <div class="section-heading">
       <h2>查课详情</h2>
       <span class="pill">{{ attendanceResults.length }} 条结果</span>

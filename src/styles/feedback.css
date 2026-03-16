@@ -60,6 +60,13 @@
   color: var(--good);
 }
 
+.error-banner,
+.toast-banner {
+  width: min(360px, calc(100vw - 32px));
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
 .danger-button {
   color: var(--bad);
 }

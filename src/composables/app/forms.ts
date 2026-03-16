@@ -1,11 +1,28 @@
-export function createLoginForm() {
+import type {
+  AdminAttendanceLogFilters,
+  AdminClassFilters,
+  AdminClassForm,
+  AdminClassStudentFilters,
+  AdminClassStudentForm,
+  AdminCourseFilters,
+  AdminCourseForm,
+  AdminPasswordForm,
+  AdminProfileForm,
+  AdminSystemLogFilters,
+  AdminUserFilters,
+  AdminUserForm,
+  AdminUserPasswordForm,
+} from '../../components/admin/form-types'
+import { getCurrentAcademicTerm } from '../../utils/free-time'
+
+export function createLoginForm(): { studentId: string; password: string } {
   return {
     studentId: '',
     password: '',
   }
 }
 
-export function createSetupForm() {
+export function createSetupForm(): { studentId: string; realName: string; password: string; confirmPassword: string } {
   return {
     studentId: '',
     realName: '',
@@ -14,7 +31,7 @@ export function createSetupForm() {
   }
 }
 
-export function createPasswordForm() {
+export function createPasswordForm(): AdminPasswordForm {
   return {
     oldPassword: '',
     newPassword: '',
@@ -22,30 +39,30 @@ export function createPasswordForm() {
   }
 }
 
-export function createProfileForm() {
+export function createProfileForm(): AdminProfileForm {
   return {
     studentId: '',
     realName: '',
   }
 }
 
-export function createUserPasswordForm() {
+export function createUserPasswordForm(): AdminUserPasswordForm {
   return {
     password: '',
     confirmPassword: '',
   }
 }
 
-export function createFreeTimeForm() {
+export function createFreeTimeForm(): { term: string; weekday: number; section: number; freeWeeks: string } {
   return {
-    term: '2025-2026-2',
+    term: getCurrentAcademicTerm(),
     weekday: 1,
     section: 1,
     freeWeeks: '',
   }
 }
 
-export function createUserForm() {
+export function createUserForm(): AdminUserForm {
   return {
     studentId: '',
     realName: '',
@@ -56,7 +73,7 @@ export function createUserForm() {
   }
 }
 
-export function createUserFilters() {
+export function createUserFilters(): AdminUserFilters {
   return {
     studentId: '',
     realName: '',
@@ -65,23 +82,30 @@ export function createUserFilters() {
   }
 }
 
-export function createCourseForm() {
+export function createCourseFilters(): AdminCourseFilters {
   return {
-    courseId: '',
-    term: '2025-2026-2',
+    term: getCurrentAcademicTerm(),
     courseName: '',
     teacherName: '',
-    studentIds: '',
-    sessionNo: 1,
-    weekNo: 1,
-    weekday: 1,
-    section: 1,
-    buildingName: '教4',
-    roomName: '509',
+    classId: '',
   }
 }
 
-export function createClassForm() {
+export function createCourseForm(): AdminCourseForm {
+  return {
+    term: getCurrentAcademicTerm(),
+    courseName: '',
+    teacherName: '',
+    weekday: null,
+    section: null,
+    buildingName: '',
+    roomName: '',
+    selectedWeeks: [],
+    sessions: [],
+  }
+}
+
+export function createClassForm(): AdminClassForm {
   return {
     className: '',
     grade: new Date().getFullYear(),
@@ -89,7 +113,7 @@ export function createClassForm() {
   }
 }
 
-export function createClassFilters() {
+export function createClassFilters(): AdminClassFilters {
   return {
     grade: '',
     majorName: '',
@@ -97,7 +121,21 @@ export function createClassFilters() {
   }
 }
 
-export function createSystemLogFilters() {
+export function createClassStudentFilters(): AdminClassStudentFilters {
+  return {
+    studentId: '',
+    realName: '',
+  }
+}
+
+export function createClassStudentForm(): AdminClassStudentForm {
+  return {
+    studentId: '',
+    realName: '',
+  }
+}
+
+export function createSystemLogFilters(): AdminSystemLogFilters {
   return {
     operatorStudentId: '',
     targetTable: '',
@@ -108,7 +146,7 @@ export function createSystemLogFilters() {
   }
 }
 
-export function createAttendanceLogFilters() {
+export function createAttendanceLogFilters(): AdminAttendanceLogFilters {
   return {
     studentId: '',
     operatorStudentId: '',

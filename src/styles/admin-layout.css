@@ -4,6 +4,8 @@
   gap: 24px;
   align-items: stretch;
   min-height: calc(100vh - 48px);
+  height: calc(100vh - 48px);
+  overflow: hidden;
 }
 
 .admin-sidebar {
@@ -103,10 +105,15 @@
 }
 
 .notice-stack {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   display: grid;
-  align-content: start;
+  justify-items: center;
   gap: 12px;
-  padding-top: 8px;
+  z-index: 70;
+  pointer-events: none;
 }
 
 .admin-panel-slot {
@@ -118,4 +125,21 @@
 .admin-panel-slot > * {
   min-height: 0;
   height: 100%;
+}
+
+.admin-mobile-guard {
+  display: none;
+}
+
+.admin-mobile-card {
+  min-height: calc(100vh - 48px);
+  display: grid;
+  align-content: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.admin-mobile-card .ghost-button {
+  justify-self: center;
+  min-width: 180px;
 }

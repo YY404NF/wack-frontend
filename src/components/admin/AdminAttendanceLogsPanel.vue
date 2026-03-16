@@ -23,36 +23,6 @@ function formatDateTime(value: string) {
       <h2>查课日志</h2>
     </div>
 
-    <div class="table-filters log-filters">
-      <label class="field">
-        <span>学生学号</span>
-        <input v-model="attendanceLogFilters.studentId" />
-      </label>
-      <label class="field">
-        <span>操作人</span>
-        <input v-model="attendanceLogFilters.operatorStudentId" />
-      </label>
-      <label class="field">
-        <span>操作类型</span>
-        <input v-model="attendanceLogFilters.operationType" />
-      </label>
-      <label class="field">
-        <span>新状态</span>
-        <select v-model="attendanceLogFilters.newStatus">
-          <option value="">全部</option>
-          <option value="0">未设置</option>
-          <option value="1">签到</option>
-          <option value="2">迟到</option>
-          <option value="3">缺勤</option>
-          <option value="4">请假</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>日期</span>
-        <input v-model="attendanceLogFilters.operatedDate" type="date" />
-      </label>
-    </div>
-
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -64,6 +34,32 @@ function formatDateTime(value: string) {
             <th>原状态</th>
             <th>新状态</th>
             <th>操作类型</th>
+          </tr>
+          <tr class="table-filter-row">
+            <th class="table-filter-cell">
+              <input v-model="attendanceLogFilters.operatedDate" type="date" aria-label="按日期筛选查课日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="attendanceLogFilters.studentId" aria-label="按学生学号筛选查课日志" />
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="attendanceLogFilters.operatorStudentId" aria-label="按操作人筛选查课日志" />
+            </th>
+            <th class="table-filter-spacer" aria-hidden="true"></th>
+            <th class="table-filter-spacer" aria-hidden="true"></th>
+            <th class="table-filter-cell">
+              <select v-model="attendanceLogFilters.newStatus" aria-label="按新状态筛选查课日志">
+                <option value="">全部</option>
+                <option value="0">未设置</option>
+                <option value="1">签到</option>
+                <option value="2">迟到</option>
+                <option value="3">缺勤</option>
+                <option value="4">请假</option>
+              </select>
+            </th>
+            <th class="table-filter-cell">
+              <input v-model="attendanceLogFilters.operationType" aria-label="按操作类型筛选查课日志" />
+            </th>
           </tr>
         </thead>
         <tbody>

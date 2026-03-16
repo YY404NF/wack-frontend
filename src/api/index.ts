@@ -7,6 +7,7 @@ export { coursesApi } from './courses'
 export { freeTimesApi } from './free-times'
 export { attendanceApi } from './attendance'
 export { logsApi } from './logs'
+export { systemSettingsApi } from './system-settings'
 
 import { attendanceApi } from './attendance'
 import { authApi } from './auth'
@@ -14,6 +15,7 @@ import { classesApi } from './classes'
 import { coursesApi } from './courses'
 import { freeTimesApi } from './free-times'
 import { logsApi } from './logs'
+import { systemSettingsApi } from './system-settings'
 import { usersApi } from './users'
 
 export const api = {
@@ -24,4 +26,5 @@ export const api = {
   ...freeTimesApi,
   ...attendanceApi,
   ...logsApi,
+  ...systemSettingsApi,
 }

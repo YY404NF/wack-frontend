@@ -9,17 +9,24 @@ import {
   type AttendanceResultItem,
   type AvailableCourseItem,
   type ClassItem,
+  type ClassStudentCandidateItem,
+  type ClassStudentItem,
+  type CourseDetail,
   type CourseCalendarItem,
   type CourseItem,
   type DashboardSummary,
   type FreeTimeItem,
   type SessionUser,
+  type SystemSetting,
   type UserItem,
 } from '../api'
 import { adminTabKeys, studentTabKeys, type AppTab, type StatusCode } from '../constants'
 import {
   createClassFilters,
   createClassForm,
+  createClassStudentFilters,
+  createClassStudentForm,
+  createCourseFilters,
   createCourseForm,
   createAttendanceLogFilters,
   createFreeTimeForm,
@@ -32,14 +39,23 @@ import {
   createUserForm,
   createUserPasswordForm,
 } from './app/forms'
+import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, formatFreeWeeks, getCurrentAcademicTerm, parseFreeWeeks } from '../utils/free-time'
+import { parseImportedClassFile, parseImportedCourseFile } from './app/importers'
+import { usePagedCollection } from './app/usePagedCollection'
 import { useAdminFlow } from './app/useAdminFlow'
 import { useSessionFlow } from './app/useSessionFlow'
+import { useSelection } from './app/useSelection'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './app/view'
 
 export function useApp() {
   const router = useRouter()
   const route = useRoute()
+
+  const scheduleOptions = [
+    { value: 'summer', label: '夏季作息' },
+    { value: 'winter', label: '冬季作息' },
+  ] as const
 
   const loginForm = reactive(createLoginForm())
 
@@ -58,11 +74,15 @@ export function useApp() {
   const userFilters = reactive(createUserFilters())
 
   const classForm = reactive(createClassForm())
+  const classStudentForm = reactive(createClassStudentForm())
+  const editingClassStudentForm = reactive(createClassStudentForm())
 
   const classFilters = reactive(createClassFilters())
+  const classStudentFilters = reactive(createClassStudentFilters())
   const logFilters = reactive(createSystemLogFilters())
   const attendanceLogFilters = reactive(createAttendanceLogFilters())
 
+  const courseFilters = reactive(createCourseFilters())
   const courseForm = reactive(createCourseForm())
 
   const me = ref<SessionUser | null>(null)
@@ -71,11 +91,22 @@ export function useApp() {
   const userSaving = ref(false)
   const passwordResetting = ref(false)
   const profileSaving = ref(false)
+  const courseLoading = ref(false)
   const courseSaving = ref(false)
+  const courseImporting = ref(false)
+  const courseDeleting = ref(false)
   const classSaving = ref(false)
   const classDeleting = ref(false)
+  const userStatusUpdating = ref(false)
+  const classStudentSaving = ref(false)
+  const classStudentImporting = ref(false)
+  const courseStudentLoading = ref(false)
+  const courseStudentSaving = ref(false)
   const passwordSaving = ref(false)
   const freeTimeSaving = ref(false)
+  const userFreeTimeLoading = ref(false)
+  const userFreeTimeSaving = ref(false)
+  const systemSettingSaving = ref(false)
   const attendanceCompleting = ref(false)
   const booting = ref(true)
   const initialized = ref(true)
@@ -89,6 +120,8 @@ export function useApp() {
 
   const users = ref<UserItem[]>([])
   const classes = ref<ClassItem[]>([])
+  const courseStudentCandidates = ref<ClassStudentCandidateItem[]>([])
+  const classStudents = ref<ClassStudentItem[]>([])
   const courses = ref<CourseItem[]>([])
   const courseCalendar = ref<CourseCalendarItem[]>([])
   const dashboard = ref<DashboardSummary | null>(null)
@@ -98,22 +131,47 @@ export function useApp() {
   const attendanceLogs = ref<AttendanceDetailLogItem[]>([])
   const availableCourses = ref<AvailableCourseItem[]>([])
   const activeCheck = ref<AttendanceCheckDetail | null>(null)
+  const systemSettings = ref<SystemSetting | null>(null)
 
   const editingFreeTimeId = ref<number | null>(null)
   const editingUserStudentId = ref('')
+  const editingCourseId = ref<number | null>(null)
   const editingClassId = ref<number | null>(null)
+  const editingClassStudentId = ref<number | null>(null)
+  const classStudentTargetClassId = ref<number | null>(null)
+  const courseStudentTargetCourseId = ref<number | null>(null)
+  const courseStudentTargetName = ref('')
+  const courseStudentSelectedClassIds = ref<number[]>([])
+  const courseStudentSelectedStudentIds = ref<string[]>([])
+  const courseStudentClassStudentMap = ref<Record<number, ClassStudentItem[]>>({})
+  const courseStudentLooseStudents = ref<Array<{ student_id: string; real_name: string }>>([])
   const passwordTargetStudentId = ref('')
   const passwordTargetName = ref('')
+  const freeTimeTargetName = ref('')
+  const freeTimeTargetStudentId = ref('')
+  const userFreeTimeTerm = ref(getCurrentAcademicTerm())
+  const userFreeTimeItems = ref<FreeTimeItem[]>([])
+  const userFreeTimeDraft = ref<Record<string, number[]>>({})
+  const deletingCourseId = ref<number | null>(null)
+  const deletingCourseName = ref('')
   const deletingClassId = ref<number | null>(null)
   const deletingClassName = ref('')
+  const classStudentTargetName = ref('')
   const selectedStudentId = ref<number | null>(null)
 
   const userModalOpen = ref(false)
+  const courseModalOpen = ref(false)
   const classModalOpen = ref(false)
+  const classStudentModalOpen = ref(false)
+  const courseStudentModalOpen = ref(false)
+  const deleteCourseModalOpen = ref(false)
   const deleteClassModalOpen = ref(false)
+  const bulkDeleteCourseModalOpen = ref(false)
+  const bulkDeleteClassModalOpen = ref(false)
   const passwordModalOpen = ref(false)
   const profileModalOpen = ref(false)
   const userPasswordModalOpen = ref(false)
+  const userFreeTimeModalOpen = ref(false)
   const activeTab = ref<AppTab>('overview')
 
   const studentSegmentToTab = {
@@ -182,15 +240,6 @@ export function useApp() {
     return defaultTabForRole(role)
   }
 
-  const userPage = ref(1)
-  const userPageSize = ref(10)
-  const classPage = ref(1)
-  const classPageSize = ref(10)
-  const logsPage = ref(1)
-  const logsPageSize = ref(10)
-  const attendanceLogsPage = ref(1)
-  const attendanceLogsPageSize = ref(10)
-
   const adminStats = computed(() => {
     if (!dashboard.value) {
       return []
@@ -204,27 +253,54 @@ export function useApp() {
     ]
   })
 
-  const filteredUsers = computed(() =>
-    users.value.filter((user) => {
+  const isAdmin = computed(() => me.value?.role === 1)
+  const isStudent = computed(() => me.value?.role === 2)
+  const currentUserId = computed(() => me.value?.id)
+  const isEditingUser = computed(() => editingUserStudentId.value.length > 0)
+  const isEditingClass = computed(() => editingClassId.value !== null)
+  const userFreeTimeTermOptions = computed(() => {
+    const terms = new Set<string>([userFreeTimeTerm.value, getCurrentAcademicTerm()])
+    for (const item of userFreeTimeItems.value) {
+      terms.add(item.term)
+    }
+    return Array.from(terms).filter(Boolean).sort((left, right) => right.localeCompare(left, 'zh-Hans-CN'))
+  })
+
+  const usersView = usePagedCollection({
+    source: users,
+    predicate: (user) => {
       const byStudentId = !userFilters.studentId || user.student_id.includes(userFilters.studentId.trim())
       const byRealName = !userFilters.realName || user.real_name.includes(userFilters.realName.trim())
       const byRole = !userFilters.role || String(user.role) === userFilters.role
       const byStatus = !userFilters.status || String(user.status) === userFilters.status
       return byStudentId && byRealName && byRole && byStatus
-    }),
-  )
-
-  const filteredClasses = computed(() =>
-    classes.value.filter((item) => {
-      const byGrade = !classFilters.grade || String(item.grade).includes(classFilters.grade.trim())
-      const byMajor = !classFilters.majorName || item.major_name.includes(classFilters.majorName.trim())
+    },
+    resetDeps: () => [userFilters.studentId, userFilters.realName, userFilters.role, userFilters.status],
+  })
+  const classesView = usePagedCollection({
+    source: classes,
+    predicate: (item) => {
+      const byGrade = !classFilters.grade || String(item.grade) === classFilters.grade
+      const byMajor = !classFilters.majorName || item.major_name === classFilters.majorName
       const byName = !classFilters.className || item.class_name.includes(classFilters.className.trim())
       return byGrade && byMajor && byName
-    }),
-  )
-
-  const filteredLogs = computed(() =>
-    logs.value.filter((item) => {
+    },
+    resetDeps: () => [classFilters.grade, classFilters.majorName, classFilters.className],
+  })
+  const coursesView = usePagedCollection({
+    source: courses,
+    predicate: (item) => {
+      const byTerm = !courseFilters.term || item.term === courseFilters.term
+      const byCourseName = !courseFilters.courseName || item.course_name.includes(courseFilters.courseName.trim())
+      const byTeacher = !courseFilters.teacherName || item.teacher_name.includes(courseFilters.teacherName.trim())
+      const byClass = !courseFilters.classId || item.class_ids.includes(Number(courseFilters.classId))
+      return byTerm && byCourseName && byTeacher && byClass
+    },
+    resetDeps: () => [courseFilters.term, courseFilters.courseName, courseFilters.teacherName, courseFilters.classId],
+  })
+  const logsView = usePagedCollection({
+    source: logs,
+    predicate: (item) => {
       const byOperator = !logFilters.operatorStudentId || item.operator_student_id.includes(logFilters.operatorStudentId.trim())
       const byTargetTable = !logFilters.targetTable || item.target_table.includes(logFilters.targetTable.trim())
       const byActionType = !logFilters.actionType || item.action_type.includes(logFilters.actionType.trim())
@@ -232,41 +308,78 @@ export function useApp() {
       const byKeyword = !logFilters.keyword || (item.new_value ?? '').includes(logFilters.keyword.trim())
       const byDate = !logFilters.createdDate || item.created_at.startsWith(logFilters.createdDate)
       return byOperator && byTargetTable && byActionType && byTargetId && byKeyword && byDate
-    }),
-  )
-
-  const filteredAttendanceLogs = computed(() =>
-    attendanceLogs.value.filter((item) => {
+    },
+    resetDeps: () => [logFilters.operatorStudentId, logFilters.targetTable, logFilters.actionType, logFilters.targetId, logFilters.keyword, logFilters.createdDate],
+  })
+  const attendanceLogsView = usePagedCollection({
+    source: attendanceLogs,
+    predicate: (item) => {
       const byStudent = !attendanceLogFilters.studentId || item.student_id.includes(attendanceLogFilters.studentId.trim())
       const byOperator = !attendanceLogFilters.operatorStudentId || item.operator_student_id.includes(attendanceLogFilters.operatorStudentId.trim())
       const byType = !attendanceLogFilters.operationType || item.operation_type.includes(attendanceLogFilters.operationType.trim())
       const byStatus = !attendanceLogFilters.newStatus || String(item.new_status) === attendanceLogFilters.newStatus
       const byDate = !attendanceLogFilters.operatedDate || item.operated_at.startsWith(attendanceLogFilters.operatedDate)
       return byStudent && byOperator && byType && byStatus && byDate
+    },
+    resetDeps: () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate],
+  })
+
+  const filteredUsers = usersView.filteredItems
+  const filteredClasses = classesView.filteredItems
+  const filteredClassStudents = computed(() =>
+    classStudents.value.filter((item) => {
+      const byStudentId = !classStudentFilters.studentId || item.student_id.includes(classStudentFilters.studentId.trim())
+      const byRealName = !classStudentFilters.realName || item.real_name.includes(classStudentFilters.realName.trim())
+      return byStudentId && byRealName
     }),
   )
+  const filteredCourses = coursesView.filteredItems
+  const filteredLogs = logsView.filteredItems
+  const filteredAttendanceLogs = attendanceLogsView.filteredItems
 
-  const userTotalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / userPageSize.value)))
-  const classTotalPages = computed(() => Math.max(1, Math.ceil(filteredClasses.value.length / classPageSize.value)))
-  const logsTotalPages = computed(() => Math.max(1, Math.ceil(filteredLogs.value.length / logsPageSize.value)))
-  const attendanceLogsTotalPages = computed(() => Math.max(1, Math.ceil(filteredAttendanceLogs.value.length / attendanceLogsPageSize.value)))
-  const paginatedUsers = computed(() => {
-    const start = (userPage.value - 1) * userPageSize.value
-    return filteredUsers.value.slice(start, start + userPageSize.value)
+  const userPage = usersView.page
+  const userPageSize = usersView.pageSize
+  const coursePage = coursesView.page
+  const coursePageSize = coursesView.pageSize
+  const classPage = classesView.page
+  const classPageSize = classesView.pageSize
+  const logsPage = logsView.page
+  const logsPageSize = logsView.pageSize
+  const attendanceLogsPage = attendanceLogsView.page
+  const attendanceLogsPageSize = attendanceLogsView.pageSize
+
+  const userTotalPages = usersView.totalPages
+  const courseTotalPages = coursesView.totalPages
+  const classTotalPages = classesView.totalPages
+  const logsTotalPages = logsView.totalPages
+  const attendanceLogsTotalPages = attendanceLogsView.totalPages
+
+  const paginatedUsers = usersView.paginatedItems
+  const paginatedCourses = coursesView.paginatedItems
+  const paginatedClasses = classesView.paginatedItems
+  const paginatedLogs = logsView.paginatedItems
+  const paginatedAttendanceLogs = attendanceLogsView.paginatedItems
+
+  const courseSelection = useSelection({
+    allItems: courses,
+    pageItems: paginatedCourses,
+    getId: (item) => item.id,
   })
-  const paginatedClasses = computed(() => {
-    const start = (classPage.value - 1) * classPageSize.value
-    return filteredClasses.value.slice(start, start + classPageSize.value)
+  const classSelection = useSelection({
+    allItems: classes,
+    pageItems: paginatedClasses,
+    getId: (item) => item.id,
   })
-  const paginatedLogs = computed(() => {
-    const start = (logsPage.value - 1) * logsPageSize.value
-    return filteredLogs.value.slice(start, start + logsPageSize.value)
-  })
-  const paginatedAttendanceLogs = computed(() => {
-    const start = (attendanceLogsPage.value - 1) * attendanceLogsPageSize.value
-    return filteredAttendanceLogs.value.slice(start, start + attendanceLogsPageSize.value)
+  const userSelection = useSelection({
+    allItems: users,
+    pageItems: paginatedUsers,
+    getId: (item) => item.student_id,
+    canSelect: (item) => item.id !== currentUserId.value,
   })
 
+  const selectedCourseIds = courseSelection.selectedIds
+  const selectedClassIds = classSelection.selectedIds
+  const selectedUserStudentIds = userSelection.selectedIds
   const selectedStudent = computed(() => {
     if (!activeCheck.value || selectedStudentId.value === null) {
       return null
@@ -274,66 +387,37 @@ export function useApp() {
     return activeCheck.value.students.find((student) => student.id === selectedStudentId.value) ?? null
   })
 
-  const isAdmin = computed(() => me.value?.role === 1)
-  const isStudent = computed(() => me.value?.role === 2)
-  const currentUserId = computed(() => me.value?.id)
-  const isEditingUser = computed(() => editingUserStudentId.value.length > 0)
-  const isEditingClass = computed(() => editingClassId.value !== null)
-  watch(
-    () => [userFilters.studentId, userFilters.realName, userFilters.role, userFilters.status, userPageSize.value],
-    () => {
-      userPage.value = 1
-    },
-  )
-
-  watch(
-    () => [classFilters.grade, classFilters.majorName, classFilters.className, classPageSize.value],
-    () => {
-      classPage.value = 1
-    },
-  )
-
-  watch(
-    () => [logFilters.operatorStudentId, logFilters.targetTable, logFilters.actionType, logFilters.targetId, logFilters.keyword, logFilters.createdDate, logsPageSize.value],
-    () => {
-      logsPage.value = 1
-    },
-  )
-
-  watch(
-    () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate, attendanceLogsPageSize.value],
-    () => {
-      attendanceLogsPage.value = 1
-    },
-  )
-
-  watch(userTotalPages, (total) => {
-    if (userPage.value > total) {
-      userPage.value = total
+  const courseStudentSelectedStudents = computed(() => {
+    const realNameByStudentId = new Map<string, string>()
+    for (const item of courseStudentCandidates.value) {
+      realNameByStudentId.set(item.student_id, item.real_name)
     }
+    for (const students of Object.values(courseStudentClassStudentMap.value)) {
+      for (const student of students) {
+        realNameByStudentId.set(student.student_id, student.real_name)
+      }
+    }
+    for (const student of courseStudentLooseStudents.value) {
+      realNameByStudentId.set(student.student_id, student.real_name)
+    }
+    return courseStudentSelectedStudentIds.value.map((studentId) => ({
+      student_id: studentId,
+      real_name: realNameByStudentId.get(studentId) ?? studentId,
+    }))
   })
 
-  watch(classTotalPages, (total) => {
-    if (classPage.value > total) {
-      classPage.value = total
-    }
-  })
-
-  watch(logsTotalPages, (total) => {
-    if (logsPage.value > total) {
-      logsPage.value = total
-    }
-  })
-
-  watch(attendanceLogsTotalPages, (total) => {
-    if (attendanceLogsPage.value > total) {
-      attendanceLogsPage.value = total
-    }
-  })
+  function clearAdminSelections() {
+    courseSelection.clearSelection()
+    classSelection.clearSelection()
+    userSelection.clearSelection()
+    bulkDeleteCourseModalOpen.value = false
+    bulkDeleteClassModalOpen.value = false
+  }
 
   watch(activeTab, (nextTab, previousTab) => {
     if (nextTab !== previousTab && isAdmin.value) {
       closeAllAdminModals()
+      clearAdminSelections()
     }
 
     if (isAdmin.value) {
@@ -401,9 +485,32 @@ export function useApp() {
     passwordTargetName.value = ''
   }
 
+  function closeUserFreeTimeModal() {
+    userFreeTimeModalOpen.value = false
+    freeTimeTargetName.value = ''
+    freeTimeTargetStudentId.value = ''
+    userFreeTimeTerm.value = getCurrentAcademicTerm()
+    userFreeTimeItems.value = []
+    userFreeTimeDraft.value = {}
+  }
+
+  function resetCourseForm() {
+    Object.assign(courseForm, createCourseForm())
+    editingCourseId.value = null
+  }
+
   function resetClassForm() {
     Object.assign(classForm, createClassForm())
     editingClassId.value = null
+  }
+
+  function resetClassStudentForm() {
+    Object.assign(classStudentForm, createClassStudentForm())
+  }
+
+  function resetEditingClassStudentForm() {
+    Object.assign(editingClassStudentForm, createClassStudentForm())
+    editingClassStudentId.value = null
   }
 
   function resetFreeTimeForm() {
@@ -414,6 +521,23 @@ export function useApp() {
   function closeUserModal() {
     userModalOpen.value = false
     resetUserForm()
+  }
+
+  function closeCourseModal() {
+    courseModalOpen.value = false
+    resetCourseForm()
+  }
+
+  function closeCourseStudentModal() {
+    courseStudentModalOpen.value = false
+    courseStudentLoading.value = false
+    courseStudentSaving.value = false
+    courseStudentTargetCourseId.value = null
+    courseStudentTargetName.value = ''
+    courseStudentSelectedClassIds.value = []
+    courseStudentSelectedStudentIds.value = []
+    courseStudentClassStudentMap.value = {}
+    courseStudentLooseStudents.value = []
   }
 
   function openCreateUserModal() {
@@ -430,6 +554,407 @@ export function useApp() {
     userForm.status = user.status
     editingUserStudentId.value = user.student_id
     userModalOpen.value = true
+  }
+
+  function createUserFreeTimeDraft(items: FreeTimeItem[], term: string) {
+    const draft: Record<string, number[]> = {}
+    for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
+      for (const section of FREE_TIME_VISIBLE_SECTIONS) {
+        draft[buildFreeTimeCellKey(weekday, section)] = []
+      }
+    }
+    for (const item of items) {
+      if (item.term !== term) {
+        continue
+      }
+      draft[buildFreeTimeCellKey(item.weekday, item.section)] = parseFreeWeeks(item.free_weeks)
+    }
+    userFreeTimeDraft.value = draft
+  }
+
+  async function loadUserFreeTimeItems(studentId: string) {
+    const page = await api.listFreeTimes({ page: 1, page_size: 200, student_id: studentId })
+    userFreeTimeItems.value = page.items ?? []
+    createUserFreeTimeDraft(userFreeTimeItems.value, userFreeTimeTerm.value)
+  }
+
+  async function openUserFreeTimeModal(user: UserItem) {
+    if (user.role !== 2) {
+      return
+    }
+    userFreeTimeLoading.value = true
+    adminError.value = ''
+    freeTimeTargetName.value = `${user.real_name}（${user.student_id}）`
+    freeTimeTargetStudentId.value = user.student_id
+    userFreeTimeTerm.value = getCurrentAcademicTerm()
+    userFreeTimeModalOpen.value = true
+    try {
+      await loadUserFreeTimeItems(user.student_id)
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '加载空闲时间失败'
+      closeUserFreeTimeModal()
+    } finally {
+      userFreeTimeLoading.value = false
+    }
+  }
+
+  function updateUserFreeTimeTerm(term: string) {
+    userFreeTimeTerm.value = term
+    createUserFreeTimeDraft(userFreeTimeItems.value, term)
+  }
+
+  function toggleUserFreeTimeWeek(payload: { weekday: number; section: number; weekNo: number }) {
+    const key = buildFreeTimeCellKey(payload.weekday, payload.section)
+    const current = new Set(userFreeTimeDraft.value[key] ?? [])
+    if (current.has(payload.weekNo)) {
+      current.delete(payload.weekNo)
+    } else {
+      current.add(payload.weekNo)
+    }
+    userFreeTimeDraft.value = {
+      ...userFreeTimeDraft.value,
+      [key]: Array.from(current).sort((left, right) => left - right),
+    }
+  }
+
+  function applyCourseDetail(detail: CourseDetail) {
+    courseForm.term = detail.course.term
+    courseForm.courseName = detail.course.course_name
+    courseForm.teacherName = detail.course.teacher_name
+    courseForm.weekday = null
+    courseForm.section = null
+    courseForm.buildingName = ''
+    courseForm.roomName = ''
+    courseForm.selectedWeeks = []
+    courseForm.sessions = detail.sessions
+      .slice()
+      .sort((left, right) => left.session_no - right.session_no)
+      .map((session) => ({
+        sessionNo: session.session_no,
+        weekNo: session.week_no,
+        weekday: session.weekday,
+        section: session.section,
+        buildingName: session.building_name,
+        roomName: session.room_name,
+      }))
+  }
+
+  async function loadCourseStudentClassStudents(classIds: number[]) {
+    const entries = await Promise.all(
+      classIds.map(async (classId) => {
+        const students = await api.listClassStudents(classId)
+        return [classId, students] as const
+      }),
+    )
+
+    courseStudentClassStudentMap.value = Object.fromEntries(entries)
+  }
+
+  function syncLooseCourseStudents() {
+    const classStudentIds = new Set(
+      Object.values(courseStudentClassStudentMap.value)
+        .flat()
+        .map((item) => item.student_id),
+    )
+    const existingLooseNames = new Map(courseStudentLooseStudents.value.map((item) => [item.student_id, item.real_name]))
+
+    courseStudentLooseStudents.value = courseStudentSelectedStudentIds.value
+      .filter((studentId) => !classStudentIds.has(studentId))
+      .map((studentId) => {
+        const matchedStudent = courseStudentCandidates.value.find((item) => item.student_id === studentId)
+        return {
+          student_id: studentId,
+          real_name: matchedStudent?.real_name ?? existingLooseNames.get(studentId) ?? studentId,
+        }
+      })
+  }
+
+  function sortCourseSessions() {
+    courseForm.sessions = courseForm.sessions
+      .slice()
+      .sort((left, right) => {
+        if (left.weekNo !== right.weekNo) {
+          return left.weekNo - right.weekNo
+        }
+        if (left.weekday !== right.weekday) {
+          return left.weekday - right.weekday
+        }
+        if (left.section !== right.section) {
+          return left.section - right.section
+        }
+        return left.roomName.localeCompare(right.roomName, 'zh-Hans-CN')
+      })
+      .map((item, index) => ({
+        ...item,
+        sessionNo: index + 1,
+      }))
+  }
+
+  function setCourseWeekSelected(weekNo: number, selected: boolean) {
+    const weekSet = new Set(courseForm.selectedWeeks)
+    if (selected) {
+      weekSet.add(weekNo)
+    } else {
+      weekSet.delete(weekNo)
+    }
+    courseForm.selectedWeeks = Array.from(weekSet).sort((left, right) => left - right)
+  }
+
+  function addCourseSessions() {
+    const weeks = Array.from(new Set(courseForm.selectedWeeks)).sort((left, right) => left - right)
+    if (weeks.length === 0) {
+      adminError.value = '请先选择周数'
+      return
+    }
+    if (courseForm.weekday === null || courseForm.section === null || !courseForm.buildingName.trim() || !courseForm.roomName.trim()) {
+      adminError.value = '请先填写完整的上课时间'
+      return
+    }
+
+    const nextSessions = courseForm.sessions.filter(
+      (item) => !weeks.some((weekNo) => weekNo === item.weekNo && item.weekday === courseForm.weekday && item.section === courseForm.section),
+    )
+
+    for (const weekNo of weeks) {
+      nextSessions.push({
+        sessionNo: 0,
+        weekNo,
+        weekday: courseForm.weekday,
+        section: courseForm.section,
+        buildingName: courseForm.buildingName.trim(),
+        roomName: courseForm.roomName.trim(),
+      })
+    }
+
+    courseForm.sessions = nextSessions
+    sortCourseSessions()
+    courseForm.selectedWeeks = []
+    adminError.value = ''
+  }
+
+  function editCourseSession(sessionNo: number) {
+    const target = courseForm.sessions.find((item) => item.sessionNo === sessionNo)
+    if (!target) {
+      return
+    }
+    courseForm.weekday = target.weekday
+    courseForm.section = target.section
+    courseForm.buildingName = target.buildingName
+    courseForm.roomName = target.roomName
+    courseForm.selectedWeeks = [target.weekNo]
+    courseForm.sessions = courseForm.sessions.filter((item) => item.sessionNo !== sessionNo)
+    sortCourseSessions()
+  }
+
+  function removeCourseSession(sessionNo: number) {
+    courseForm.sessions = courseForm.sessions.filter((item) => item.sessionNo !== sessionNo)
+    sortCourseSessions()
+  }
+
+  function openCreateCourseModal() {
+    resetCourseForm()
+    courseModalOpen.value = true
+  }
+
+  async function importCourses(files: File[]) {
+    if (files.length === 0) {
+      return
+    }
+    courseImporting.value = true
+    adminError.value = ''
+    const errors: string[] = []
+    let importedCount = 0
+
+    try {
+      for (const file of files) {
+        try {
+          const course = await parseImportedCourseFile(file)
+          const created = await api.createCourse(course)
+          try {
+            await api.replaceCourseSessions(created.id, course.sessions)
+          } catch (error) {
+            await api.deleteCourse(created.id).catch(() => undefined)
+            throw error
+          }
+          importedCount += 1
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '导入失败'
+          errors.push(`${file.name}: ${message}`)
+        }
+      }
+
+      if (importedCount > 0) {
+        await adminFlow.loadAdminData()
+        showScopedToast('admin', `已导入 ${importedCount} 门课程`)
+      }
+      if (errors.length > 0) {
+        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入课程失败，共 ${errors.length} 个文件失败：`
+        adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
+      }
+    } finally {
+      courseImporting.value = false
+    }
+  }
+
+  async function openEditCourseModal(item: CourseItem) {
+    courseLoading.value = true
+    adminError.value = ''
+    try {
+      const detail = await api.getCourse(item.id)
+      resetCourseForm()
+      applyCourseDetail(detail)
+      editingCourseId.value = item.id
+      courseModalOpen.value = true
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '加载课程失败'
+    } finally {
+      courseLoading.value = false
+    }
+  }
+
+  async function openCourseStudentModal(item: CourseItem) {
+    courseStudentLoading.value = true
+    adminError.value = ''
+    try {
+      const detail = await api.getCourse(item.id)
+      courseStudentTargetCourseId.value = item.id
+      courseStudentTargetName.value = `${item.course_name} · ${item.teacher_name}`
+      courseStudentSelectedClassIds.value = detail.classes
+        .map((entry) => Number(entry.class_id))
+        .sort((left, right) => left - right)
+      courseStudentSelectedStudentIds.value = detail.students
+        .map((entry) => entry.student_id)
+        .sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+      courseStudentLooseStudents.value = detail.students.map((entry) => ({
+        student_id: entry.student_id,
+        real_name: entry.real_name,
+      }))
+      await loadCourseStudentClassStudents(courseStudentSelectedClassIds.value)
+      syncLooseCourseStudents()
+      courseStudentModalOpen.value = true
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '加载课程学生失败'
+      closeCourseStudentModal()
+    } finally {
+      courseStudentLoading.value = false
+    }
+  }
+
+  async function addCourseStudentClass(classId: number) {
+    if (courseStudentSelectedClassIds.value.includes(classId)) {
+      return
+    }
+    courseStudentLoading.value = true
+    adminError.value = ''
+    try {
+      const students = await api.listClassStudents(classId)
+      courseStudentClassStudentMap.value = {
+        ...courseStudentClassStudentMap.value,
+        [classId]: students,
+      }
+      courseStudentSelectedClassIds.value = [...courseStudentSelectedClassIds.value, classId].sort((left, right) => left - right)
+      const selected = new Set(courseStudentSelectedStudentIds.value)
+      for (const student of students) {
+        selected.add(student.student_id)
+      }
+      courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+      syncLooseCourseStudents()
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '添加班级失败'
+    } finally {
+      courseStudentLoading.value = false
+    }
+  }
+
+  function removeCourseStudentClass(classId: number) {
+    const remainingClassIds = courseStudentSelectedClassIds.value.filter((item) => item !== classId)
+    const remainingClassStudents = new Set(
+      remainingClassIds.flatMap((item) => (courseStudentClassStudentMap.value[item] ?? []).map((student) => student.student_id)),
+    )
+    const looseStudentIds = new Set(courseStudentLooseStudents.value.map((item) => item.student_id))
+    const nextMap = { ...courseStudentClassStudentMap.value }
+
+    delete nextMap[classId]
+    courseStudentSelectedClassIds.value = remainingClassIds
+    courseStudentClassStudentMap.value = nextMap
+    courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter(
+      (studentId) => remainingClassStudents.has(studentId) || looseStudentIds.has(studentId),
+    )
+    syncLooseCourseStudents()
+  }
+
+  function toggleCourseStudentClassSelection(classId: number) {
+    const classStudentIds = (courseStudentClassStudentMap.value[classId] ?? []).map((student) => student.student_id)
+    const selected = new Set(courseStudentSelectedStudentIds.value)
+    const allSelected = classStudentIds.length > 0 && classStudentIds.every((studentId) => selected.has(studentId))
+
+    if (allSelected) {
+      const otherClassStudentIds = new Set(
+        courseStudentSelectedClassIds.value
+          .filter((item) => item !== classId)
+          .flatMap((item) => (courseStudentClassStudentMap.value[item] ?? []).map((student) => student.student_id)),
+      )
+      courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter(
+        (studentId) => !classStudentIds.includes(studentId) || otherClassStudentIds.has(studentId),
+      )
+      syncLooseCourseStudents()
+      return
+    }
+
+    for (const studentId of classStudentIds) {
+      selected.add(studentId)
+    }
+    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+    syncLooseCourseStudents()
+  }
+
+  function toggleCourseStudentSelection(studentId: string) {
+    const selected = new Set(courseStudentSelectedStudentIds.value)
+    if (selected.has(studentId)) {
+      selected.delete(studentId)
+    } else {
+      selected.add(studentId)
+    }
+    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+    syncLooseCourseStudents()
+  }
+
+  function addCourseStudent(studentId: string) {
+    const selected = new Set(courseStudentSelectedStudentIds.value)
+    if (selected.has(studentId)) {
+      return
+    }
+    selected.add(studentId)
+    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+    syncLooseCourseStudents()
+  }
+
+  function removeCourseStudent(studentId: string) {
+    courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter((item) => item !== studentId)
+    courseStudentLooseStudents.value = courseStudentLooseStudents.value.filter((item) => item.student_id !== studentId)
+  }
+
+  function closeDeleteCourseModal() {
+    deleteCourseModalOpen.value = false
+    deletingCourseId.value = null
+    deletingCourseName.value = ''
+  }
+
+  function openBulkDeleteCourseModal() {
+    if (selectedCourseIds.value.length === 0) {
+      return
+    }
+    bulkDeleteCourseModalOpen.value = true
+  }
+
+  function closeBulkDeleteCourseModal() {
+    bulkDeleteCourseModalOpen.value = false
+  }
+
+  function openDeleteCourseModal(item: CourseItem) {
+    deletingCourseId.value = item.id
+    deletingCourseName.value = item.course_name
+    deleteCourseModalOpen.value = true
   }
 
   function closeClassModal() {
@@ -450,10 +975,55 @@ export function useApp() {
     classModalOpen.value = true
   }
 
+  function closeClassStudentModal() {
+    classStudentModalOpen.value = false
+    classStudentTargetClassId.value = null
+    classStudentTargetName.value = ''
+    classStudents.value = []
+    Object.assign(classStudentFilters, createClassStudentFilters())
+    resetClassStudentForm()
+    resetEditingClassStudentForm()
+  }
+
+  async function loadClassStudents(classId: number) {
+    classStudents.value = await api.listClassStudents(classId)
+  }
+
+  async function openClassStudentModal(item: ClassItem) {
+    classStudentTargetClassId.value = item.id
+    classStudentTargetName.value = `${item.grade}级 ${item.major_name} ${item.class_name}`
+    resetClassStudentForm()
+    resetEditingClassStudentForm()
+    Object.assign(classStudentFilters, createClassStudentFilters())
+    await loadClassStudents(item.id)
+    classStudentModalOpen.value = true
+  }
+
+  function startEditClassStudent(studentId: number) {
+    const item = classStudents.value.find((student) => student.id === studentId)
+    if (!item) {
+      return
+    }
+    editingClassStudentId.value = item.id
+    editingClassStudentForm.studentId = item.student_id
+    editingClassStudentForm.realName = item.real_name
+  }
+
   function closeDeleteClassModal() {
     deleteClassModalOpen.value = false
     deletingClassId.value = null
     deletingClassName.value = ''
+  }
+
+  function openBulkDeleteClassModal() {
+    if (selectedClassIds.value.length === 0) {
+      return
+    }
+    bulkDeleteClassModalOpen.value = true
+  }
+
+  function closeBulkDeleteClassModal() {
+    bulkDeleteClassModalOpen.value = false
   }
 
   function openDeleteClassModal(item: ClassItem) {
@@ -496,49 +1066,188 @@ export function useApp() {
   }
 
   function updateUserPage(page: number) {
-    userPage.value = page
+    usersView.setPage(page)
   }
 
   function updateUserPageSize(size: number) {
-    userPageSize.value = size
+    usersView.setPageSize(size)
+  }
+
+  function updateCoursePage(page: number) {
+    coursesView.setPage(page)
+  }
+
+  function updateCoursePageSize(size: number) {
+    coursesView.setPageSize(size)
   }
 
   function updateClassPage(page: number) {
-    classPage.value = page
+    classesView.setPage(page)
   }
 
   function updateClassPageSize(size: number) {
-    classPageSize.value = size
-    classPage.value = 1
+    classesView.setPageSize(size)
   }
 
   function updateLogsPage(page: number) {
-    logsPage.value = page
+    logsView.setPage(page)
   }
 
   function updateLogsPageSize(size: number) {
-    logsPageSize.value = size
-    logsPage.value = 1
+    logsView.setPageSize(size)
   }
 
   function updateAttendanceLogsPage(page: number) {
-    attendanceLogsPage.value = page
+    attendanceLogsView.setPage(page)
   }
 
   function updateAttendanceLogsPageSize(size: number) {
-    attendanceLogsPageSize.value = size
-    attendanceLogsPage.value = 1
+    attendanceLogsView.setPageSize(size)
+  }
+
+  function toggleCourseSelection(courseId: number) {
+    courseSelection.toggleSelection(courseId)
+  }
+
+  function toggleCoursePageSelection() {
+    courseSelection.togglePageSelection()
+  }
+
+  function toggleClassSelection(classId: number) {
+    classSelection.toggleSelection(classId)
+  }
+
+  function toggleClassPageSelection() {
+    classSelection.togglePageSelection()
+  }
+
+  function toggleUserSelection(studentId: string) {
+    userSelection.toggleSelection(studentId)
+  }
+
+  function toggleUserPageSelection() {
+    userSelection.togglePageSelection()
+  }
+
+  async function bulkDeleteCourses() {
+    const ids = [...selectedCourseIds.value]
+    if (ids.length === 0) {
+      return
+    }
+
+    courseDeleting.value = true
+    adminError.value = ''
+    const nameById = new Map(courses.value.map((item) => [item.id, item.course_name]))
+    const failed: string[] = []
+    let deletedCount = 0
+    try {
+      for (const id of ids) {
+        try {
+          await api.deleteCourse(id)
+          deletedCount += 1
+        } catch (error) {
+          const label = nameById.get(id) ?? `ID ${id}`
+          const message = error instanceof Error ? error.message : '删除失败'
+          failed.push(`${label}（${message}）`)
+        }
+      }
+      await adminFlow.loadAdminData()
+      closeBulkDeleteCourseModal()
+      selectedCourseIds.value = failed.length === 0 ? [] : selectedCourseIds.value.filter((id) => ids.includes(id))
+      if (deletedCount > 0) {
+        showScopedToast('admin', `已删除 ${deletedCount} 门课程`)
+      }
+      if (failed.length > 0) {
+        adminError.value = `部分删除失败：${failed.join('；')}`
+      }
+    } finally {
+      courseDeleting.value = false
+    }
+  }
+
+  async function bulkDeleteClasses() {
+    const ids = [...selectedClassIds.value]
+    if (ids.length === 0) {
+      return
+    }
+
+    classDeleting.value = true
+    adminError.value = ''
+    const nameById = new Map(classes.value.map((item) => [item.id, item.class_name]))
+    const failed: string[] = []
+    let deletedCount = 0
+    try {
+      for (const id of ids) {
+        try {
+          await api.deleteClass(id)
+          deletedCount += 1
+        } catch (error) {
+          const label = nameById.get(id) ?? `ID ${id}`
+          const message = error instanceof Error ? error.message : '删除失败'
+          failed.push(`${label}（${message}）`)
+        }
+      }
+      await adminFlow.loadAdminData()
+      closeBulkDeleteClassModal()
+      selectedClassIds.value = failed.length === 0 ? [] : selectedClassIds.value.filter((id) => ids.includes(id))
+      if (deletedCount > 0) {
+        showScopedToast('admin', `已删除 ${deletedCount} 个班级`)
+      }
+      if (failed.length > 0) {
+        adminError.value = `部分删除失败：${failed.join('；')}`
+      }
+    } finally {
+      classDeleting.value = false
+    }
+  }
+
+  async function bulkSetUserStatus(status: number) {
+    const studentIds = [...selectedUserStudentIds.value]
+    if (studentIds.length === 0) {
+      return
+    }
+
+    userStatusUpdating.value = true
+    adminError.value = ''
+    const actionLabel = status === 1 ? '解冻' : '冻结'
+    const nameByStudentId = new Map(users.value.map((item) => [item.student_id, item.real_name]))
+    const failed: string[] = []
+    let updatedCount = 0
+    try {
+      for (const studentId of studentIds) {
+        try {
+          await api.updateUserStatus(studentId, status)
+          updatedCount += 1
+        } catch (error) {
+          const label = nameByStudentId.get(studentId) ?? studentId
+          const message = error instanceof Error ? error.message : '更新失败'
+          failed.push(`${label}（${studentId}，${message}）`)
+        }
+      }
+      await adminFlow.loadAdminData()
+      selectedUserStudentIds.value = failed.length === 0 ? [] : selectedUserStudentIds.value.filter((studentId) => studentIds.includes(studentId))
+      if (updatedCount > 0) {
+        showScopedToast('admin', `已${actionLabel} ${updatedCount} 个用户`)
+      }
+      if (failed.length > 0) {
+        adminError.value = `部分${actionLabel}失败：${failed.join('；')}`
+      }
+    } finally {
+      userStatusUpdating.value = false
+    }
   }
 
   const adminFlow = useAdminFlow({
     me,
     users,
     classes,
+    courseStudentCandidates,
     courses,
     courseCalendar,
     dashboard,
     attendanceResults,
     freeTimes,
+    systemSettings,
     logs,
     attendanceLogs,
     userForm,
@@ -547,13 +1256,20 @@ export function useApp() {
     courseForm,
     classForm,
     editingUserStudentId,
+    editingCourseId,
     editingClassId,
     passwordTargetStudentId,
+    deletingCourseId,
     deletingClassId,
+    courseStudentTargetCourseId,
+    courseStudentSelectedClassIds,
+    courseStudentSelectedStudents,
     userSaving,
     passwordResetting,
     profileSaving,
     courseSaving,
+    courseDeleting,
+    courseStudentSaving,
     classSaving,
     classDeleting,
     adminError,
@@ -561,6 +1277,9 @@ export function useApp() {
     closeUserModal,
     closeUserPasswordModal,
     closeProfileModal,
+    closeCourseModal,
+    closeCourseStudentModal,
+    closeDeleteCourseModal,
     closeClassModal,
     closeDeleteClassModal,
   })
@@ -598,11 +1317,14 @@ export function useApp() {
   function resetAppData() {
     users.value = []
     classes.value = []
+    courseStudentCandidates.value = []
+    classStudents.value = []
     courses.value = []
     courseCalendar.value = []
     dashboard.value = null
     attendanceResults.value = []
     freeTimes.value = []
+    systemSettings.value = null
     logs.value = []
     attendanceLogs.value = []
     availableCourses.value = []
@@ -613,11 +1335,18 @@ export function useApp() {
 
   function closeAllAdminModals() {
     closeUserModal()
+    closeCourseModal()
+    closeCourseStudentModal()
     closeClassModal()
+    closeClassStudentModal()
+    closeDeleteCourseModal()
     closeDeleteClassModal()
+    closeBulkDeleteCourseModal()
+    closeBulkDeleteClassModal()
     closePasswordModal()
     closeProfileModal()
     closeUserPasswordModal()
+    closeUserFreeTimeModal()
   }
 
   const sessionFlow = useSessionFlow({
@@ -689,8 +1418,12 @@ export function useApp() {
     await adminFlow.setUserStatus(studentId, status)
   }
 
-  async function createCourse() {
-    await adminFlow.createCourse()
+  async function saveCourse() {
+    await adminFlow.saveCourse()
+  }
+
+  async function deleteCourse() {
+    await adminFlow.deleteCourse()
   }
 
   async function saveClass() {
@@ -699,6 +1432,173 @@ export function useApp() {
 
   async function deleteClass() {
     await adminFlow.deleteClass()
+  }
+
+  async function createClassStudent() {
+    if (classStudentTargetClassId.value === null) {
+      return
+    }
+    classStudentSaving.value = true
+    adminError.value = ''
+    try {
+      await api.createClassStudent(classStudentTargetClassId.value, {
+        student_id: classStudentForm.studentId.trim(),
+        real_name: classStudentForm.realName.trim(),
+      })
+      await loadClassStudents(classStudentTargetClassId.value)
+      resetClassStudentForm()
+      await adminFlow.loadAdminData()
+      showScopedToast('admin', '班级学生已保存')
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '创建班级学生失败'
+    } finally {
+      classStudentSaving.value = false
+    }
+  }
+
+  async function saveEditingClassStudent() {
+    if (classStudentTargetClassId.value === null || editingClassStudentId.value === null) {
+      return false
+    }
+    classStudentSaving.value = true
+    adminError.value = ''
+    try {
+      await api.updateClassStudent(classStudentTargetClassId.value, editingClassStudentId.value, {
+        student_id: editingClassStudentForm.studentId.trim(),
+        real_name: editingClassStudentForm.realName.trim(),
+      })
+      await loadClassStudents(classStudentTargetClassId.value)
+      resetEditingClassStudentForm()
+      await adminFlow.loadAdminData()
+      showScopedToast('admin', '班级学生已更新')
+      return true
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '更新班级学生失败'
+      return false
+    } finally {
+      classStudentSaving.value = false
+    }
+  }
+
+  async function deleteClassStudent(studentId: number) {
+    if (classStudentTargetClassId.value === null) {
+      return
+    }
+    classStudentSaving.value = true
+    adminError.value = ''
+    try {
+      await api.deleteClassStudent(classStudentTargetClassId.value, studentId)
+      if (editingClassStudentId.value === studentId) {
+        resetEditingClassStudentForm()
+      }
+      await loadClassStudents(classStudentTargetClassId.value)
+      await adminFlow.loadAdminData()
+      showScopedToast('admin', '班级学生已删除')
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '删除班级学生失败'
+    } finally {
+      classStudentSaving.value = false
+    }
+  }
+
+  async function importClasses(files: File[]) {
+    if (files.length === 0) {
+      return
+    }
+    classStudentImporting.value = true
+    adminError.value = ''
+    const errors: string[] = []
+    let importedCount = 0
+
+    try {
+      for (const file of files) {
+        try {
+          const payload = await parseImportedClassFile(file)
+          const created = await api.createClass(payload)
+          try {
+            await api.importClassStudents(created.id, payload.students)
+          } catch (error) {
+            await api.deleteClass(created.id).catch(() => undefined)
+            throw error
+          }
+          importedCount += 1
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '导入失败'
+          errors.push(`${file.name}: ${message}`)
+        }
+      }
+
+      if (importedCount > 0) {
+        await adminFlow.loadAdminData()
+        showScopedToast('admin', `已导入 ${importedCount} 个班级`)
+      }
+      if (errors.length > 0) {
+        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入班级失败，共 ${errors.length} 个文件失败：`
+        adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
+      }
+    } finally {
+      classStudentImporting.value = false
+    }
+  }
+
+  async function saveUserFreeTime() {
+    if (!freeTimeTargetStudentId.value) {
+      return
+    }
+    userFreeTimeSaving.value = true
+    adminError.value = ''
+    try {
+      const term = userFreeTimeTerm.value.trim()
+      const originalItems = userFreeTimeItems.value.filter((item) => item.term === term)
+      const originalMap = new Map(originalItems.map((item) => [buildFreeTimeCellKey(item.weekday, item.section), item]))
+      const tasks: Promise<unknown>[] = []
+
+      for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
+        for (const section of FREE_TIME_VISIBLE_SECTIONS) {
+          const key = buildFreeTimeCellKey(weekday, section)
+          const weeks = userFreeTimeDraft.value[key] ?? []
+          const currentValue = formatFreeWeeks(weeks)
+          const currentItem = originalMap.get(key)
+          const originalValue = currentItem ? formatFreeWeeks(parseFreeWeeks(currentItem.free_weeks)) : ''
+
+          if (!currentValue && currentItem) {
+            tasks.push(api.deleteFreeTime(currentItem.id))
+            continue
+          }
+
+          if (!currentValue) {
+            continue
+          }
+
+          const payload = {
+            term,
+            student_id: freeTimeTargetStudentId.value,
+            weekday,
+            section,
+            free_weeks: currentValue,
+          }
+
+          if (!currentItem) {
+            tasks.push(api.createFreeTime(payload))
+            continue
+          }
+
+          if (originalValue !== currentValue) {
+            tasks.push(api.updateFreeTime(currentItem.id, payload))
+          }
+        }
+      }
+
+      await Promise.all(tasks)
+      await loadUserFreeTimeItems(freeTimeTargetStudentId.value)
+      await adminFlow.loadAdminData()
+      showScopedToast('admin', '空闲时间已保存')
+      closeUserFreeTimeModal()
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '保存空闲时间失败'
+    } finally {
+      userFreeTimeSaving.value = false
+    }
   }
 
   async function openCourse(course: AvailableCourseItem) {
@@ -711,6 +1611,19 @@ export function useApp() {
 
   async function updateAdminStatus(detailId: number, status: StatusCode) {
     await adminFlow.updateAdminStatus(detailId, status)
+  }
+
+  async function updateSystemSettings(payload: { current_term_start_date: string; current_schedule: 'summer' | 'winter' }) {
+    systemSettingSaving.value = true
+    adminError.value = ''
+    try {
+      systemSettings.value = await api.updateSystemSettings(payload)
+      showScopedToast('admin', '系统设置已更新')
+    } catch (error) {
+      adminError.value = error instanceof Error ? error.message : '更新系统设置失败'
+    } finally {
+      systemSettingSaving.value = false
+    }
   }
 
   async function completeAttendance() {
@@ -785,32 +1698,78 @@ export function useApp() {
     adminStats: adminStats.value,
     courseCalendar: courseCalendar.value,
     freeTimes: freeTimes.value,
+    systemSettings: systemSettings.value,
+    systemSettingSaving: systemSettingSaving.value,
     logs: paginatedLogs.value,
     attendanceLogs: paginatedAttendanceLogs.value,
     classes: paginatedClasses.value,
+    allClasses: classes.value,
+    classStudents: filteredClassStudents.value,
     users: paginatedUsers.value,
+    courseStudentCandidates: courseStudentCandidates.value,
     currentUserId: currentUserId.value,
-    courses: courses.value,
+    courses: paginatedCourses.value,
     attendanceResults: attendanceResults.value,
     userForm,
     userFilters,
     userModalOpen: userModalOpen.value,
     isEditingUser: isEditingUser.value,
     creatingUser: userSaving.value,
+    userStatusUpdating: userStatusUpdating.value,
     userPage: userPage.value,
     userPageSize: userPageSize.value,
     userTotalPages: userTotalPages.value,
     userPageOptions: USER_PAGE_OPTIONS,
+    selectedUserStudentIds: selectedUserStudentIds.value,
     userPasswordModalOpen: userPasswordModalOpen.value,
     userPasswordForm,
     passwordTargetName: passwordTargetName.value,
     passwordResetting: passwordResetting.value,
+    userFreeTimeModalOpen: userFreeTimeModalOpen.value,
+    freeTimeTargetName: freeTimeTargetName.value,
+    userFreeTimeTerm: userFreeTimeTerm.value,
+    userFreeTimeTermOptions: userFreeTimeTermOptions.value,
+    userFreeTimeLoading: userFreeTimeLoading.value,
+    userFreeTimeSaving: userFreeTimeSaving.value,
+    userFreeTimeDraft: userFreeTimeDraft.value,
+    courseFilters,
     courseForm,
-    creatingCourse: courseSaving.value,
+    courseModalOpen: courseModalOpen.value,
+    deleteCourseModalOpen: deleteCourseModalOpen.value,
+    bulkDeleteCourseModalOpen: bulkDeleteCourseModalOpen.value,
+    courseStudentModalOpen: courseStudentModalOpen.value,
+    courseStudentLoading: courseStudentLoading.value,
+    courseStudentSaving: courseStudentSaving.value,
+    courseImporting: courseImporting.value,
+    courseStudentTargetName: courseStudentTargetName.value,
+    courseStudentSelectedClassIds: courseStudentSelectedClassIds.value,
+    courseStudentSelectedStudentIds: courseStudentSelectedStudentIds.value,
+    courseStudentClassStudentMap: courseStudentClassStudentMap.value,
+    courseStudentLooseStudents: courseStudentLooseStudents.value,
+    courseSaving: courseSaving.value,
+    courseLoading: courseLoading.value,
+    courseDeleting: courseDeleting.value,
+    isEditingCourse: editingCourseId.value !== null,
+    coursePage: coursePage.value,
+    coursePageSize: coursePageSize.value,
+    courseTotalPages: courseTotalPages.value,
+    coursePageOptions: USER_PAGE_OPTIONS,
+    selectedCourseIds: selectedCourseIds.value,
+    selectedCourseCount: selectedCourseIds.value.length,
+    deletingCourseName: deletingCourseName.value,
     classForm,
     classFilters,
+    classStudentForm,
+    editingClassStudentForm,
+    classStudentFilters,
+    classStudentModalOpen: classStudentModalOpen.value,
+    classStudentSaving: classStudentSaving.value,
+    classStudentImporting: classStudentImporting.value,
+    editingClassStudentId: editingClassStudentId.value,
+    classStudentTargetName: classStudentTargetName.value,
     classModalOpen: classModalOpen.value,
     deleteClassModalOpen: deleteClassModalOpen.value,
+    bulkDeleteClassModalOpen: bulkDeleteClassModalOpen.value,
     isEditingClass: isEditingClass.value,
     classSaving: classSaving.value,
     classDeleting: classDeleting.value,
@@ -818,6 +1777,8 @@ export function useApp() {
     classPageSize: classPageSize.value,
     classTotalPages: classTotalPages.value,
     classPageOptions: USER_PAGE_OPTIONS,
+    selectedClassIds: selectedClassIds.value,
+    selectedClassCount: selectedClassIds.value.length,
     deletingClassName: deletingClassName.value,
     logFilters,
     logsPage: logsPage.value,
@@ -835,6 +1796,7 @@ export function useApp() {
     passwordForm,
     passwordModalOpen: passwordModalOpen.value,
     changingPassword: passwordSaving.value,
+    scheduleOptions: [...scheduleOptions],
     roleName,
     statusName,
     statusClass,
@@ -846,13 +1808,58 @@ export function useApp() {
       void setActiveTab(value, 'push')
     },
     logout,
+    openCreateCourseModal,
+    openEditCourseModal,
+    openCourseStudentModal,
+    closeCourseModal,
+    closeCourseStudentModal,
+    openDeleteCourseModal,
+    closeDeleteCourseModal,
+    openBulkDeleteCourseModal,
+    closeBulkDeleteCourseModal,
+    saveCourse,
+    importCourses,
+    saveCourseStudents: async () => {
+      await adminFlow.saveCourseStudents()
+    },
+    addCourseStudentClass,
+    removeCourseStudentClass,
+    toggleCourseStudentClassSelection,
+    toggleCourseStudentSelection,
+    addCourseStudent,
+    removeCourseStudent,
+    deleteCourse,
+    setCourseWeekSelected,
+    addCourseSessions,
+    editCourseSession,
+    removeCourseSession,
+    updateCoursePage,
+    updateCoursePageSize,
+    toggleCourseSelection,
+    toggleCoursePageSelection,
+    bulkDeleteCourses,
+    updateSystemSettings,
     openCreateClassModal,
     openEditClassModal,
+    openClassStudentModal,
     closeClassModal,
+    closeClassStudentModal,
     openDeleteClassModal,
     closeDeleteClassModal,
+    openBulkDeleteClassModal,
+    closeBulkDeleteClassModal,
     saveClass,
     deleteClass,
+    createClassStudent,
+    startEditClassStudent,
+    saveEditingClassStudent,
+    deleteClassStudent,
+    importClasses,
+    updateClassPage,
+    updateClassPageSize,
+    toggleClassSelection,
+    toggleClassPageSelection,
+    bulkDeleteClasses,
     openCreateUserModal,
     updateAttendanceLogsPage,
     updateAttendanceLogsPageSize,
@@ -862,9 +1869,18 @@ export function useApp() {
     closeUserModal,
     openUserPasswordModal,
     closeUserPasswordModal,
+    openUserFreeTimeModal,
+    closeUserFreeTimeModal,
+    updateUserFreeTimeTerm,
+    toggleUserFreeTimeWeek,
+    saveUserFreeTime,
     resetUserPassword,
     updateUserPage,
     updateUserPageSize,
+    toggleUserSelection,
+    toggleUserPageSelection,
+    bulkFreezeUsers: () => bulkSetUserStatus(2),
+    bulkUnfreezeUsers: () => bulkSetUserStatus(1),
     openProfileModal,
     closeProfileModal,
     updateProfile,
@@ -872,7 +1888,6 @@ export function useApp() {
     closePasswordModal,
     createUser,
     setUserStatus,
-    createCourse,
     updateAdminStatus,
     changePassword,
   }
@@ -936,6 +1951,14 @@ export function useApp() {
     classDeleting,
     classFilters,
     classForm,
+    classStudentFilters,
+    classStudentForm,
+    classStudentImporting,
+    classStudentModalOpen,
+    courseStudentModalOpen,
+    classStudentSaving,
+    classStudentTargetName,
+    classStudents,
     classModalOpen,
     classPage,
     classPageSize,
@@ -945,27 +1968,61 @@ export function useApp() {
     changePassword,
     closePasswordModal,
     closeProfileModal,
+    closeCourseModal,
+    closeCourseStudentModal,
     closeClassModal,
+    closeClassStudentModal,
+    closeDeleteCourseModal,
     closeDeleteClassModal,
+    closeBulkDeleteCourseModal,
+    closeBulkDeleteClassModal,
     closeUserModal,
+    closeUserFreeTimeModal,
     closeUserPasswordModal,
     completeAttendance,
     courseCalendar,
+    courseDeleting,
+    courseFilters,
     courseForm,
+    courseLoading,
+    courseStudentLoading,
+    courseModalOpen,
+    coursePage,
+    coursePageSize,
     courseSaving,
+    courseStudentSaving,
+    courseTotalPages,
     courses,
+    addCourseStudentClass,
+    removeCourseStudentClass,
+    toggleCourseStudentClassSelection,
+    toggleCourseStudentSelection,
+    addCourseStudent,
+    removeCourseStudent,
+    createClassStudent,
+    deleteCourse,
     deleteClass,
+    deleteClassStudent,
+    deleteCourseModalOpen,
     deleteClassModalOpen,
+    bulkDeleteCourseModalOpen,
+    bulkDeleteClassModalOpen,
+    deletingCourseName,
     deletingClassName,
-    createCourse,
     createUser,
     currentUserId,
     editFreeTime,
+    editingClassStudentForm,
+    editingClassStudentId,
     editingFreeTimeId,
     filteredClasses,
+    filteredClassStudents,
     filteredLogs,
     filteredAttendanceLogs,
+    filteredCourses,
     filteredUsers,
+    freeTimeTargetName,
+    freeTimeTargetStudentId,
     freeTimeForm,
     freeTimeSaving,
     freeTimes,
@@ -986,14 +2043,25 @@ export function useApp() {
     logout,
     me,
     openCourse,
+    openClassStudentModal,
+    openCreateCourseModal,
     openCreateClassModal,
     openCreateUserModal,
+    openDeleteCourseModal,
     openDeleteClassModal,
+    openBulkDeleteCourseModal,
+    openBulkDeleteClassModal,
+    openEditCourseModal,
+    openCourseStudentModal,
     openEditClassModal,
     openEditUserModal,
     openPasswordModal,
     openProfileModal,
+    openUserFreeTimeModal,
+    importCourses,
+    updateUserFreeTimeTerm,
     openUserPasswordModal,
+    paginatedCourses,
     paginatedClasses,
     paginatedAttendanceLogs,
     paginatedLogs,
@@ -1010,10 +2078,19 @@ export function useApp() {
     resetFreeTimeForm,
     resetUserPassword,
     roleName,
+    saveCourse,
+    bulkDeleteCourses,
+    saveCourseStudents: adminFlow.saveCourseStudents,
+    saveEditingClassStudent,
+    saveUserFreeTime,
     saveClass,
+    bulkDeleteClasses,
     saveFreeTime,
     selectedStudent,
     selectedStudentId,
+    selectedCourseIds,
+    selectedClassIds,
+    selectedUserStudentIds,
     setUserStatus,
     setupError,
     setupForm,
@@ -1025,6 +2102,24 @@ export function useApp() {
     studentWorkspaceHandlers,
     studentWorkspaceProps,
     studentToast,
+    systemSettingSaving,
+    systemSettings,
+    scheduleOptions,
+    courseStudentTargetName,
+    courseStudentSelectedClassIds,
+    courseStudentSelectedStudentIds,
+    courseStudentClassStudentMap,
+    courseStudentLooseStudents,
+    courseStudentCandidates,
+    userFreeTimeDraft,
+    userFreeTimeLoading,
+    userFreeTimeSaving,
+    userFreeTimeTerm,
+    userFreeTimeTermOptions,
+    toggleUserFreeTimeWeek,
+    updateCoursePage,
+    updateCoursePageSize,
+    updateSystemSettings,
     updateClassPage,
     updateClassPageSize,
     updateAttendanceLogsPage,
@@ -1042,11 +2137,23 @@ export function useApp() {
     userPage,
     userPageOptions: USER_PAGE_OPTIONS,
     userPageSize,
+    userStatusUpdating,
     userPasswordForm,
     userPasswordModalOpen,
+    userFreeTimeModalOpen,
     userSaving,
     userTotalPages,
     users,
+    allClasses: classes,
+    importClasses,
+    startEditClassStudent,
+    toggleCourseSelection,
+    toggleCoursePageSelection,
+    toggleClassSelection,
+    toggleClassPageSelection,
+    toggleUserSelection,
+    toggleUserPageSelection,
+    bulkSetUserStatus,
     adminWorkspaceHandlers,
     adminWorkspaceProps,
   }

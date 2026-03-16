@@ -24,10 +24,9 @@ export const usersApi = {
       real_name: string
       role: number
       status: number
-      class_ids?: number[]
     },
   ) {
-    return request<{ user: UserItem }>('/users/' + studentId, {
+    return request<UserItem>('/users/' + studentId, {
       method: 'PUT',
       body: JSON.stringify(input),
     })

@@ -3,6 +3,12 @@
   padding: 24px;
 }
 
+.page-shell.admin-mode {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .splash-card,
 .login-panel,
 .setup-panel,
@@ -130,15 +136,6 @@
     grid-template-columns: 1fr;
   }
 
-  .admin-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-sidebar {
-    position: static;
-    height: auto;
-  }
-
   .topbar {
     flex-direction: column;
   }
@@ -149,6 +146,18 @@
 }
 
 @media (max-width: 760px) {
+  .page-shell.admin-mode {
+    overflow: auto;
+  }
+
+  .admin-mobile-guard {
+    display: block;
+  }
+
+  .admin-shell {
+    display: none;
+  }
+
   .dense-grid {
     grid-template-columns: 1fr;
   }

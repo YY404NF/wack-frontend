@@ -3,8 +3,6 @@ export type AppTab =
   | 'overview'
   | 'attendance'
   | 'attendance-logs'
-  | 'free-time-calendar'
-  | 'free-time-manage'
   | 'course-calendar'
   | 'course-manage'
   | 'class-manage'
@@ -49,8 +47,6 @@ export const adminNavItems = [
   { key: 'overview', label: '总览' },
   { key: 'attendance', label: '查课记录' },
   { key: 'attendance-logs', label: '查课日志' },
-  { key: 'free-time-calendar', label: '查课学生空余时间日历' },
-  { key: 'free-time-manage', label: '查课学生空余时间管理' },
   { key: 'course-calendar', label: '全院课程表' },
   { key: 'course-manage', label: '课程管理' },
   { key: 'class-manage', label: '班级管理' },

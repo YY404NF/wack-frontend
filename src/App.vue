@@ -26,7 +26,7 @@ const {
 </script>
 
 <template>
-  <div class="page-shell">
+  <div class="page-shell" :class="{ 'admin-mode': !!me && isAdmin }">
     <div v-if="booting" class="boot-screen" aria-hidden="true"></div>
 
     <SetupPage

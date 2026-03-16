@@ -14,18 +14,32 @@ export type AdminUserFilters = {
   status: string
 }
 
-export type AdminCourseForm = {
-  courseId: string
+export type AdminCourseFilters = {
   term: string
   courseName: string
   teacherName: string
-  studentIds: string
+  classId: string
+}
+
+export type AdminCourseSessionForm = {
   sessionNo: number
   weekNo: number
   weekday: number
   section: number
   buildingName: string
   roomName: string
+}
+
+export type AdminCourseForm = {
+  term: string
+  courseName: string
+  teacherName: string
+  weekday: number | null
+  section: number | null
+  buildingName: string
+  roomName: string
+  selectedWeeks: number[]
+  sessions: AdminCourseSessionForm[]
 }
 
 export type AdminClassForm = {
@@ -38,6 +52,16 @@ export type AdminClassFilters = {
   grade: string
   majorName: string
   className: string
+}
+
+export type AdminClassStudentFilters = {
+  studentId: string
+  realName: string
+}
+
+export type AdminClassStudentForm = {
+  studentId: string
+  realName: string
 }
 
 export type AdminSystemLogFilters = {
