@@ -1,0 +1,235 @@
+import { computed, type ComputedRef, type Ref } from 'vue'
+
+import type { AttendanceResultItem, ClassItem, ClassStudentCandidateItem, ClassStudentItem, CourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type {
+  AdminAttendanceLogFilters,
+  AdminClassForm,
+  AdminClassFilters,
+  AdminClassStudentForm,
+  AdminClassStudentFilters,
+  AdminCourseForm,
+  AdminCourseFilters,
+  AdminPasswordForm,
+  AdminProfileForm,
+  AdminSystemLogFilters,
+  AdminUserFilters,
+  AdminUserForm,
+  AdminUserPasswordForm,
+} from '../../components/admin/form-types'
+import type { AppTab } from '../../constants'
+import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './view'
+
+export type AdminWorkspacePropsDeps = {
+  me: Ref<SessionUser | null>
+  activeTab: Ref<AppTab>
+  adminError: Ref<string>
+  adminToast: Ref<string>
+  adminStats: ComputedRef<Array<{ label: string; value: number; tone: string }>>
+  courseCalendar: Ref<any[]>
+  freeTimes: Ref<FreeTimeItem[]>
+  systemSettings: Ref<SystemSetting | null>
+  systemSettingSaving: Ref<boolean>
+  paginatedLogs: ComputedRef<any[]>
+  paginatedAttendanceLogs: ComputedRef<any[]>
+  paginatedClasses: ComputedRef<ClassItem[]>
+  classes: Ref<ClassItem[]>
+  filteredClassStudents: ComputedRef<ClassStudentItem[]>
+  paginatedUsers: ComputedRef<any[]>
+  courseStudentCandidates: Ref<ClassStudentCandidateItem[]>
+  currentUserId: ComputedRef<number | undefined>
+  paginatedCourses: ComputedRef<CourseItem[]>
+  attendanceResults: Ref<AttendanceResultItem[]>
+  userForm: AdminUserForm
+  userFilters: AdminUserFilters
+  userModalOpen: Ref<boolean>
+  isEditingUser: ComputedRef<boolean>
+  userSaving: Ref<boolean>
+  userStatusUpdating: Ref<boolean>
+  userPage: Ref<number>
+  userPageSize: Ref<number>
+  userTotalPages: ComputedRef<number>
+  selectedUserStudentIds: Ref<string[]>
+  userPasswordModalOpen: Ref<boolean>
+  userPasswordForm: AdminUserPasswordForm
+  passwordTargetName: Ref<string>
+  passwordResetting: Ref<boolean>
+  userFreeTimeModalOpen: Ref<boolean>
+  freeTimeTargetName: Ref<string>
+  userFreeTimeTerm: Ref<string>
+  userFreeTimeTermOptions: ComputedRef<string[]>
+  userFreeTimeLoading: Ref<boolean>
+  userFreeTimeSaving: Ref<boolean>
+  userFreeTimeDraft: Ref<Record<string, number[]>>
+  courseFilters: AdminCourseFilters
+  courseForm: AdminCourseForm
+  courseModalOpen: Ref<boolean>
+  deleteCourseModalOpen: Ref<boolean>
+  bulkDeleteCourseModalOpen: Ref<boolean>
+  courseStudentModalOpen: Ref<boolean>
+  courseStudentLoading: Ref<boolean>
+  courseStudentSaving: Ref<boolean>
+  courseImporting: Ref<boolean>
+  courseStudentTargetName: Ref<string>
+  courseStudentSelectedClassIds: Ref<number[]>
+  courseStudentSelectedStudentIds: Ref<string[]>
+  courseStudentClassStudentMap: Ref<Record<number, ClassStudentItem[]>>
+  courseStudentLooseStudents: Ref<Array<{ student_id: string; real_name: string }>>
+  courseSaving: Ref<boolean>
+  courseLoading: Ref<boolean>
+  courseDeleting: Ref<boolean>
+  editingCourseId: Ref<number | null>
+  coursePage: Ref<number>
+  coursePageSize: Ref<number>
+  courseTotalPages: ComputedRef<number>
+  selectedCourseIds: Ref<number[]>
+  deletingCourseName: Ref<string>
+  classForm: AdminClassForm
+  classFilters: AdminClassFilters
+  classStudentForm: AdminClassStudentForm
+  editingClassStudentForm: AdminClassStudentForm
+  classStudentFilters: AdminClassStudentFilters
+  classStudentModalOpen: Ref<boolean>
+  classStudentSaving: Ref<boolean>
+  classStudentImporting: Ref<boolean>
+  editingClassStudentId: Ref<number | null>
+  classStudentTargetName: Ref<string>
+  classModalOpen: Ref<boolean>
+  deleteClassModalOpen: Ref<boolean>
+  bulkDeleteClassModalOpen: Ref<boolean>
+  isEditingClass: ComputedRef<boolean>
+  classSaving: Ref<boolean>
+  classDeleting: Ref<boolean>
+  classPage: Ref<number>
+  classPageSize: Ref<number>
+  classTotalPages: ComputedRef<number>
+  selectedClassIds: Ref<number[]>
+  deletingClassName: Ref<string>
+  logFilters: AdminSystemLogFilters
+  logsPage: Ref<number>
+  logsPageSize: Ref<number>
+  logsTotalPages: ComputedRef<number>
+  attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsPage: Ref<number>
+  attendanceLogsPageSize: Ref<number>
+  attendanceLogsTotalPages: ComputedRef<number>
+  profileForm: AdminProfileForm
+  profileModalOpen: Ref<boolean>
+  profileSaving: Ref<boolean>
+  passwordForm: AdminPasswordForm
+  passwordModalOpen: Ref<boolean>
+  passwordSaving: Ref<boolean>
+}
+
+export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
+  return computed(() => ({
+    me: deps.me.value!,
+    activeTab: deps.activeTab.value,
+    pageError: deps.adminError.value,
+    toast: deps.adminToast.value,
+    adminStats: deps.adminStats.value,
+    courseCalendar: deps.courseCalendar.value,
+    freeTimes: deps.freeTimes.value,
+    systemSettings: deps.systemSettings.value,
+    systemSettingSaving: deps.systemSettingSaving.value,
+    logs: deps.paginatedLogs.value,
+    attendanceLogs: deps.paginatedAttendanceLogs.value,
+    classes: deps.paginatedClasses.value,
+    allClasses: deps.classes.value,
+    classStudents: deps.filteredClassStudents.value,
+    users: deps.paginatedUsers.value,
+    courseStudentCandidates: deps.courseStudentCandidates.value,
+    currentUserId: deps.currentUserId.value,
+    courses: deps.paginatedCourses.value,
+    attendanceResults: deps.attendanceResults.value,
+    userForm: deps.userForm,
+    userFilters: deps.userFilters,
+    userModalOpen: deps.userModalOpen.value,
+    isEditingUser: deps.isEditingUser.value,
+    creatingUser: deps.userSaving.value,
+    userStatusUpdating: deps.userStatusUpdating.value,
+    userPage: deps.userPage.value,
+    userPageSize: deps.userPageSize.value,
+    userTotalPages: deps.userTotalPages.value,
+    userPageOptions: USER_PAGE_OPTIONS,
+    selectedUserStudentIds: deps.selectedUserStudentIds.value,
+    userPasswordModalOpen: deps.userPasswordModalOpen.value,
+    userPasswordForm: deps.userPasswordForm,
+    passwordTargetName: deps.passwordTargetName.value,
+    passwordResetting: deps.passwordResetting.value,
+    userFreeTimeModalOpen: deps.userFreeTimeModalOpen.value,
+    freeTimeTargetName: deps.freeTimeTargetName.value,
+    userFreeTimeTerm: deps.userFreeTimeTerm.value,
+    userFreeTimeTermOptions: deps.userFreeTimeTermOptions.value,
+    userFreeTimeLoading: deps.userFreeTimeLoading.value,
+    userFreeTimeSaving: deps.userFreeTimeSaving.value,
+    userFreeTimeDraft: deps.userFreeTimeDraft.value,
+    courseFilters: deps.courseFilters,
+    courseForm: deps.courseForm,
+    courseModalOpen: deps.courseModalOpen.value,
+    deleteCourseModalOpen: deps.deleteCourseModalOpen.value,
+    bulkDeleteCourseModalOpen: deps.bulkDeleteCourseModalOpen.value,
+    courseStudentModalOpen: deps.courseStudentModalOpen.value,
+    courseStudentLoading: deps.courseStudentLoading.value,
+    courseStudentSaving: deps.courseStudentSaving.value,
+    courseImporting: deps.courseImporting.value,
+    courseStudentTargetName: deps.courseStudentTargetName.value,
+    courseStudentSelectedClassIds: deps.courseStudentSelectedClassIds.value,
+    courseStudentSelectedStudentIds: deps.courseStudentSelectedStudentIds.value,
+    courseStudentClassStudentMap: deps.courseStudentClassStudentMap.value,
+    courseStudentLooseStudents: deps.courseStudentLooseStudents.value,
+    courseSaving: deps.courseSaving.value,
+    courseLoading: deps.courseLoading.value,
+    courseDeleting: deps.courseDeleting.value,
+    isEditingCourse: deps.editingCourseId.value !== null,
+    coursePage: deps.coursePage.value,
+    coursePageSize: deps.coursePageSize.value,
+    courseTotalPages: deps.courseTotalPages.value,
+    coursePageOptions: USER_PAGE_OPTIONS,
+    selectedCourseIds: deps.selectedCourseIds.value,
+    selectedCourseCount: deps.selectedCourseIds.value.length,
+    deletingCourseName: deps.deletingCourseName.value,
+    classForm: deps.classForm,
+    classFilters: deps.classFilters,
+    classStudentForm: deps.classStudentForm,
+    editingClassStudentForm: deps.editingClassStudentForm,
+    classStudentFilters: deps.classStudentFilters,
+    classStudentModalOpen: deps.classStudentModalOpen.value,
+    classStudentSaving: deps.classStudentSaving.value,
+    classStudentImporting: deps.classStudentImporting.value,
+    editingClassStudentId: deps.editingClassStudentId.value,
+    classStudentTargetName: deps.classStudentTargetName.value,
+    classModalOpen: deps.classModalOpen.value,
+    deleteClassModalOpen: deps.deleteClassModalOpen.value,
+    bulkDeleteClassModalOpen: deps.bulkDeleteClassModalOpen.value,
+    isEditingClass: deps.isEditingClass.value,
+    classSaving: deps.classSaving.value,
+    classDeleting: deps.classDeleting.value,
+    classPage: deps.classPage.value,
+    classPageSize: deps.classPageSize.value,
+    classTotalPages: deps.classTotalPages.value,
+    classPageOptions: USER_PAGE_OPTIONS,
+    selectedClassIds: deps.selectedClassIds.value,
+    selectedClassCount: deps.selectedClassIds.value.length,
+    deletingClassName: deps.deletingClassName.value,
+    logFilters: deps.logFilters,
+    logsPage: deps.logsPage.value,
+    logsPageSize: deps.logsPageSize.value,
+    logsTotalPages: deps.logsTotalPages.value,
+    logsPageOptions: USER_PAGE_OPTIONS,
+    attendanceLogFilters: deps.attendanceLogFilters,
+    attendanceLogsPage: deps.attendanceLogsPage.value,
+    attendanceLogsPageSize: deps.attendanceLogsPageSize.value,
+    attendanceLogsTotalPages: deps.attendanceLogsTotalPages.value,
+    attendanceLogsPageOptions: USER_PAGE_OPTIONS,
+    profileForm: deps.profileForm,
+    profileModalOpen: deps.profileModalOpen.value,
+    profileSaving: deps.profileSaving.value,
+    passwordForm: deps.passwordForm,
+    passwordModalOpen: deps.passwordModalOpen.value,
+    changingPassword: deps.passwordSaving.value,
+    roleName,
+    statusName,
+    statusClass,
+    slotLabel,
+  }))
+}

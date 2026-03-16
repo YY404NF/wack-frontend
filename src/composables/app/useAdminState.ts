@@ -9,7 +9,6 @@ import {
   type ClassStudentCandidateItem,
   type ClassStudentItem,
   type CourseCalendarItem,
-  type CourseDetail,
   type CourseItem,
   type DashboardSummary,
   type FreeTimeItem,
@@ -33,8 +32,9 @@ import {
   createUserForm,
   createUserPasswordForm,
 } from './forms'
-import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, getCurrentAcademicTerm, parseFreeWeeks } from '../../utils/free-time'
+import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { useAdminCollections } from './useAdminCollections'
+import { useAdminEditors } from './useAdminEditors'
 import type { UseAdminAppDeps } from '../useAdminApp'
 
 type PasswordForm = {
@@ -307,333 +307,51 @@ export function useAdminState(deps: UseAdminStateDeps) {
     editingUserStudentId.value = user.student_id
     userModalOpen.value = true
   }
-
-  function createUserFreeTimeDraft(items: FreeTimeItem[], term: string) {
-    const draft: Record<string, number[]> = {}
-    for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
-      for (const section of FREE_TIME_VISIBLE_SECTIONS) {
-        draft[buildFreeTimeCellKey(weekday, section)] = []
-      }
-    }
-    for (const item of items) {
-      if (item.term !== term) {
-        continue
-      }
-      draft[buildFreeTimeCellKey(item.weekday, item.section)] = parseFreeWeeks(item.free_weeks)
-    }
-    userFreeTimeDraft.value = draft
-  }
-
-  async function loadUserFreeTimeItems(studentId: string) {
-    const page = await api.listFreeTimes({ page: 1, page_size: 200, student_id: studentId })
-    userFreeTimeItems.value = page.items ?? []
-    createUserFreeTimeDraft(userFreeTimeItems.value, userFreeTimeTerm.value)
-  }
-
-  async function openUserFreeTimeModal(user: UserItem) {
-    if (user.role !== 2) {
-      return
-    }
-    userFreeTimeLoading.value = true
-    adminError.value = ''
-    freeTimeTargetName.value = `${user.real_name}（${user.student_id}）`
-    freeTimeTargetStudentId.value = user.student_id
-    userFreeTimeTerm.value = getCurrentAcademicTerm()
-    userFreeTimeModalOpen.value = true
-    try {
-      await loadUserFreeTimeItems(user.student_id)
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '加载空闲时间失败'
-      closeUserFreeTimeModal()
-    } finally {
-      userFreeTimeLoading.value = false
-    }
-  }
-
-  function updateUserFreeTimeTerm(term: string) {
-    userFreeTimeTerm.value = term
-    createUserFreeTimeDraft(userFreeTimeItems.value, term)
-  }
-
-  function toggleUserFreeTimeWeek(payload: { weekday: number; section: number; weekNo: number }) {
-    const key = buildFreeTimeCellKey(payload.weekday, payload.section)
-    const current = new Set(userFreeTimeDraft.value[key] ?? [])
-    if (current.has(payload.weekNo)) {
-      current.delete(payload.weekNo)
-    } else {
-      current.add(payload.weekNo)
-    }
-    userFreeTimeDraft.value = {
-      ...userFreeTimeDraft.value,
-      [key]: Array.from(current).sort((left, right) => left - right),
-    }
-  }
-
-  function applyCourseDetail(detail: CourseDetail) {
-    courseForm.term = detail.course.term
-    courseForm.courseName = detail.course.course_name
-    courseForm.teacherName = detail.course.teacher_name
-    courseForm.weekday = null
-    courseForm.section = null
-    courseForm.buildingName = ''
-    courseForm.roomName = ''
-    courseForm.selectedWeeks = []
-    courseForm.sessions = detail.sessions
-      .slice()
-      .sort((left, right) => left.session_no - right.session_no)
-      .map((session) => ({
-        sessionNo: session.session_no,
-        weekNo: session.week_no,
-        weekday: session.weekday,
-        section: session.section,
-        buildingName: session.building_name,
-        roomName: session.room_name,
-      }))
-  }
-
-  async function loadCourseStudentClassStudents(classIds: number[]) {
-    const entries = await Promise.all(
-      classIds.map(async (classId) => {
-        const students = await api.listClassStudents(classId)
-        return [classId, students] as const
-      }),
-    )
-    courseStudentClassStudentMap.value = Object.fromEntries(entries)
-  }
-
-  function syncLooseCourseStudents() {
-    const classStudentIds = new Set(
-      Object.values(courseStudentClassStudentMap.value)
-        .flat()
-        .map((item) => item.student_id),
-    )
-    const existingLooseNames = new Map(courseStudentLooseStudents.value.map((item) => [item.student_id, item.real_name]))
-
-    courseStudentLooseStudents.value = courseStudentSelectedStudentIds.value
-      .filter((studentId) => !classStudentIds.has(studentId))
-      .map((studentId) => {
-        const matchedStudent = courseStudentCandidates.value.find((item) => item.student_id === studentId)
-        return {
-          student_id: studentId,
-          real_name: matchedStudent?.real_name ?? existingLooseNames.get(studentId) ?? studentId,
-        }
-      })
-  }
-
-  function sortCourseSessions() {
-    courseForm.sessions = courseForm.sessions
-      .slice()
-      .sort((left, right) => {
-        if (left.weekNo !== right.weekNo) {
-          return left.weekNo - right.weekNo
-        }
-        if (left.weekday !== right.weekday) {
-          return left.weekday - right.weekday
-        }
-        if (left.section !== right.section) {
-          return left.section - right.section
-        }
-        return left.roomName.localeCompare(right.roomName, 'zh-Hans-CN')
-      })
-      .map((item, index) => ({
-        ...item,
-        sessionNo: index + 1,
-      }))
-  }
-
-  function setCourseWeekSelected(weekNo: number, selected: boolean) {
-    const weekSet = new Set(courseForm.selectedWeeks)
-    if (selected) {
-      weekSet.add(weekNo)
-    } else {
-      weekSet.delete(weekNo)
-    }
-    courseForm.selectedWeeks = Array.from(weekSet).sort((left, right) => left - right)
-  }
-
-  function addCourseSessions() {
-    const weeks = Array.from(new Set(courseForm.selectedWeeks)).sort((left, right) => left - right)
-    if (weeks.length === 0) {
-      adminError.value = '请先选择周数'
-      return
-    }
-    if (courseForm.weekday === null || courseForm.section === null || !courseForm.buildingName.trim() || !courseForm.roomName.trim()) {
-      adminError.value = '请先填写完整的上课时间'
-      return
-    }
-    const nextSessions = courseForm.sessions.filter(
-      (item) => !weeks.some((weekNo) => weekNo === item.weekNo && item.weekday === courseForm.weekday && item.section === courseForm.section),
-    )
-    for (const weekNo of weeks) {
-      nextSessions.push({
-        sessionNo: 0,
-        weekNo,
-        weekday: courseForm.weekday,
-        section: courseForm.section,
-        buildingName: courseForm.buildingName.trim(),
-        roomName: courseForm.roomName.trim(),
-      })
-    }
-    courseForm.sessions = nextSessions
-    sortCourseSessions()
-    courseForm.selectedWeeks = []
-    adminError.value = ''
-  }
-
-  function editCourseSession(sessionNo: number) {
-    const target = courseForm.sessions.find((item) => item.sessionNo === sessionNo)
-    if (!target) {
-      return
-    }
-    courseForm.weekday = target.weekday
-    courseForm.section = target.section
-    courseForm.buildingName = target.buildingName
-    courseForm.roomName = target.roomName
-    courseForm.selectedWeeks = [target.weekNo]
-    courseForm.sessions = courseForm.sessions.filter((item) => item.sessionNo !== sessionNo)
-    sortCourseSessions()
-  }
-
-  function removeCourseSession(sessionNo: number) {
-    courseForm.sessions = courseForm.sessions.filter((item) => item.sessionNo !== sessionNo)
-    sortCourseSessions()
-  }
-
-  function openCreateCourseModal() {
-    resetCourseForm()
-    courseModalOpen.value = true
-  }
-
-  async function openEditCourseModal(item: CourseItem) {
-    courseLoading.value = true
-    adminError.value = ''
-    try {
-      const detail = await api.getCourse(item.id)
-      resetCourseForm()
-      applyCourseDetail(detail)
-      editingCourseId.value = item.id
-      courseModalOpen.value = true
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '加载课程失败'
-    } finally {
-      courseLoading.value = false
-    }
-  }
-
-  async function openCourseStudentModal(item: CourseItem) {
-    courseStudentLoading.value = true
-    adminError.value = ''
-    try {
-      const detail = await api.getCourse(item.id)
-      courseStudentTargetCourseId.value = item.id
-      courseStudentTargetName.value = `${item.course_name} · ${item.teacher_name}`
-      courseStudentSelectedClassIds.value = detail.classes.map((entry) => Number(entry.class_id)).sort((left, right) => left - right)
-      courseStudentSelectedStudentIds.value = detail.students.map((entry) => entry.student_id).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
-      courseStudentLooseStudents.value = detail.students.map((entry) => ({
-        student_id: entry.student_id,
-        real_name: entry.real_name,
-      }))
-      await loadCourseStudentClassStudents(courseStudentSelectedClassIds.value)
-      syncLooseCourseStudents()
-      courseStudentModalOpen.value = true
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '加载课程学生失败'
-      closeCourseStudentModal()
-    } finally {
-      courseStudentLoading.value = false
-    }
-  }
-
-  async function addCourseStudentClass(classId: number) {
-    if (courseStudentSelectedClassIds.value.includes(classId)) {
-      return
-    }
-    courseStudentLoading.value = true
-    adminError.value = ''
-    try {
-      const students = await api.listClassStudents(classId)
-      courseStudentClassStudentMap.value = {
-        ...courseStudentClassStudentMap.value,
-        [classId]: students,
-      }
-      courseStudentSelectedClassIds.value = [...courseStudentSelectedClassIds.value, classId].sort((left, right) => left - right)
-      const selected = new Set(courseStudentSelectedStudentIds.value)
-      for (const student of students) {
-        selected.add(student.student_id)
-      }
-      courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
-      syncLooseCourseStudents()
-    } catch (error) {
-      adminError.value = error instanceof Error ? error.message : '添加班级失败'
-    } finally {
-      courseStudentLoading.value = false
-    }
-  }
-
-  function removeCourseStudentClass(classId: number) {
-    const remainingClassIds = courseStudentSelectedClassIds.value.filter((item) => item !== classId)
-    const remainingClassStudents = new Set(
-      remainingClassIds.flatMap((item) => (courseStudentClassStudentMap.value[item] ?? []).map((student) => student.student_id)),
-    )
-    const looseStudentIds = new Set(courseStudentLooseStudents.value.map((item) => item.student_id))
-    const nextMap = { ...courseStudentClassStudentMap.value }
-    delete nextMap[classId]
-    courseStudentSelectedClassIds.value = remainingClassIds
-    courseStudentClassStudentMap.value = nextMap
-    courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter(
-      (studentId) => remainingClassStudents.has(studentId) || looseStudentIds.has(studentId),
-    )
-    syncLooseCourseStudents()
-  }
-
-  function toggleCourseStudentClassSelection(classId: number) {
-    const classStudentIds = (courseStudentClassStudentMap.value[classId] ?? []).map((student) => student.student_id)
-    const selected = new Set(courseStudentSelectedStudentIds.value)
-    const allSelected = classStudentIds.length > 0 && classStudentIds.every((studentId) => selected.has(studentId))
-    if (allSelected) {
-      const otherClassStudentIds = new Set(
-        courseStudentSelectedClassIds.value
-          .filter((item) => item !== classId)
-          .flatMap((item) => (courseStudentClassStudentMap.value[item] ?? []).map((student) => student.student_id)),
-      )
-      courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter(
-        (studentId) => !classStudentIds.includes(studentId) || otherClassStudentIds.has(studentId),
-      )
-      syncLooseCourseStudents()
-      return
-    }
-    for (const studentId of classStudentIds) {
-      selected.add(studentId)
-    }
-    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
-    syncLooseCourseStudents()
-  }
-
-  function toggleCourseStudentSelection(studentId: string) {
-    const selected = new Set(courseStudentSelectedStudentIds.value)
-    if (selected.has(studentId)) {
-      selected.delete(studentId)
-    } else {
-      selected.add(studentId)
-    }
-    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
-    syncLooseCourseStudents()
-  }
-
-  function addCourseStudent(studentId: string) {
-    const selected = new Set(courseStudentSelectedStudentIds.value)
-    if (selected.has(studentId)) {
-      return
-    }
-    selected.add(studentId)
-    courseStudentSelectedStudentIds.value = Array.from(selected).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
-    syncLooseCourseStudents()
-  }
-
-  function removeCourseStudent(studentId: string) {
-    courseStudentSelectedStudentIds.value = courseStudentSelectedStudentIds.value.filter((item) => item !== studentId)
-    courseStudentLooseStudents.value = courseStudentLooseStudents.value.filter((item) => item.student_id !== studentId)
-  }
+  const {
+    loadUserFreeTimeItems,
+    openUserFreeTimeModal,
+    updateUserFreeTimeTerm,
+    toggleUserFreeTimeWeek,
+    openCreateCourseModal,
+    openEditCourseModal,
+    openCourseStudentModal,
+    addCourseStudentClass,
+    removeCourseStudentClass,
+    toggleCourseStudentClassSelection,
+    toggleCourseStudentSelection,
+    addCourseStudent,
+    removeCourseStudent,
+    setCourseWeekSelected,
+    addCourseSessions,
+    editCourseSession,
+    removeCourseSession,
+  } = useAdminEditors({
+    adminError,
+    courseLoading,
+    courseStudentLoading,
+    courseStudentSaving,
+    userFreeTimeLoading,
+    classStudents,
+    courseStudentCandidates,
+    courseStudentTargetCourseId,
+    courseStudentTargetName,
+    courseStudentSelectedClassIds,
+    courseStudentSelectedStudentIds,
+    courseStudentClassStudentMap,
+    courseStudentLooseStudents,
+    courseStudentModalOpen,
+    freeTimeTargetName,
+    freeTimeTargetStudentId,
+    userFreeTimeTerm,
+    userFreeTimeItems,
+    userFreeTimeDraft,
+    userFreeTimeModalOpen,
+    courseModalOpen,
+    editingCourseId,
+    courseForm,
+    resetCourseForm,
+    closeCourseStudentModal,
+  })
 
   function closeDeleteCourseModal() {
     deleteCourseModalOpen.value = false
@@ -824,7 +542,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
           users,
           classes,
           courseStudentCandidates,
-          classStudents,
           courses,
           courseCalendar,
           dashboard,

@@ -1,4 +1,5 @@
 import { request } from './client'
+import { apiPaths } from './paths'
 import type { PageResult, UserItem, UserPageQuery } from './types'
 
 export const usersApi = {
@@ -9,10 +10,10 @@ export const usersApi = {
     if (query.role) params.set('role', query.role)
     if (query.status) params.set('status', query.status)
     if (query.keyword) params.set('keyword', query.keyword)
-    return request<PageResult<UserItem>>(`/admin/users?${params.toString()}`)
+    return request<PageResult<UserItem>>(`${apiPaths.admin.users}?${params.toString()}`)
   },
   createUser(input: { student_id: string; real_name: string; password: string; role: number; status: number }) {
-    return request<UserItem>('/admin/users', {
+    return request<UserItem>(apiPaths.admin.users, {
       method: 'POST',
       body: JSON.stringify(input),
     })
@@ -26,19 +27,19 @@ export const usersApi = {
       status: number
     },
   ) {
-    return request<UserItem>('/admin/users/' + studentId, {
+    return request<UserItem>(`${apiPaths.admin.users}/${studentId}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     })
   },
   updateUserStatus(studentId: string, status: number) {
-    return request<Record<string, never>>(`/admin/users/${studentId}/status`, {
+    return request<Record<string, never>>(`${apiPaths.admin.users}/${studentId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
   },
   resetUserPassword(studentId: string, newPassword: string) {
-    return request<Record<string, never>>(`/admin/users/${studentId}/password`, {
+    return request<Record<string, never>>(`${apiPaths.admin.users}/${studentId}/password`, {
       method: 'PATCH',
       body: JSON.stringify({ new_password: newPassword }),
     })
