@@ -99,9 +99,10 @@ export function useSessionFlow(deps: SessionFlowDeps) {
         return
       }
 
-      deps.me.value = await api.me()
+      const me = await api.me()
+      deps.me.value = me
       await deps.loadRoleData()
-      deps.setActiveTab(deps.resolveTabForRole(deps.me.value.role), 'replace')
+      deps.setActiveTab(deps.resolveTabForRole(me.role), 'replace')
     } catch {
       clearToken()
       deps.me.value = null

@@ -1,11 +1,13 @@
-import type { AttendanceResultItem, ClassItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
+import type { AdminOperationLogItem, AttendanceDetailLogItem, AttendanceResultItem, ClassItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import type {
+  AdminAttendanceLogFilters,
   AdminClassFilters,
   AdminClassForm,
   AdminCourseForm,
   AdminPasswordForm,
   AdminProfileForm,
+  AdminSystemLogFilters,
   AdminUserFilters,
   AdminUserForm,
   AdminUserPasswordForm,
@@ -47,6 +49,25 @@ export type AdminClassManageProps = {
 export type AdminFreeTimeCalendarProps = {
   freeTimes: FreeTimeItem[]
   slotLabel: AdminSlotLabel
+}
+
+export type AdminLogsProps = {
+  logs: AdminOperationLogItem[]
+  logFilters: AdminSystemLogFilters
+  logsPage: number
+  logsPageSize: number
+  logsTotalPages: number
+  logsPageOptions: number[]
+}
+
+export type AdminAttendanceLogsProps = {
+  attendanceLogs: AttendanceDetailLogItem[]
+  attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsPage: number
+  attendanceLogsPageSize: number
+  attendanceLogsTotalPages: number
+  attendanceLogsPageOptions: number[]
+  statusName: AdminStatusName
 }
 
 export type AdminSettingsProps = {

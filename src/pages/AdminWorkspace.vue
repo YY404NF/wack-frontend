@@ -2,11 +2,12 @@
 import type { AppTab, StatusCode } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminOverviewPanel from '../components/admin/AdminOverviewPanel.vue'
-import AdminAttendancePanel from '../components/admin/AdminAttendancePanel.vue'
+import AdminAttendanceLogsPanel from '../components/admin/AdminAttendanceLogsPanel.vue'
 import AdminFreeTimeCalendarPanel from '../components/admin/AdminFreeTimeCalendarPanel.vue'
 import AdminCourseCalendarPanel from '../components/admin/AdminCourseCalendarPanel.vue'
 import AdminCourseManagePanel from '../components/admin/AdminCourseManagePanel.vue'
 import AdminClassManagePanel from '../components/admin/AdminClassManagePanel.vue'
+import AdminLogsPanel from '../components/admin/AdminLogsPanel.vue'
 import AdminUserManagePanel from '../components/admin/AdminUserManagePanel.vue'
 import AdminPlaceholderPanel from '../components/admin/AdminPlaceholderPanel.vue'
 import AdminSettingsPanel from '../components/admin/AdminSettingsPanel.vue'
@@ -27,6 +28,10 @@ const emit = defineEmits<{
   deleteClass: []
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
+  updateLogsPage: [page: number]
+  updateLogsPageSize: [size: number]
+  updateAttendanceLogsPage: [page: number]
+  updateAttendanceLogsPageSize: [size: number]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -46,10 +51,6 @@ const emit = defineEmits<{
   updateAdminStatus: [detailId: number, status: StatusCode]
   changePassword: []
 }>()
-
-function forwardUpdateStatus(detailId: number, status: StatusCode) {
-  emit('updateAdminStatus', detailId, status)
-}
 
 function forwardUserStatus(studentId: string, status: number) {
   emit('setUserStatus', studentId, status)
@@ -73,12 +74,23 @@ function forwardUserStatus(studentId: string, status: number) {
             :admin-stats="adminStats"
           />
 
-          <AdminAttendancePanel
+          <AdminPlaceholderPanel
             v-if="activeTab === 'attendance'"
-            :attendance-results="attendanceResults"
+            title="查课记录"
+            description="这一页先留空，后续再补查课记录列表、详情联查和状态维护。"
+          />
+
+          <AdminAttendanceLogsPanel
+            v-if="activeTab === 'attendance-logs'"
+            :attendance-logs="attendanceLogs"
+            :attendance-log-filters="attendanceLogFilters"
+            :attendance-logs-page="attendanceLogsPage"
+            :attendance-logs-page-size="attendanceLogsPageSize"
+            :attendance-logs-total-pages="attendanceLogsTotalPages"
+            :attendance-logs-page-options="attendanceLogsPageOptions"
             :status-name="statusName"
-            :status-class="statusClass"
-            @update-admin-status="forwardUpdateStatus"
+            @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
+            @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
           />
 
           <AdminFreeTimeCalendarPanel
@@ -163,10 +175,16 @@ function forwardUserStatus(studentId: string, status: number) {
             @set-user-status="forwardUserStatus"
           />
 
-          <AdminPlaceholderPanel
+          <AdminLogsPanel
             v-if="activeTab === 'logs'"
-            title="系统日志"
-            description="这一页暂时留空，后续会补管理员操作日志与查课明细日志联查。"
+            :logs="logs"
+            :log-filters="logFilters"
+            :logs-page="logsPage"
+            :logs-page-size="logsPageSize"
+            :logs-total-pages="logsTotalPages"
+            :logs-page-options="logsPageOptions"
+            @update-logs-page="emit('updateLogsPage', $event)"
+            @update-logs-page-size="emit('updateLogsPageSize', $event)"
           />
 
           <AdminSettingsPanel

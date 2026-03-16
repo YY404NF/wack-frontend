@@ -29,8 +29,9 @@ export function useStudentFlow(deps: StudentFlowDeps) {
   async function openCourse(course: AvailableCourseItem) {
     deps.studentError.value = ''
     try {
-      deps.activeCheck.value = await api.enterAttendanceCheck(course.course_session_id)
-      deps.selectedStudentId.value = deps.activeCheck.value.students[0]?.id ?? null
+      const activeCheck = await api.enterAttendanceCheck(course.course_session_id)
+      deps.activeCheck.value = activeCheck
+      deps.selectedStudentId.value = activeCheck.students[0]?.id ?? null
       deps.availableCourses.value = (await api.studentAvailableCourses()) ?? []
       deps.showStudentToast(`已进入 ${course.course_name}`)
     } catch (error) {

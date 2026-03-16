@@ -3,6 +3,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 import {
   api,
+  type AdminOperationLogItem,
+  type AttendanceDetailLogItem,
   type AttendanceCheckDetail,
   type AttendanceResultItem,
   type AvailableCourseItem,
@@ -19,11 +21,13 @@ import {
   createClassFilters,
   createClassForm,
   createCourseForm,
+  createAttendanceLogFilters,
   createFreeTimeForm,
   createLoginForm,
   createPasswordForm,
   createProfileForm,
   createSetupForm,
+  createSystemLogFilters,
   createUserFilters,
   createUserForm,
   createUserPasswordForm,
@@ -56,6 +60,8 @@ export function useApp() {
   const classForm = reactive(createClassForm())
 
   const classFilters = reactive(createClassFilters())
+  const logFilters = reactive(createSystemLogFilters())
+  const attendanceLogFilters = reactive(createAttendanceLogFilters())
 
   const courseForm = reactive(createCourseForm())
 
@@ -88,6 +94,8 @@ export function useApp() {
   const dashboard = ref<DashboardSummary | null>(null)
   const attendanceResults = ref<AttendanceResultItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
+  const logs = ref<AdminOperationLogItem[]>([])
+  const attendanceLogs = ref<AttendanceDetailLogItem[]>([])
   const availableCourses = ref<AvailableCourseItem[]>([])
   const activeCheck = ref<AttendanceCheckDetail | null>(null)
 
@@ -178,6 +186,10 @@ export function useApp() {
   const userPageSize = ref(10)
   const classPage = ref(1)
   const classPageSize = ref(10)
+  const logsPage = ref(1)
+  const logsPageSize = ref(10)
+  const attendanceLogsPage = ref(1)
+  const attendanceLogsPageSize = ref(10)
 
   const adminStats = computed(() => {
     if (!dashboard.value) {
@@ -211,8 +223,33 @@ export function useApp() {
     }),
   )
 
+  const filteredLogs = computed(() =>
+    logs.value.filter((item) => {
+      const byOperator = !logFilters.operatorStudentId || item.operator_student_id.includes(logFilters.operatorStudentId.trim())
+      const byTargetTable = !logFilters.targetTable || item.target_table.includes(logFilters.targetTable.trim())
+      const byActionType = !logFilters.actionType || item.action_type.includes(logFilters.actionType.trim())
+      const byTargetId = !logFilters.targetId || String(item.target_id).includes(logFilters.targetId.trim())
+      const byKeyword = !logFilters.keyword || (item.new_value ?? '').includes(logFilters.keyword.trim())
+      const byDate = !logFilters.createdDate || item.created_at.startsWith(logFilters.createdDate)
+      return byOperator && byTargetTable && byActionType && byTargetId && byKeyword && byDate
+    }),
+  )
+
+  const filteredAttendanceLogs = computed(() =>
+    attendanceLogs.value.filter((item) => {
+      const byStudent = !attendanceLogFilters.studentId || item.student_id.includes(attendanceLogFilters.studentId.trim())
+      const byOperator = !attendanceLogFilters.operatorStudentId || item.operator_student_id.includes(attendanceLogFilters.operatorStudentId.trim())
+      const byType = !attendanceLogFilters.operationType || item.operation_type.includes(attendanceLogFilters.operationType.trim())
+      const byStatus = !attendanceLogFilters.newStatus || String(item.new_status) === attendanceLogFilters.newStatus
+      const byDate = !attendanceLogFilters.operatedDate || item.operated_at.startsWith(attendanceLogFilters.operatedDate)
+      return byStudent && byOperator && byType && byStatus && byDate
+    }),
+  )
+
   const userTotalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / userPageSize.value)))
   const classTotalPages = computed(() => Math.max(1, Math.ceil(filteredClasses.value.length / classPageSize.value)))
+  const logsTotalPages = computed(() => Math.max(1, Math.ceil(filteredLogs.value.length / logsPageSize.value)))
+  const attendanceLogsTotalPages = computed(() => Math.max(1, Math.ceil(filteredAttendanceLogs.value.length / attendanceLogsPageSize.value)))
   const paginatedUsers = computed(() => {
     const start = (userPage.value - 1) * userPageSize.value
     return filteredUsers.value.slice(start, start + userPageSize.value)
@@ -220,6 +257,14 @@ export function useApp() {
   const paginatedClasses = computed(() => {
     const start = (classPage.value - 1) * classPageSize.value
     return filteredClasses.value.slice(start, start + classPageSize.value)
+  })
+  const paginatedLogs = computed(() => {
+    const start = (logsPage.value - 1) * logsPageSize.value
+    return filteredLogs.value.slice(start, start + logsPageSize.value)
+  })
+  const paginatedAttendanceLogs = computed(() => {
+    const start = (attendanceLogsPage.value - 1) * attendanceLogsPageSize.value
+    return filteredAttendanceLogs.value.slice(start, start + attendanceLogsPageSize.value)
   })
 
   const selectedStudent = computed(() => {
@@ -248,6 +293,20 @@ export function useApp() {
     },
   )
 
+  watch(
+    () => [logFilters.operatorStudentId, logFilters.targetTable, logFilters.actionType, logFilters.targetId, logFilters.keyword, logFilters.createdDate, logsPageSize.value],
+    () => {
+      logsPage.value = 1
+    },
+  )
+
+  watch(
+    () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate, attendanceLogsPageSize.value],
+    () => {
+      attendanceLogsPage.value = 1
+    },
+  )
+
   watch(userTotalPages, (total) => {
     if (userPage.value > total) {
       userPage.value = total
@@ -257,6 +316,18 @@ export function useApp() {
   watch(classTotalPages, (total) => {
     if (classPage.value > total) {
       classPage.value = total
+    }
+  })
+
+  watch(logsTotalPages, (total) => {
+    if (logsPage.value > total) {
+      logsPage.value = total
+    }
+  })
+
+  watch(attendanceLogsTotalPages, (total) => {
+    if (attendanceLogsPage.value > total) {
+      attendanceLogsPage.value = total
     }
   })
 
@@ -438,6 +509,25 @@ export function useApp() {
 
   function updateClassPageSize(size: number) {
     classPageSize.value = size
+    classPage.value = 1
+  }
+
+  function updateLogsPage(page: number) {
+    logsPage.value = page
+  }
+
+  function updateLogsPageSize(size: number) {
+    logsPageSize.value = size
+    logsPage.value = 1
+  }
+
+  function updateAttendanceLogsPage(page: number) {
+    attendanceLogsPage.value = page
+  }
+
+  function updateAttendanceLogsPageSize(size: number) {
+    attendanceLogsPageSize.value = size
+    attendanceLogsPage.value = 1
   }
 
   const adminFlow = useAdminFlow({
@@ -449,6 +539,8 @@ export function useApp() {
     dashboard,
     attendanceResults,
     freeTimes,
+    logs,
+    attendanceLogs,
     userForm,
     profileForm,
     userPasswordForm,
@@ -511,6 +603,8 @@ export function useApp() {
     dashboard.value = null
     attendanceResults.value = []
     freeTimes.value = []
+    logs.value = []
+    attendanceLogs.value = []
     availableCourses.value = []
     activeCheck.value = null
     selectedStudentId.value = null
@@ -691,6 +785,8 @@ export function useApp() {
     adminStats: adminStats.value,
     courseCalendar: courseCalendar.value,
     freeTimes: freeTimes.value,
+    logs: paginatedLogs.value,
+    attendanceLogs: paginatedAttendanceLogs.value,
     classes: paginatedClasses.value,
     users: paginatedUsers.value,
     currentUserId: currentUserId.value,
@@ -723,6 +819,16 @@ export function useApp() {
     classTotalPages: classTotalPages.value,
     classPageOptions: USER_PAGE_OPTIONS,
     deletingClassName: deletingClassName.value,
+    logFilters,
+    logsPage: logsPage.value,
+    logsPageSize: logsPageSize.value,
+    logsTotalPages: logsTotalPages.value,
+    logsPageOptions: USER_PAGE_OPTIONS,
+    attendanceLogFilters,
+    attendanceLogsPage: attendanceLogsPage.value,
+    attendanceLogsPageSize: attendanceLogsPageSize.value,
+    attendanceLogsTotalPages: attendanceLogsTotalPages.value,
+    attendanceLogsPageOptions: USER_PAGE_OPTIONS,
     profileForm,
     profileModalOpen: profileModalOpen.value,
     profileSaving: profileSaving.value,
@@ -748,6 +854,10 @@ export function useApp() {
     saveClass,
     deleteClass,
     openCreateUserModal,
+    updateAttendanceLogsPage,
+    updateAttendanceLogsPageSize,
+    updateLogsPage,
+    updateLogsPageSize,
     openEditUserModal,
     closeUserModal,
     openUserPasswordModal,
@@ -814,6 +924,11 @@ export function useApp() {
     adminStats,
     adminToast,
     attendanceCompleting,
+    attendanceLogFilters,
+    attendanceLogs,
+    attendanceLogsPage,
+    attendanceLogsPageSize,
+    attendanceLogsTotalPages,
     attendanceResults,
     authLoading,
     availableCourses,
@@ -848,10 +963,17 @@ export function useApp() {
     editFreeTime,
     editingFreeTimeId,
     filteredClasses,
+    filteredLogs,
+    filteredAttendanceLogs,
     filteredUsers,
     freeTimeForm,
     freeTimeSaving,
     freeTimes,
+    logFilters,
+    logs,
+    logsPage,
+    logsPageSize,
+    logsTotalPages,
     initializeSystem,
     initialized,
     isAdmin,
@@ -873,6 +995,8 @@ export function useApp() {
     openProfileModal,
     openUserPasswordModal,
     paginatedClasses,
+    paginatedAttendanceLogs,
+    paginatedLogs,
     paginatedUsers,
     passwordForm,
     passwordModalOpen,
@@ -903,6 +1027,10 @@ export function useApp() {
     studentToast,
     updateClassPage,
     updateClassPageSize,
+    updateAttendanceLogsPage,
+    updateAttendanceLogsPageSize,
+    updateLogsPage,
+    updateLogsPageSize,
     updateAdminStatus,
     updateProfile,
     updateStudentStatus,

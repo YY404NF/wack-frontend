@@ -107,7 +107,7 @@ function onPageSizeChange(event: Event) {
             <td class="actions-column">
               <div class="inline-actions user-actions">
                 <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', item)">更改信息</button>
-                <button class="ghost-button compact-button" type="button" disabled>更改学生</button>
+                <button class="ghost-button compact-button" type="button" disabled>编辑学生</button>
                 <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', item)">删除</button>
               </div>
             </td>

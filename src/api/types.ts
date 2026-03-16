@@ -74,6 +74,33 @@ export interface CourseCalendarItem {
   teacher_name: string
 }
 
+export interface AdminOperationLogItem {
+  id: number
+  operator_user_id: number
+  operator_student_id: string
+  target_table: string
+  target_id: number
+  action_type: string
+  old_value?: string | null
+  new_value?: string | null
+  created_at: string
+}
+
+export interface AttendanceDetailLogItem {
+  id: number
+  attendance_detail_id: number
+  attendance_check_id: number
+  user_id: number
+  student_id: string
+  operator_user_id: number
+  operator_student_id: string
+  old_status?: number | null
+  new_status: number
+  operation_type: string
+  operated_at: string
+  created_at: string
+}
+
 export interface DashboardSummary {
   present: number
   late: number

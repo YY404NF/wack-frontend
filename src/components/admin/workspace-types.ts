@@ -1,10 +1,12 @@
-import type { AttendanceResultItem, ClassItem, CourseCalendarItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
+import type { AdminOperationLogItem, AttendanceDetailLogItem, AttendanceResultItem, ClassItem, CourseCalendarItem, CourseItem, FreeTimeItem, SessionUser, UserItem } from '../../api'
 import type {
+  AdminAttendanceLogFilters,
   AdminClassFilters,
   AdminClassForm,
   AdminCourseForm,
   AdminPasswordForm,
   AdminProfileForm,
+  AdminSystemLogFilters,
   AdminUserFilters,
   AdminUserForm,
   AdminUserPasswordForm,
@@ -18,6 +20,8 @@ export type AdminWorkspaceProps = {
   adminStats: AdminStatItem[]
   courseCalendar: CourseCalendarItem[]
   freeTimes: FreeTimeItem[]
+  logs: AdminOperationLogItem[]
+  attendanceLogs: AttendanceDetailLogItem[]
   classes: ClassItem[]
   users: UserItem[]
   currentUserId?: number
@@ -50,6 +54,16 @@ export type AdminWorkspaceProps = {
   classTotalPages: number
   classPageOptions: number[]
   deletingClassName: string
+  logFilters: AdminSystemLogFilters
+  logsPage: number
+  logsPageSize: number
+  logsTotalPages: number
+  logsPageOptions: number[]
+  attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsPage: number
+  attendanceLogsPageSize: number
+  attendanceLogsTotalPages: number
+  attendanceLogsPageOptions: number[]
   profileForm: AdminProfileForm
   profileModalOpen: boolean
   profileSaving: boolean

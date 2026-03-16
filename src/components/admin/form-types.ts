@@ -40,6 +40,23 @@ export type AdminClassFilters = {
   className: string
 }
 
+export type AdminSystemLogFilters = {
+  operatorStudentId: string
+  targetTable: string
+  actionType: string
+  targetId: string
+  keyword: string
+  createdDate: string
+}
+
+export type AdminAttendanceLogFilters = {
+  studentId: string
+  operatorStudentId: string
+  operationType: string
+  newStatus: string
+  operatedDate: string
+}
+
 export type AdminProfileForm = {
   studentId: string
   realName: string

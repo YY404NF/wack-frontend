@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type UserItem } from '../../api'
+import { api, type AdminOperationLogItem, type AttendanceDetailLogItem, type AttendanceResultItem, type ClassItem, type CourseCalendarItem, type CourseItem, type DashboardSummary, type FreeTimeItem, type SessionUser, type UserItem } from '../../api'
 import type { StatusCode } from '../../constants'
 import { createClassForm, createCourseForm } from './forms'
 
@@ -52,6 +52,8 @@ type AdminFlowDeps = {
   dashboard: Ref<DashboardSummary | null>
   attendanceResults: Ref<AttendanceResultItem[]>
   freeTimes: Ref<FreeTimeItem[]>
+  logs: Ref<AdminOperationLogItem[]>
+  attendanceLogs: Ref<AttendanceDetailLogItem[]>
   userForm: UserForm
   profileForm: ProfileForm
   userPasswordForm: UserPasswordForm
@@ -78,7 +80,7 @@ type AdminFlowDeps = {
 
 export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadAdminData() {
-    const [userPageResult, classPageResult, coursePage, calendar, summary, resultPage, freeTimeList] = await Promise.all([
+    const [userPageResult, classPageResult, coursePage, calendar, summary, resultPage, freeTimeList, logPageResult, attendanceLogPageResult] = await Promise.all([
       api.listUsers({ page: 1, page_size: 500 }),
       api.listClasses(),
       api.listCourses(),
@@ -86,6 +88,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       api.adminAttendanceDashboard(),
       api.adminAttendanceResults(),
       api.adminFreeTimeCalendar(),
+      api.listAdminOperationLogs(),
+      api.listAttendanceDetailLogs(),
     ])
     deps.users.value = userPageResult.items ?? []
     deps.classes.value = classPageResult.items ?? []
@@ -94,6 +98,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.dashboard.value = summary
     deps.attendanceResults.value = resultPage.items ?? []
     deps.freeTimes.value = freeTimeList ?? []
+    deps.logs.value = logPageResult.items ?? []
+    deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
   }
 
   async function saveClass() {

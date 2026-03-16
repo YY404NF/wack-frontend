@@ -73,23 +73,23 @@
 }
 
 .user-col-name {
-  width: 15%;
+  width: 7%;
 }
 
 .user-col-role {
-  width: 15%;
+  width: 9%;
 }
 
 .user-col-status {
-  width: 10%;
+  width: 5%;
 }
 
 .user-col-last-login {
-  width: 20%;
+  width: 22%;
 }
 
 .user-col-actions {
-  width: 25%;
+  width: 42%;
 }
 
 .actions-column {
@@ -168,8 +168,16 @@
   margin-bottom: 18px;
 }
 
+.log-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 @media (max-width: 1120px) {
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .log-filters {
     grid-template-columns: 1fr;
   }
 }

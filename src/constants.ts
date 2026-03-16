@@ -2,6 +2,7 @@ export type StatusCode = 0 | 1 | 2 | 3 | 4
 export type AppTab =
   | 'overview'
   | 'attendance'
+  | 'attendance-logs'
   | 'free-time-calendar'
   | 'free-time-manage'
   | 'course-calendar'
@@ -46,7 +47,8 @@ export const sectionLabels: Record<number, string> = {
 
 export const adminNavItems = [
   { key: 'overview', label: '总览' },
-  { key: 'attendance', label: '查课详情' },
+  { key: 'attendance', label: '查课记录' },
+  { key: 'attendance-logs', label: '查课日志' },
   { key: 'free-time-calendar', label: '查课学生空余时间日历' },
   { key: 'free-time-manage', label: '查课学生空余时间管理' },
   { key: 'course-calendar', label: '全院课程表' },

@@ -96,3 +96,24 @@ export function createClassFilters() {
     className: '',
   }
 }
+
+export function createSystemLogFilters() {
+  return {
+    operatorStudentId: '',
+    targetTable: '',
+    actionType: '',
+    targetId: '',
+    keyword: '',
+    createdDate: '',
+  }
+}
+
+export function createAttendanceLogFilters() {
+  return {
+    studentId: '',
+    operatorStudentId: '',
+    operationType: '',
+    newStatus: '',
+    operatedDate: '',
+  }
+}
