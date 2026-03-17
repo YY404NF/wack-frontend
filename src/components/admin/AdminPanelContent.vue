@@ -49,6 +49,7 @@ const emit = defineEmits<{
   closeUserFreeTimeModal: []
   updateUserFreeTimeTerm: [term: string]
   toggleUserFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  toggleUserFreeTimeCell: [payload: { weekday: number; section: number }]
   saveUserFreeTime: []
   resetUserPassword: []
   updateUserPage: [page: number]
@@ -290,6 +291,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @close-user-free-time-modal="emit('closeUserFreeTimeModal')"
       @update-user-free-time-term="emit('updateUserFreeTimeTerm', $event)"
       @toggle-user-free-time-week="emit('toggleUserFreeTimeWeek', $event)"
+      @toggle-user-free-time-cell="emit('toggleUserFreeTimeCell', $event)"
       @save-user-free-time="emit('saveUserFreeTime')"
       @reset-user-password="emit('resetUserPassword')"
       @update-user-page="emit('updateUserPage', $event)"

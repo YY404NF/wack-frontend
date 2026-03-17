@@ -18,6 +18,7 @@ const emit = defineEmits<{
   closeUserFreeTimeModal: []
   updateUserFreeTimeTerm: [term: string]
   toggleUserFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  toggleUserFreeTimeCell: [payload: { weekday: number; section: number }]
   saveUserFreeTime: []
   resetUserPassword: []
   updateUserPage: [page: number]
@@ -140,6 +141,7 @@ function formatLastLogin(value?: string | null) {
       @save="emit('saveUserFreeTime')"
       @update:term="emit('updateUserFreeTimeTerm', $event)"
       @toggle-week="emit('toggleUserFreeTimeWeek', $event)"
+      @toggle-cell-weeks="emit('toggleUserFreeTimeCell', $event)"
     />
 
     <div class="table-wrap user-table-wrap">

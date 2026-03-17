@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 
 import { api, type AttendanceCheckDetail, type AvailableCourseItem, type FreeTimeItem, type SystemSetting } from '../../api'
 import type { StatusCode } from '../../constants'
+import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, FREE_TIME_WEEK_COUNT, buildFreeTimeCellKey, createFreeTimeDraft, formatFreeWeeks, parseFreeWeeks, type FreeTimeDraft } from '../../utils/free-time'
 
 type FreeTimeForm = {
   term: string
@@ -16,6 +17,9 @@ type StudentFlowDeps = {
   systemSettings: Ref<SystemSetting | null>
   activeCheck: Ref<AttendanceCheckDetail | null>
   selectedStudentId: Ref<number | null>
+  freeTimeModalOpen: Ref<boolean>
+  freeTimeTerm: Ref<string>
+  freeTimeDraft: Ref<FreeTimeDraft>
   editingFreeTimeId: Ref<number | null>
   freeTimeForm: FreeTimeForm
   freeTimeSaving: Ref<boolean>
@@ -52,6 +56,9 @@ export function useStudentFlow(deps: StudentFlowDeps) {
   async function loadStudentFreeTimes() {
     const freeTimePage = await api.listFreeTimes()
     deps.freeTimes.value = freeTimePage.items ?? []
+    if (deps.freeTimeModalOpen.value) {
+      syncFreeTimeDraft()
+    }
   }
 
   async function ensureActiveCheck() {
@@ -84,6 +91,93 @@ export function useStudentFlow(deps: StudentFlowDeps) {
       deps.freeTimes.value = freeTimePage.items ?? []
       deps.resetFreeTimeForm()
       deps.showStudentToast(successMessage)
+    } catch (error) {
+      deps.studentError.value = error instanceof Error ? error.message : '保存空闲时间失败'
+    } finally {
+      deps.freeTimeSaving.value = false
+    }
+  }
+
+  function syncFreeTimeDraft() {
+    deps.freeTimeDraft.value = createFreeTimeDraft(deps.freeTimes.value, deps.freeTimeTerm.value)
+  }
+
+  function toggleFreeTimeWeek(payload: { weekday: number; section: number; weekNo: number }) {
+    const key = buildFreeTimeCellKey(payload.weekday, payload.section)
+    const current = new Set(deps.freeTimeDraft.value[key] ?? [])
+    if (current.has(payload.weekNo)) {
+      current.delete(payload.weekNo)
+    } else {
+      current.add(payload.weekNo)
+    }
+    deps.freeTimeDraft.value = {
+      ...deps.freeTimeDraft.value,
+      [key]: Array.from(current).sort((left, right) => left - right),
+    }
+  }
+
+  function toggleFreeTimeBlock(payload: { weekday: number; section: number }) {
+    const key = buildFreeTimeCellKey(payload.weekday, payload.section)
+    const current = deps.freeTimeDraft.value[key] ?? []
+    const nextValue = current.length === FREE_TIME_WEEK_COUNT
+      ? []
+      : Array.from({ length: FREE_TIME_WEEK_COUNT }, (_, index) => index + 1)
+    deps.freeTimeDraft.value = {
+      ...deps.freeTimeDraft.value,
+      [key]: nextValue,
+    }
+  }
+
+  async function saveFreeTimeDraft() {
+    deps.freeTimeSaving.value = true
+    deps.studentError.value = ''
+    try {
+      const term = deps.freeTimeTerm.value.trim()
+      const originalItems = deps.freeTimes.value.filter((item) => item.term === term)
+      const originalMap = new Map(originalItems.map((item) => [buildFreeTimeCellKey(item.weekday, item.section), item]))
+      const tasks: Promise<unknown>[] = []
+
+      for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
+        for (const section of FREE_TIME_VISIBLE_SECTIONS) {
+          const key = buildFreeTimeCellKey(weekday, section)
+          const weeks = deps.freeTimeDraft.value[key] ?? []
+          const currentValue = formatFreeWeeks(weeks)
+          const currentItem = originalMap.get(key)
+          const originalValue = currentItem ? formatFreeWeeks(parseFreeWeeks(currentItem.free_weeks)) : ''
+
+          if (!currentValue && currentItem) {
+            tasks.push(api.deleteFreeTime(currentItem.id))
+            continue
+          }
+
+          if (!currentValue) {
+            continue
+          }
+
+          const payload = {
+            term,
+            weekday,
+            section,
+            free_weeks: currentValue,
+          }
+
+          if (!currentItem) {
+            tasks.push(api.createFreeTime(payload))
+            continue
+          }
+
+          if (originalValue !== currentValue) {
+            tasks.push(api.updateFreeTime(currentItem.id, payload))
+          }
+        }
+      }
+
+      await Promise.all(tasks)
+      const freeTimePage = await api.listFreeTimes()
+      deps.freeTimes.value = freeTimePage.items ?? []
+      syncFreeTimeDraft()
+      deps.freeTimeModalOpen.value = false
+      deps.showStudentToast('空闲时间已保存')
     } catch (error) {
       deps.studentError.value = error instanceof Error ? error.message : '保存空闲时间失败'
     } finally {
@@ -156,6 +250,10 @@ export function useStudentFlow(deps: StudentFlowDeps) {
     loadStudentFreeTimes,
     ensureActiveCheck,
     saveFreeTime,
+    syncFreeTimeDraft,
+    toggleFreeTimeWeek,
+    toggleFreeTimeBlock,
+    saveFreeTimeDraft,
     editFreeTime,
     removeFreeTime,
     openCourse,

@@ -66,6 +66,7 @@ export type AdminWorkspaceHandlersDeps = {
   closeUserFreeTimeModal: () => void
   updateUserFreeTimeTerm: (term: string) => void
   toggleUserFreeTimeWeek: (payload: { weekday: number; section: number; weekNo: number }) => void
+  toggleUserFreeTimeCell: (payload: { weekday: number; section: number }) => void
   saveUserFreeTime: () => Promise<void>
   resetUserPassword: () => Promise<void>
   updateUserPage: (page: number) => void
@@ -153,6 +154,7 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     closeUserFreeTimeModal: deps.closeUserFreeTimeModal,
     updateUserFreeTimeTerm: deps.updateUserFreeTimeTerm,
     toggleUserFreeTimeWeek: deps.toggleUserFreeTimeWeek,
+    toggleUserFreeTimeCell: deps.toggleUserFreeTimeCell,
     saveUserFreeTime: deps.saveUserFreeTime,
     resetUserPassword: deps.resetUserPassword,
     updateUserPage: deps.updateUserPage,

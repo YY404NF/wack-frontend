@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type AppTab, type StatusCode } from '../../constants'
 import type { StudentGreeting, StudentWorkspaceProps } from './types'
+import StudentFreeTimeModal from './StudentFreeTimeModal.vue'
 
 defineProps<StudentWorkspaceProps & {
   greeting: StudentGreeting
@@ -17,6 +18,11 @@ const emit = defineEmits<{
   openCourse: [course: StudentWorkspaceProps['availableCourses'][number]]
   updateStudentStatus: [detailId: number, status: StatusCode]
   completeAttendance: []
+  openFreeTimeModal: []
+  closeFreeTimeModal: []
+  toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  toggleFreeTimeBlock: [payload: { weekday: number; section: number }]
+  saveFreeTimeDraft: []
   saveFreeTime: []
   editFreeTime: [item: StudentWorkspaceProps['freeTimes'][number]]
   removeFreeTime: [id: number]
@@ -152,7 +158,7 @@ const emit = defineEmits<{
           </div>
           <div class="student-settings-actions">
             <button class="primary-button" type="button" @click="emit('openPasswordModal')">修改密码</button>
-            <button class="ghost-button" type="button">修改空闲时间</button>
+            <button class="ghost-button" type="button" @click="emit('openFreeTimeModal')">修改空闲时间</button>
           </div>
         </div>
       </article>
@@ -189,4 +195,15 @@ const emit = defineEmits<{
       </article>
     </div>
   </Transition>
+
+  <StudentFreeTimeModal
+    :open="freeTimeModalOpen"
+    :term="freeTimeTerm"
+    :saving="savingFreeTime"
+    :draft="freeTimeDraft"
+    @close="emit('closeFreeTimeModal')"
+    @toggle-week="emit('toggleFreeTimeWeek', $event)"
+    @toggle-block="emit('toggleFreeTimeBlock', $event)"
+    @save="emit('saveFreeTimeDraft')"
+  />
 </template>

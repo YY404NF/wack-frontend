@@ -19,14 +19,23 @@ const emit = defineEmits<{
   save: []
   'update:term': [value: string]
   toggleWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  toggleCellWeeks: [payload: { weekday: number; section: number }]
 }>()
 
-const weekRows = computed(() => [
-  Array.from({ length: FREE_TIME_WEEK_COUNT / 2 }, (_, index) => index + 1),
-  Array.from({ length: FREE_TIME_WEEK_COUNT / 2 }, (_, index) => index + 1 + FREE_TIME_WEEK_COUNT / 2),
-])
+const WEEKS_PER_ROW = 4
+const weekRows = computed(() =>
+  Array.from({ length: Math.ceil(FREE_TIME_WEEK_COUNT / WEEKS_PER_ROW) }, (_, rowIndex) =>
+    Array.from(
+      { length: WEEKS_PER_ROW },
+      (_, columnIndex) => rowIndex * WEEKS_PER_ROW + columnIndex + 1,
+    ).filter((weekNo) => weekNo <= FREE_TIME_WEEK_COUNT),
+  ),
+)
 
-const touchedKeys = ref<string[]>([])
+const LONG_PRESS_MS = 380
+const longPressTimer = ref<number | null>(null)
+const pressedKey = ref('')
+const longPressTriggered = ref(false)
 
 function cellWeeks(weekday: number, section: number) {
   return props.draft[buildFreeTimeCellKey(weekday, section)] ?? []
@@ -36,30 +45,48 @@ function isWeekSelected(weekday: number, section: number, weekNo: number) {
   return cellWeeks(weekday, section).includes(weekNo)
 }
 
-function beginWeekDrag(weekday: number, section: number, weekNo: number) {
-  emit('toggleWeek', { weekday, section, weekNo })
-  touchedKeys.value = [`${weekday}-${section}-${weekNo}`]
+function clearLongPressTimer() {
+  if (longPressTimer.value !== null) {
+    window.clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
 }
 
-function continueWeekDrag(event: PointerEvent, weekday: number, section: number, weekNo: number) {
+function startWeekPress(weekday: number, section: number, weekNo: number) {
+  clearLongPressTimer()
+  pressedKey.value = `${weekday}-${section}-${weekNo}`
+  longPressTriggered.value = false
+  longPressTimer.value = window.setTimeout(() => {
+    emit('toggleCellWeeks', { weekday, section })
+    longPressTriggered.value = true
+    longPressTimer.value = null
+  }, LONG_PRESS_MS)
+}
+
+function endWeekPress() {
+  clearLongPressTimer()
+}
+
+function onWeekClick(weekday: number, section: number, weekNo: number) {
   const key = `${weekday}-${section}-${weekNo}`
-  if (event.buttons === 0 || touchedKeys.value.includes(key)) {
+  if (pressedKey.value === key && longPressTriggered.value) {
+    pressedKey.value = ''
+    longPressTriggered.value = false
     return
   }
-  emit('toggleWeek', { weekday, section, weekNo })
-  touchedKeys.value = [...touchedKeys.value, key]
-}
 
-function stopWeekDrag() {
-  touchedKeys.value = []
+  emit('toggleWeek', { weekday, section, weekNo })
+  pressedKey.value = ''
+  longPressTriggered.value = false
 }
 
 onMounted(() => {
-  window.addEventListener('pointerup', stopWeekDrag)
+  window.addEventListener('pointerup', endWeekPress)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('pointerup', stopWeekDrag)
+  window.removeEventListener('pointerup', endWeekPress)
+  clearLongPressTimer()
 })
 </script>
 
@@ -89,9 +116,9 @@ onBeforeUnmount(() => {
 
       <div v-if="loading" class="user-free-time-loading">正在加载空闲时间...</div>
 
-      <div v-else class="user-free-time-grid-wrap" @pointerleave="stopWeekDrag">
+      <div v-else class="user-free-time-grid-wrap">
         <div class="user-free-time-grid" :style="{ gridTemplateColumns: `160px repeat(${FREE_TIME_VISIBLE_WEEKDAYS.length}, minmax(220px, 1fr))` }">
-          <div class="user-free-time-corner"></div>
+          <div class="user-free-time-corner">空闲周数</div>
           <div v-for="weekday in FREE_TIME_VISIBLE_WEEKDAYS" :key="weekday" class="user-free-time-day">
             {{ weekdayLabels[weekday] }}
           </div>
@@ -108,8 +135,11 @@ onBeforeUnmount(() => {
                   class="ghost-button compact-button user-free-time-week-button"
                   :class="{ selected: isWeekSelected(weekday, section, weekNo) }"
                   type="button"
-                  @pointerdown.prevent="beginWeekDrag(weekday, section, weekNo)"
-                  @pointerenter="continueWeekDrag($event, weekday, section, weekNo)"
+                  @pointerdown.prevent="startWeekPress(weekday, section, weekNo)"
+                  @pointerup="endWeekPress"
+                  @pointercancel="endWeekPress"
+                  @pointerleave="endWeekPress"
+                  @click="onWeekClick(weekday, section, weekNo)"
                 >
                   {{ weekNo }}
                 </button>

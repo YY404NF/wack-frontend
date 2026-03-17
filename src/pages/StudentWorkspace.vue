@@ -17,6 +17,11 @@ const emit = defineEmits<{
   openCourse: [course: StudentWorkspaceProps['availableCourses'][number]]
   updateStudentStatus: [detailId: number, status: number]
   completeAttendance: []
+  openFreeTimeModal: []
+  closeFreeTimeModal: []
+  toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
+  toggleFreeTimeBlock: [payload: { weekday: number; section: number }]
+  saveFreeTimeDraft: []
   saveFreeTime: []
   editFreeTime: [item: StudentWorkspaceProps['freeTimes'][number]]
   removeFreeTime: [id: number]
@@ -86,6 +91,11 @@ onBeforeUnmount(() => {
         @open-course="emit('openCourse', $event)"
         @update-student-status="(detailId, status) => emit('updateStudentStatus', detailId, status)"
         @complete-attendance="emit('completeAttendance')"
+        @open-free-time-modal="emit('openFreeTimeModal')"
+        @close-free-time-modal="emit('closeFreeTimeModal')"
+        @toggle-free-time-week="emit('toggleFreeTimeWeek', $event)"
+        @toggle-free-time-block="emit('toggleFreeTimeBlock', $event)"
+        @save-free-time-draft="emit('saveFreeTimeDraft')"
         @save-free-time="emit('saveFreeTime')"
         @edit-free-time="emit('editFreeTime', $event)"
         @remove-free-time="emit('removeFreeTime', $event)"

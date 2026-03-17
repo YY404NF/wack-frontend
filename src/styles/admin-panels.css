@@ -901,6 +901,7 @@
   border-bottom: 1px solid var(--line);
 }
 
+.user-free-time-corner,
 .user-free-time-day,
 .user-free-time-section {
   padding: 10px 12px;
@@ -917,7 +918,7 @@
   position: sticky;
   top: 0;
   z-index: 4;
-  background: var(--paper-strong);
+  background: rgba(92, 82, 75, 0.06);
 }
 
 .user-free-time-day {
@@ -927,26 +928,52 @@
 .user-free-time-cell {
   padding: 12px;
   display: grid;
-  gap: 10px;
+  gap: 0;
   align-content: center;
 }
 
 .user-free-time-week-row {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
 }
 
 .user-free-time-week-button {
   min-width: 0;
-  min-height: 36px;
+  min-height: 48px;
   padding: 0;
+  border-radius: 0;
+  border: 1px solid rgba(83, 42, 19, 0.16);
+  background: rgba(255, 250, 244, 0.82);
+  color: #4c3328;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.user-free-time-week-row .user-free-time-week-button:not(:first-child) {
+  border-left-width: 0;
+}
+
+.user-free-time-week-row + .user-free-time-week-row .user-free-time-week-button {
+  border-top-width: 0;
+}
+
+.user-free-time-week-button:hover {
+  background: rgba(207, 90, 46, 0.1);
+  color: #8f4220;
+  transform: none;
 }
 
 .user-free-time-week-button.selected {
-  background: rgba(202, 89, 40, 0.16);
-  color: #9a471f;
-  border-color: rgba(202, 89, 40, 0.24);
+  background: linear-gradient(180deg, rgba(236, 205, 182, 0.68), rgba(226, 188, 157, 0.82));
+  color: #614031;
+  border-color: rgba(166, 118, 88, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 245, 0.42);
+}
+
+.user-free-time-week-button.selected:hover {
+  background: linear-gradient(180deg, rgba(241, 212, 190, 0.78), rgba(231, 194, 164, 0.88));
+  color: #5d3c2e;
 }
 
 .user-free-time-footer {

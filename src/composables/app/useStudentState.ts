@@ -5,6 +5,7 @@ import type { AttendanceCheckDetail, AvailableCourseItem, FreeTimeItem, SessionU
 import type { AppTab } from '../../constants'
 import { createFreeTimeForm } from './forms'
 import { useStudentApp } from '../useStudentApp'
+import { createEmptyFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
 
 type PasswordForm = {
   oldPassword: string
@@ -35,6 +36,9 @@ export function useStudentState(deps: UseStudentStateDeps) {
   const selectedStudentId = ref<number | null>(null)
   const freeTimes = ref<FreeTimeItem[]>([])
   const systemSettings = ref<SystemSetting | null>(null)
+  const freeTimeModalOpen = ref(false)
+  const freeTimeTerm = ref(getCurrentAcademicTerm())
+  const freeTimeDraft = ref(createEmptyFreeTimeDraft())
   const freeTimeForm = ref(createFreeTimeForm()).value
   const editingFreeTimeId = ref<number | null>(null)
   const studentCoreLoaded = ref(false)
@@ -57,6 +61,9 @@ export function useStudentState(deps: UseStudentStateDeps) {
     selectedStudentId,
     freeTimes,
     freeTimeForm,
+    freeTimeModalOpen,
+    freeTimeTerm,
+    freeTimeDraft,
     editingFreeTimeId,
     passwordForm: deps.passwordForm,
     passwordModalOpen: deps.passwordModalOpen,

@@ -4,6 +4,7 @@ import type { AttendanceCheckDetail, AvailableCourseItem, FreeTimeItem, SessionU
 import type { AppTab, StatusCode } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel, statusClass, statusName } from './app/view'
+import { createEmptyFreeTimeDraft, getCurrentAcademicTerm, type FreeTimeDraft } from '../utils/free-time'
 
 type FreeTimeForm = {
   term: string
@@ -28,6 +29,9 @@ type StudentAppDeps = {
   activeCheck: Ref<AttendanceCheckDetail | null>
   selectedStudentId: Ref<number | null>
   freeTimes: Ref<FreeTimeItem[]>
+  freeTimeModalOpen: Ref<boolean>
+  freeTimeTerm: Ref<string>
+  freeTimeDraft: Ref<FreeTimeDraft>
   freeTimeForm: FreeTimeForm
   editingFreeTimeId: Ref<number | null>
   passwordForm: PasswordForm
@@ -56,6 +60,9 @@ export function useStudentApp(deps: StudentAppDeps) {
     activeCheck: deps.activeCheck,
     selectedStudentId: deps.selectedStudentId,
     editingFreeTimeId: deps.editingFreeTimeId,
+    freeTimeModalOpen: deps.freeTimeModalOpen,
+    freeTimeTerm: deps.freeTimeTerm,
+    freeTimeDraft: deps.freeTimeDraft,
     freeTimeForm: deps.freeTimeForm,
     freeTimeSaving: deps.freeTimeSaving,
     attendanceCompleting: deps.attendanceCompleting,
@@ -102,6 +109,31 @@ export function useStudentApp(deps: StudentAppDeps) {
     deps.studentFreeTimesLoaded.value = true
   }
 
+  async function openFreeTimeModal() {
+    deps.freeTimeTerm.value = getCurrentAcademicTerm()
+    await ensureStudentFreeTimesLoaded()
+    studentFlow.syncFreeTimeDraft()
+    deps.freeTimeModalOpen.value = true
+  }
+
+  function closeFreeTimeModal() {
+    deps.freeTimeModalOpen.value = false
+  }
+
+  function toggleFreeTimeWeek(payload: { weekday: number; section: number; weekNo: number }) {
+    studentFlow.toggleFreeTimeWeek(payload)
+  }
+
+  function toggleFreeTimeBlock(payload: { weekday: number; section: number }) {
+    studentFlow.toggleFreeTimeBlock(payload)
+  }
+
+  async function saveFreeTimeDraft() {
+    await ensureStudentFreeTimesLoaded()
+    await studentFlow.saveFreeTimeDraft()
+    deps.studentFreeTimesLoaded.value = true
+  }
+
   function editFreeTime(item: FreeTimeItem) {
     studentFlow.editFreeTime(item)
     void deps.setActiveTab('settings', 'push')
@@ -135,6 +167,10 @@ export function useStudentApp(deps: StudentAppDeps) {
     })
   }
 
+  const openPasswordModal = deps.openPasswordModal
+  const closePasswordModal = deps.closePasswordModal
+  const changePassword = deps.changePassword
+
   const studentWorkspaceProps = computed(() => ({
     me: deps.me.value!,
     activeTab: deps.activeTab.value,
@@ -146,6 +182,9 @@ export function useStudentApp(deps: StudentAppDeps) {
     selectedStudent: selectedStudent.value,
     selectedStudentId: deps.selectedStudentId.value,
     freeTimes: deps.freeTimes.value,
+    freeTimeModalOpen: deps.freeTimeModalOpen.value,
+    freeTimeDraft: deps.freeTimeDraft.value,
+    freeTimeTerm: deps.freeTimeTerm.value,
     freeTimeForm: deps.freeTimeForm,
     editingFreeTimeId: deps.editingFreeTimeId.value,
     passwordForm: deps.passwordForm,
@@ -169,13 +208,18 @@ export function useStudentApp(deps: StudentAppDeps) {
     openCourse,
     updateStudentStatus,
     completeAttendance,
+    openFreeTimeModal,
+    closeFreeTimeModal,
+    toggleFreeTimeWeek,
+    toggleFreeTimeBlock,
+    saveFreeTimeDraft,
     saveFreeTime,
     editFreeTime,
     removeFreeTime,
     resetFreeTimeForm: deps.resetFreeTimeForm,
-    openPasswordModal: deps.openPasswordModal,
-    closePasswordModal: deps.closePasswordModal,
-    changePassword: deps.changePassword,
+    openPasswordModal,
+    closePasswordModal,
+    changePassword,
   }
 
   function resetStudentState() {
@@ -183,6 +227,9 @@ export function useStudentApp(deps: StudentAppDeps) {
     deps.activeCheck.value = null
     deps.selectedStudentId.value = null
     deps.editingFreeTimeId.value = null
+    deps.freeTimeModalOpen.value = false
+    deps.freeTimeTerm.value = getCurrentAcademicTerm()
+    deps.freeTimeDraft.value = createEmptyFreeTimeDraft()
     deps.studentCoreLoaded.value = false
     deps.studentFreeTimesLoaded.value = false
     deps.studentActiveCheckLoaded.value = false

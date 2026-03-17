@@ -12,6 +12,9 @@ export type StudentWorkspaceProps = {
   selectedStudent: AttendanceCheckDetail['students'][number] | null
   selectedStudentId: number | null
   freeTimes: FreeTimeItem[]
+  freeTimeModalOpen: boolean
+  freeTimeDraft: Record<string, number[]>
+  freeTimeTerm: string
   freeTimeForm: { term: string; weekday: number; section: number; freeWeeks: string }
   editingFreeTimeId: number | null
   passwordForm: { oldPassword: string; newPassword: string; confirmNewPassword: string }

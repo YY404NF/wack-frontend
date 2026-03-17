@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
 import { api, type ClassStudentCandidateItem, type ClassStudentItem, type CourseDetail, type CourseItem, type FreeTimeItem, type UserItem } from '../../api'
-import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, getCurrentAcademicTerm, parseFreeWeeks } from '../../utils/free-time'
+import { buildFreeTimeCellKey, createFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
 
 type CourseForm = {
   term: string
@@ -52,19 +52,7 @@ type UseAdminEditorsDeps = {
 
 export function useAdminEditors(deps: UseAdminEditorsDeps) {
   function createUserFreeTimeDraft(items: FreeTimeItem[], term: string) {
-    const draft: Record<string, number[]> = {}
-    for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
-      for (const section of FREE_TIME_VISIBLE_SECTIONS) {
-        draft[buildFreeTimeCellKey(weekday, section)] = []
-      }
-    }
-    for (const item of items) {
-      if (item.term !== term) {
-        continue
-      }
-      draft[buildFreeTimeCellKey(item.weekday, item.section)] = parseFreeWeeks(item.free_weeks)
-    }
-    deps.userFreeTimeDraft.value = draft
+    deps.userFreeTimeDraft.value = createFreeTimeDraft(items, term)
   }
 
   async function loadUserFreeTimeItems(studentId: string) {
@@ -114,6 +102,20 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
     deps.userFreeTimeDraft.value = {
       ...deps.userFreeTimeDraft.value,
       [key]: Array.from(current).sort((left, right) => left - right),
+    }
+  }
+
+  function toggleUserFreeTimeCell(payload: { weekday: number; section: number }) {
+    const key = buildFreeTimeCellKey(payload.weekday, payload.section)
+    const current = deps.userFreeTimeDraft.value[key] ?? []
+    const next =
+      current.length >= 16
+        ? []
+        : Array.from({ length: 16 }, (_, index) => index + 1)
+
+    deps.userFreeTimeDraft.value = {
+      ...deps.userFreeTimeDraft.value,
+      [key]: next,
     }
   }
 
@@ -357,6 +359,7 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
     openUserFreeTimeModal,
     updateUserFreeTimeTerm,
     toggleUserFreeTimeWeek,
+    toggleUserFreeTimeCell,
     openCreateCourseModal,
     openEditCourseModal,
     openCourseStudentModal,

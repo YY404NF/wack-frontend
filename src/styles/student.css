@@ -171,16 +171,29 @@
 }
 
 .student-schedule-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.student-schedule-label > span {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0;
 }
 
 .student-schedule-live-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
   font-size: 0.72rem;
   line-height: 1;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .student-schedule-times strong {
@@ -283,6 +296,153 @@
   width: 100%;
   justify-content: center;
   margin-top: 4px;
+}
+
+.student-free-time-modal {
+  width: min(100%, 960px);
+  max-width: min(100%, 960px);
+  max-height: min(860px, calc(100dvh - 124px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 30px;
+  margin: 12px 0 calc(78px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(circle at top right, rgba(255, 247, 239, 0.92), transparent 34%),
+    linear-gradient(180deg, rgba(255, 250, 245, 0.98), rgba(245, 235, 225, 0.98));
+}
+
+.student-free-time-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.student-free-time-modal-header h3,
+.student-free-time-modal-hint {
+  margin: 0;
+}
+
+.student-free-time-grid-scroll {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 24px;
+  border: 1px solid rgba(83, 42, 19, 0.1);
+  background: rgba(255, 252, 248, 0.8);
+}
+
+.student-free-time-grid {
+  display: grid;
+}
+
+.student-free-time-corner,
+.student-free-time-day,
+.student-free-time-section,
+.student-free-time-cell {
+  border-right: 2px solid rgba(83, 42, 19, 0.14);
+  border-bottom: 2px solid rgba(83, 42, 19, 0.14);
+}
+
+.student-free-time-corner,
+.student-free-time-day {
+  position: sticky;
+  top: 0;
+}
+
+.student-free-time-corner,
+.student-free-time-section {
+  left: 0;
+}
+
+.student-free-time-corner {
+  z-index: 4;
+  background: #e7d6c8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.92rem;
+  white-space: pre-line;
+  line-height: 1.18;
+  color: #473126;
+}
+
+.student-free-time-day {
+  z-index: 3;
+  background: #e7d6c8;
+}
+
+.student-free-time-section {
+  position: sticky;
+  z-index: 2;
+}
+
+.student-free-time-day,
+.student-free-time-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  text-align: center;
+  font-weight: 600;
+  color: #473126;
+  background: #e7d6c8;
+}
+
+.student-free-time-section {
+  white-space: pre-line;
+  line-height: 1.18;
+  font-size: 0.92rem;
+}
+
+.student-free-time-cell {
+  padding: 0;
+  display: grid;
+  gap: 0;
+  align-content: center;
+  background: rgba(255, 252, 248, 0.9);
+}
+
+.student-free-time-week-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.student-free-time-week-button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgba(83, 42, 19, 0.14);
+  border-bottom: 1px solid rgba(83, 42, 19, 0.14);
+  border-radius: 0;
+  background: rgba(255, 252, 248, 0.92);
+  color: #3f2a20;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.student-free-time-week-button.selected {
+  background: linear-gradient(180deg, rgba(206, 92, 46, 0.22), rgba(206, 92, 46, 0.14));
+  color: #8f421d;
+}
+
+.student-free-time-modal-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.student-free-time-save {
+  width: min(220px, 100%);
+  justify-content: center;
 }
 
 .student-empty-hint {
@@ -412,5 +572,29 @@
   .student-bottom-nav {
     width: calc(100vw - 24px);
     bottom: 12px;
+  }
+
+  .student-free-time-modal {
+    width: 100%;
+    max-height: calc(100dvh - 112px);
+    padding: 18px;
+    border-radius: 26px;
+    margin: 10px 0 calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .student-free-time-modal-header {
+    align-items: center;
+  }
+
+  .student-free-time-modal-header h3 {
+    font-size: 1.8rem;
+  }
+
+  .student-free-time-grid {
+    min-width: max-content;
+  }
+
+  .student-free-time-grid-scroll {
+    margin-inline: -2px;
   }
 }

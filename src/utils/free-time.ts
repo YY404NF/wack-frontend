@@ -1,9 +1,34 @@
+import type { FreeTimeItem } from '../api'
+
 export const FREE_TIME_WEEK_COUNT = 16
 export const FREE_TIME_VISIBLE_WEEKDAYS = [1, 2, 3, 4, 5] as const
 export const FREE_TIME_VISIBLE_SECTIONS = [1, 2, 3, 4, 5] as const
 
+export type FreeTimeDraft = Record<string, number[]>
+
 export function buildFreeTimeCellKey(weekday: number, section: number) {
   return `${weekday}-${section}`
+}
+
+export function createEmptyFreeTimeDraft() {
+  const draft: FreeTimeDraft = {}
+  for (const weekday of FREE_TIME_VISIBLE_WEEKDAYS) {
+    for (const section of FREE_TIME_VISIBLE_SECTIONS) {
+      draft[buildFreeTimeCellKey(weekday, section)] = []
+    }
+  }
+  return draft
+}
+
+export function createFreeTimeDraft(items: FreeTimeItem[], term: string) {
+  const draft = createEmptyFreeTimeDraft()
+  for (const item of items) {
+    if (item.term !== term) {
+      continue
+    }
+    draft[buildFreeTimeCellKey(item.weekday, item.section)] = parseFreeWeeks(item.free_weeks)
+  }
+  return draft
 }
 
 export function parseFreeWeeks(value: string) {
