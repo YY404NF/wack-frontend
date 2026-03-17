@@ -35,6 +35,7 @@ const sectionTextMap: Record<number, string> = {
 const longPressTimer = ref<number | null>(null)
 const longPressTriggered = ref(false)
 const activePointerKey = ref('')
+const pressStartPoint = ref<{ x: number; y: number } | null>(null)
 
 function cellWeeks(weekday: number, section: number) {
   return props.draft[buildFreeTimeCellKey(weekday, section)] ?? []
@@ -44,10 +45,11 @@ function isWeekSelected(weekday: number, section: number, weekNo: number) {
   return cellWeeks(weekday, section).includes(weekNo)
 }
 
-function beginWeekPress(weekday: number, section: number, weekNo: number) {
+function beginWeekPress(event: PointerEvent, weekday: number, section: number, weekNo: number) {
   cancelLongPress()
   longPressTriggered.value = false
   activePointerKey.value = `${weekday}-${section}-${weekNo}`
+  pressStartPoint.value = { x: event.clientX, y: event.clientY }
   longPressTimer.value = window.setTimeout(() => {
     longPressTriggered.value = true
     emit('toggleBlock', { weekday, section })
@@ -63,12 +65,25 @@ function finishWeekPress(weekday: number, section: number, weekNo: number) {
   }
 }
 
+function handleWeekMove(event: PointerEvent) {
+  if (!pressStartPoint.value) {
+    return
+  }
+
+  const deltaX = Math.abs(event.clientX - pressStartPoint.value.x)
+  const deltaY = Math.abs(event.clientY - pressStartPoint.value.y)
+  if (deltaX > 8 || deltaY > 8) {
+    cancelLongPress()
+  }
+}
+
 function cancelLongPress() {
   if (longPressTimer.value !== null) {
     window.clearTimeout(longPressTimer.value)
     longPressTimer.value = null
   }
   activePointerKey.value = ''
+  pressStartPoint.value = null
 }
 
 onBeforeUnmount(() => {
@@ -110,8 +125,9 @@ onBeforeUnmount(() => {
                     class="student-free-time-week-button"
                     :class="{ selected: isWeekSelected(weekday, section, weekNo) }"
                     type="button"
-                    @pointerdown.prevent="beginWeekPress(weekday, section, weekNo)"
-                    @pointerup.prevent="finishWeekPress(weekday, section, weekNo)"
+                    @pointerdown="beginWeekPress($event, weekday, section, weekNo)"
+                    @pointermove="handleWeekMove"
+                    @pointerup="finishWeekPress(weekday, section, weekNo)"
                     @pointercancel="cancelLongPress"
                   >
                     {{ weekNo }}
