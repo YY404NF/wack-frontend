@@ -533,11 +533,8 @@
   background: transparent;
   color: rgba(75, 51, 40, 0.82);
   font-size: 1rem;
-  transition:
-    color 150ms ease,
-    opacity 150ms ease,
-    filter 150ms ease;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .student-bottom-nav-icon {
