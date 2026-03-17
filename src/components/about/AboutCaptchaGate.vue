@@ -711,15 +711,14 @@ watch(
   left: 50%;
   opacity: 0;
   margin: 0;
-  transform: scale(0.72);
+  transform: translate(-50%, -50%) scale(0.72);
   transform-origin: center;
   transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  translate: -50% -50%;
 }
 
 .about-captcha-widget .recaptcha-checkbox-checked .recaptcha-checkbox-checkmark {
   opacity: 1;
-  transform: scale(1);
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .about-captcha-selector .rc-imageselect-checkbox {
