@@ -11,7 +11,6 @@ type UseAppRoutingDeps = {
   booting: Ref<boolean>
   initialized: Ref<boolean>
   ensureStudentFreeTimesLoaded: (force?: boolean) => Promise<void>
-  ensureStudentActiveCheckLoaded: (force?: boolean) => Promise<void>
 }
 
 export function useAppRouting(deps: UseAppRoutingDeps) {
@@ -78,9 +77,6 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
     }
     if (tab === 'settings') {
       void deps.ensureStudentFreeTimesLoaded(true)
-    }
-    if (tab === 'student') {
-      void deps.ensureStudentActiveCheckLoaded(true)
     }
   }
 

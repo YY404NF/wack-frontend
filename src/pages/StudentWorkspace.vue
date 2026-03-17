@@ -14,11 +14,7 @@ import { formatSectionTimeRange, getScheduleType, getSectionTimeRange, scheduleL
 const props = defineProps<StudentWorkspaceProps>()
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
-  'update:selectedStudentId': [value: number]
   logout: []
-  openCourse: [course: StudentWorkspaceProps['availableCourses'][number]]
-  updateStudentStatus: [detailId: number, status: number]
-  completeAttendance: []
   openFreeTimeModal: []
   closeFreeTimeModal: []
   toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
@@ -108,12 +104,8 @@ onBeforeUnmount(() => {
         :active-schedule-sections="activeScheduleSections"
         :section-time-text="sectionTimeText"
         @update:active-tab="emit('update:activeTab', $event)"
-        @update:selected-student-id="emit('update:selectedStudentId', $event)"
         @logout="emit('logout')"
         @open-about="openAboutEntry"
-        @open-course="emit('openCourse', $event)"
-        @update-student-status="(detailId, status) => emit('updateStudentStatus', detailId, status)"
-        @complete-attendance="emit('completeAttendance')"
         @open-free-time-modal="emit('openFreeTimeModal')"
         @close-free-time-modal="emit('closeFreeTimeModal')"
         @toggle-free-time-week="emit('toggleFreeTimeWeek', $event)"

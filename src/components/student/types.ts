@@ -1,4 +1,4 @@
-import type { AttendanceCheckDetail, AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
 import type { AppTab } from '../../constants'
 
 export type StudentWorkspaceProps = {
@@ -8,9 +8,6 @@ export type StudentWorkspaceProps = {
   toast: string
   systemSettings: SystemSetting | null
   availableCourses: AvailableCourseItem[]
-  activeCheck: AttendanceCheckDetail | null
-  selectedStudent: AttendanceCheckDetail['students'][number] | null
-  selectedStudentId: number | null
   freeTimes: FreeTimeItem[]
   freeTimeModalOpen: boolean
   freeTimeDraft: Record<string, number[]>
@@ -20,11 +17,8 @@ export type StudentWorkspaceProps = {
   passwordForm: { oldPassword: string; newPassword: string; confirmNewPassword: string }
   passwordModalOpen: boolean
   savingFreeTime: boolean
-  completingAttendance: boolean
   changingPassword: boolean
   roleName: (role?: number) => string
-  statusName: (status: number) => string
-  statusClass: (status: number) => Record<string, boolean>
   slotLabel: (weekday: number, section: number) => string
 }
 

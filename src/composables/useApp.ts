@@ -17,7 +17,6 @@ export function useApp() {
   const setupLoading = ref(false)
   const passwordSaving = ref(false)
   const freeTimeSaving = ref(false)
-  const attendanceCompleting = ref(false)
   const booting = ref(true)
   const initialized = ref(true)
   const isAdmin = computed(() => me.value?.role === 1)
@@ -83,10 +82,6 @@ export function useApp() {
     await studentState.ensureStudentFreeTimesLoaded(force)
   }
 
-  async function ensureStudentActiveCheckLoaded(force = false) {
-    await studentState.ensureStudentActiveCheckLoaded(force)
-  }
-
   const appRouting = useAppRouting({
     router,
     route,
@@ -94,7 +89,6 @@ export function useApp() {
     booting,
     initialized,
     ensureStudentFreeTimesLoaded,
-    ensureStudentActiveCheckLoaded,
   })
 
   studentState = useStudentState({
@@ -108,7 +102,6 @@ export function useApp() {
     passwordForm,
     passwordModalOpen,
     freeTimeSaving,
-    attendanceCompleting,
     passwordSaving,
   })
 

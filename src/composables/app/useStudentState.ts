@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 
-import type { AttendanceCheckDetail, AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
 import type { AppTab } from '../../constants'
 import { createFreeTimeForm } from './forms'
 import { useStudentApp } from '../useStudentApp'
@@ -24,7 +24,6 @@ type UseStudentStateDeps = {
   passwordForm: PasswordForm
   passwordModalOpen: Ref<boolean>
   freeTimeSaving: Ref<boolean>
-  attendanceCompleting: Ref<boolean>
   passwordSaving: Ref<boolean>
 }
 
@@ -32,8 +31,6 @@ export function useStudentState(deps: UseStudentStateDeps) {
   const studentError = ref('')
   const studentToast = ref('')
   const availableCourses = ref<AvailableCourseItem[]>([])
-  const activeCheck = ref<AttendanceCheckDetail | null>(null)
-  const selectedStudentId = ref<number | null>(null)
   const freeTimes = ref<FreeTimeItem[]>([])
   const systemSettings = ref<SystemSetting | null>(null)
   const freeTimeModalOpen = ref(false)
@@ -43,7 +40,6 @@ export function useStudentState(deps: UseStudentStateDeps) {
   const editingFreeTimeId = ref<number | null>(null)
   const studentCoreLoaded = ref(false)
   const studentFreeTimesLoaded = ref(false)
-  const studentActiveCheckLoaded = ref(false)
 
   function resetFreeTimeForm() {
     Object.assign(freeTimeForm, createFreeTimeForm())
@@ -57,8 +53,6 @@ export function useStudentState(deps: UseStudentStateDeps) {
     studentToast,
     systemSettings,
     availableCourses,
-    activeCheck,
-    selectedStudentId,
     freeTimes,
     freeTimeForm,
     freeTimeModalOpen,
@@ -68,11 +62,9 @@ export function useStudentState(deps: UseStudentStateDeps) {
     passwordForm: deps.passwordForm,
     passwordModalOpen: deps.passwordModalOpen,
     freeTimeSaving: deps.freeTimeSaving,
-    attendanceCompleting: deps.attendanceCompleting,
     passwordSaving: deps.passwordSaving,
     studentCoreLoaded,
     studentFreeTimesLoaded,
-    studentActiveCheckLoaded,
     resetFreeTimeForm,
     showScopedToast: deps.showScopedToast,
     setActiveTab: deps.setActiveTab,
@@ -92,7 +84,6 @@ export function useStudentState(deps: UseStudentStateDeps) {
     freeTimes,
     systemSettings,
     ensureStudentFreeTimesLoaded: studentApp.ensureStudentFreeTimesLoaded,
-    ensureStudentActiveCheckLoaded: studentApp.ensureStudentActiveCheckLoaded,
     loadRoleData: studentApp.loadRoleData,
     clearNotices,
     resetState: studentApp.resetStudentState,

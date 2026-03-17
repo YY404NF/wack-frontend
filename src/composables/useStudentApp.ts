@@ -1,9 +1,9 @@
 import { computed, type Ref } from 'vue'
 
-import type { AttendanceCheckDetail, AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../api'
-import type { AppTab, StatusCode } from '../constants'
+import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../api'
+import type { AppTab } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
-import { roleName, slotLabel, statusClass, statusName } from './app/view'
+import { roleName, slotLabel } from './app/view'
 import { createEmptyFreeTimeDraft, getCurrentAcademicTerm, type FreeTimeDraft } from '../utils/free-time'
 
 type FreeTimeForm = {
@@ -26,8 +26,6 @@ type StudentAppDeps = {
   studentToast: Ref<string>
   systemSettings: Ref<SystemSetting | null>
   availableCourses: Ref<AvailableCourseItem[]>
-  activeCheck: Ref<AttendanceCheckDetail | null>
-  selectedStudentId: Ref<number | null>
   freeTimes: Ref<FreeTimeItem[]>
   freeTimeModalOpen: Ref<boolean>
   freeTimeTerm: Ref<string>
@@ -37,11 +35,9 @@ type StudentAppDeps = {
   passwordForm: PasswordForm
   passwordModalOpen: Ref<boolean>
   freeTimeSaving: Ref<boolean>
-  attendanceCompleting: Ref<boolean>
   passwordSaving: Ref<boolean>
   studentCoreLoaded: Ref<boolean>
   studentFreeTimesLoaded: Ref<boolean>
-  studentActiveCheckLoaded: Ref<boolean>
   resetFreeTimeForm: () => void
   showScopedToast: (target: 'admin' | 'student', message: string) => void
   setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
@@ -51,25 +47,19 @@ type StudentAppDeps = {
 }
 
 export function useStudentApp(deps: StudentAppDeps) {
-  const selectedStudent = computed(() => deps.activeCheck.value?.students.find((item) => item.id === deps.selectedStudentId.value) ?? null)
-
   const studentFlow = useStudentFlow({
     availableCourses: deps.availableCourses,
     freeTimes: deps.freeTimes,
     systemSettings: deps.systemSettings,
-    activeCheck: deps.activeCheck,
-    selectedStudentId: deps.selectedStudentId,
     editingFreeTimeId: deps.editingFreeTimeId,
     freeTimeModalOpen: deps.freeTimeModalOpen,
     freeTimeTerm: deps.freeTimeTerm,
     freeTimeDraft: deps.freeTimeDraft,
     freeTimeForm: deps.freeTimeForm,
     freeTimeSaving: deps.freeTimeSaving,
-    attendanceCompleting: deps.attendanceCompleting,
     studentError: deps.studentError,
     resetFreeTimeForm: deps.resetFreeTimeForm,
     showStudentToast: (message) => deps.showScopedToast('student', message),
-    statusName,
   })
 
   async function loadStudentCoreData(force = false) {
@@ -88,18 +78,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     deps.studentFreeTimesLoaded.value = true
   }
 
-  async function ensureStudentActiveCheckLoaded(force = false) {
-    await loadStudentCoreData(force)
-    if (!force && deps.studentActiveCheckLoaded.value) {
-      return
-    }
-    await studentFlow.ensureActiveCheck()
-    deps.studentActiveCheckLoaded.value = true
-  }
-
   async function loadRoleData() {
     deps.studentFreeTimesLoaded.value = false
-    deps.studentActiveCheckLoaded.value = false
     await loadStudentCoreData(true)
   }
 
@@ -144,29 +124,6 @@ export function useStudentApp(deps: StudentAppDeps) {
     await studentFlow.removeFreeTime(id)
   }
 
-  async function openCourse(course: AvailableCourseItem) {
-    await loadStudentCoreData()
-    await studentFlow.openCourse(course)
-    deps.studentActiveCheckLoaded.value = true
-  }
-
-  async function updateStudentStatus(detailId: number, status: StatusCode) {
-    await studentFlow.updateStudentStatus(detailId, status)
-  }
-
-  async function completeAttendance() {
-    await studentFlow.completeAttendance(async () => {
-      await loadStudentCoreData(true)
-      deps.studentActiveCheckLoaded.value = false
-      if (deps.studentFreeTimesLoaded.value) {
-        await ensureStudentFreeTimesLoaded(true)
-      }
-      if (deps.activeTab.value === 'student') {
-        await ensureStudentActiveCheckLoaded(true)
-      }
-    })
-  }
-
   const openPasswordModal = deps.openPasswordModal
   const closePasswordModal = deps.closePasswordModal
   const changePassword = deps.changePassword
@@ -178,9 +135,6 @@ export function useStudentApp(deps: StudentAppDeps) {
     toast: deps.studentToast.value,
     systemSettings: deps.systemSettings.value,
     availableCourses: deps.availableCourses.value,
-    activeCheck: deps.activeCheck.value,
-    selectedStudent: selectedStudent.value,
-    selectedStudentId: deps.selectedStudentId.value,
     freeTimes: deps.freeTimes.value,
     freeTimeModalOpen: deps.freeTimeModalOpen.value,
     freeTimeDraft: deps.freeTimeDraft.value,
@@ -190,11 +144,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     passwordForm: deps.passwordForm,
     passwordModalOpen: deps.passwordModalOpen.value,
     savingFreeTime: deps.freeTimeSaving.value,
-    completingAttendance: deps.attendanceCompleting.value,
     changingPassword: deps.passwordSaving.value,
     roleName,
-    statusName,
-    statusClass,
     slotLabel,
   }))
 
@@ -202,12 +153,6 @@ export function useStudentApp(deps: StudentAppDeps) {
     'update:activeTab': (value: AppTab) => {
       void deps.setActiveTab(value, 'push')
     },
-    'update:selectedStudentId': (value: number) => {
-      deps.selectedStudentId.value = value
-    },
-    openCourse,
-    updateStudentStatus,
-    completeAttendance,
     openFreeTimeModal,
     closeFreeTimeModal,
     toggleFreeTimeWeek,
@@ -224,29 +169,21 @@ export function useStudentApp(deps: StudentAppDeps) {
 
   function resetStudentState() {
     deps.availableCourses.value = []
-    deps.activeCheck.value = null
-    deps.selectedStudentId.value = null
     deps.editingFreeTimeId.value = null
     deps.freeTimeModalOpen.value = false
     deps.freeTimeTerm.value = getCurrentAcademicTerm()
     deps.freeTimeDraft.value = createEmptyFreeTimeDraft()
     deps.studentCoreLoaded.value = false
     deps.studentFreeTimesLoaded.value = false
-    deps.studentActiveCheckLoaded.value = false
   }
 
   return {
-    selectedStudent,
     loadStudentCoreData,
     ensureStudentFreeTimesLoaded,
-    ensureStudentActiveCheckLoaded,
     loadRoleData,
     saveFreeTime,
     editFreeTime,
     removeFreeTime,
-    openCourse,
-    updateStudentStatus,
-    completeAttendance,
     studentWorkspaceProps,
     studentWorkspaceHandlers,
     resetStudentState,

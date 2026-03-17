@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InfoFilled } from '@element-plus/icons-vue'
-import { type AppTab, type StatusCode } from '../../constants'
+import { type AppTab } from '../../constants'
 import type { StudentGreeting, StudentWorkspaceProps } from './types'
 import StudentFreeTimeModal from './StudentFreeTimeModal.vue'
 
@@ -14,12 +14,8 @@ defineProps<StudentWorkspaceProps & {
 
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
-  'update:selectedStudentId': [value: number]
   logout: []
   openAbout: []
-  openCourse: [course: StudentWorkspaceProps['availableCourses'][number]]
-  updateStudentStatus: [detailId: number, status: StatusCode]
-  completeAttendance: []
   openFreeTimeModal: []
   closeFreeTimeModal: []
   toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
@@ -78,19 +74,6 @@ const emit = defineEmits<{
         <h2>今日查课</h2>
       </div>
 
-      <div class="section-heading student-mobile-section-heading">
-        <button
-          v-if="activeCheck"
-          class="primary-button student-complete-button"
-          type="button"
-          :disabled="completingAttendance"
-          @click="emit('completeAttendance')"
-        >
-          <span v-if="completingAttendance" class="button-spinner" aria-hidden="true"></span>
-          <span>{{ completingAttendance ? '提交中...' : '完成查课' }}</span>
-        </button>
-      </div>
-
       <div v-if="availableCourses.length > 0" class="student-course-list">
         <article v-for="course in availableCourses" :key="course.course_session_id" class="student-course-card">
           <div class="student-course-info">
@@ -99,47 +82,9 @@ const emit = defineEmits<{
             <p>{{ slotLabel(course.weekday, course.section) }}</p>
             <small>{{ course.building_name }}-{{ course.room_name }} · {{ sectionTimeText(course.section) }}</small>
           </div>
-          <button class="primary-button student-course-action" type="button" @click="emit('openCourse', course)">查课</button>
         </article>
       </div>
       <p v-else class="empty-hint student-empty-hint">当前没有处于可查时间窗口内的课程。</p>
-
-      <article v-if="activeCheck" class="student-section-card student-active-check-card">
-        <h3>{{ activeCheck.course.course_name }}</h3>
-        <p class="detail-line student-check-meta">
-          {{ slotLabel(activeCheck.course_session.weekday, activeCheck.course_session.section) }} ·
-          {{ activeCheck.course_session.building_name }}-{{ activeCheck.course_session.room_name }}
-        </p>
-
-        <div class="student-list student-check-student-list">
-          <button
-            v-for="student in activeCheck.students"
-            :key="student.id"
-            class="student-button student-check-student"
-            :class="{ selected: selectedStudentId === student.id }"
-            @click="emit('update:selectedStudentId', student.id)"
-          >
-            <div>
-              <strong>{{ student.real_name }}</strong>
-              <p>{{ student.student_id }}</p>
-            </div>
-            <span class="status-badge" :class="statusClass(student.status)">{{ statusName(student.status) }}</span>
-          </button>
-        </div>
-
-        <div v-if="selectedStudent" class="quick-panel student-quick-panel">
-          <div>
-            <h3>{{ selectedStudent.real_name }}</h3>
-            <p class="detail-line">{{ selectedStudent.student_id }}</p>
-          </div>
-          <div class="quick-actions student-quick-actions">
-            <button class="quick-button good" type="button" @click="emit('updateStudentStatus', selectedStudent.id, 1)">签到</button>
-            <button class="quick-button warn" type="button" @click="emit('updateStudentStatus', selectedStudent.id, 2)">迟到</button>
-            <button class="quick-button bad" type="button" @click="emit('updateStudentStatus', selectedStudent.id, 3)">缺勤</button>
-            <button class="quick-button calm" type="button" @click="emit('updateStudentStatus', selectedStudent.id, 4)">请假</button>
-          </div>
-        </div>
-      </article>
     </section>
 
     <section v-else key="settings" class="student-mobile-page student-settings-page">
