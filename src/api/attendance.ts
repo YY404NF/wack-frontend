@@ -2,6 +2,13 @@ import { request } from './client'
 import { apiPaths } from './paths'
 import type { AttendanceCheckDetail, AttendanceResultItem, AvailableCourseItem, DashboardSummary, PageResult } from './types'
 
+function normalizeAttendanceCheckDetail(detail: AttendanceCheckDetail) {
+  return {
+    ...detail,
+    students: Array.isArray(detail.students) ? detail.students : [],
+  }
+}
+
 export const attendanceApi = {
   adminAttendanceDashboard() {
     return request<DashboardSummary>(apiPaths.admin.attendanceDashboard)
@@ -22,7 +29,7 @@ export const attendanceApi = {
     return request<AttendanceCheckDetail>(apiPaths.student.attendanceChecks, {
       method: 'POST',
       body: JSON.stringify({ course_session_id: courseSessionId }),
-    })
+    }).then(normalizeAttendanceCheckDetail)
   },
   updateAttendanceStatus(detailId: number, status: number) {
     return request<Record<string, never>>(`${apiPaths.student.attendanceDetails}/${detailId}/status`, {

@@ -29,12 +29,17 @@ function parseClockTime(value: string) {
   return hour * 60 + minute
 }
 
+function isScheduleType(value: unknown): value is ScheduleType {
+  return typeof value === 'string' && value in scheduleMap
+}
+
 export function getScheduleType(systemSettings: SystemSetting | null | undefined) {
-  return systemSettings?.current_schedule ?? 'summer'
+  return isScheduleType(systemSettings?.current_schedule) ? systemSettings.current_schedule : 'summer'
 }
 
 export function getSectionTimeRange(section: number, scheduleType: ScheduleType) {
-  const target = scheduleMap[scheduleType].find((item) => item.section === section)
+  const schedule = scheduleMap[scheduleType] ?? scheduleMap.summer
+  const target = schedule.find((item) => item.section === section)
   const startText = target?.lines[0]?.split('-')[0]
   const endText = target?.lines[target.lines.length - 1]?.split('-')[1]
   if (!startText || !endText) {
@@ -47,7 +52,8 @@ export function getSectionTimeRange(section: number, scheduleType: ScheduleType)
 }
 
 export function formatSectionTimeRange(section: number, scheduleType: ScheduleType) {
-  const target = scheduleMap[scheduleType].find((item) => item.section === section)
+  const schedule = scheduleMap[scheduleType] ?? scheduleMap.summer
+  const target = schedule.find((item) => item.section === section)
   if (!target) {
     return ''
   }
