@@ -209,15 +209,25 @@
 .about-placeholder-modal {
   width: min(960px, 100%);
   min-height: 420px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .about-placeholder-body {
+  width: 100%;
   min-height: 280px;
   border-radius: 20px;
   border: 1px dashed rgba(114, 84, 66, 0.24);
   background:
     linear-gradient(180deg, rgba(255, 250, 245, 0.9), rgba(250, 241, 232, 0.78)),
     radial-gradient(circle at top left, rgba(207, 90, 46, 0.08), transparent 42%);
+}
+
+.about-placeholder-header {
+  justify-items: center;
+  text-align: center;
 }
 
 @media (max-width: 760px) {

@@ -417,10 +417,6 @@ body {
   background-repeat: no-repeat;
 }
 
-.rc-anchor-logo-img-ie8 {
-  filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src=concat(common.$recaptcha-gstatic, "./icon/logo_48.png"), sizingMethod="scale");
-}
-
 .rc-anchor-logo-text {
   cursor: default;
   font-family: Roboto, helvetica, arial, sans-serif;
@@ -449,6 +445,7 @@ body {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  user-select: none;
 }
 
 .rc-anchor-logo-img-portrait {
@@ -463,6 +460,7 @@ body {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  user-select: none;
 }
 
 .rc-anchor-logo-img-landscape {
@@ -1480,6 +1478,7 @@ td:focus {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  user-select: none;
 }
 
 .rc-imageselect-response-field-error {

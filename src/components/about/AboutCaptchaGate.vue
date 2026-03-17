@@ -18,10 +18,12 @@ const currentIndex = ref(0)
 const checkboxLoading = ref(false)
 const challengeVisible = ref(false)
 const verifying = ref(false)
+const anchorVerified = ref(false)
 const feedback = ref('')
 const challengeVersion = ref(0)
 const gridTransitionKey = ref(0)
 const tileDisplayOrder = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9])
+const tileAnimationDelays = ref<number[]>(Array.from({ length: 9 }, () => 0))
 
 const currentChallenge = computed(() => props.challenges[currentIndex.value] ?? props.challenges[0] ?? null)
 const isSelectionCorrect = computed(() => {
@@ -66,16 +68,30 @@ function compositeTileStyle(row: number, column: number) {
   const sourceRow = Math.ceil(sourcePosition / 3)
   const sourceColumn = ((sourcePosition - 1) % 3) + 1
   return {
-    top: `-${(sourceRow - 1) * 100}%`,
-    left: `-${(sourceColumn - 1) * 100}%`,
+    backgroundImage: `url(${currentChallenge.value?.imageUrl ?? ''})`,
+    backgroundSize: '300% 300%',
+    backgroundPosition: `${(sourceColumn - 1) * 50}% ${(sourceRow - 1) * 50}%`,
   }
 }
 
 function tileAnimationStyle(row: number, column: number) {
-  const delay = (tileAt(row, column).displayPosition - 1) * 55
+  const delay = tileAnimationDelays.value[tileIndex(row, column)] ?? 0
   return {
     animationDelay: `${delay}ms`,
   }
+}
+
+function randomizeTileAnimationDelays() {
+  const pool = [0, 45, 90, 120, 160, 210, 250, 300, 340]
+  for (let index = pool.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]]
+  }
+  tileAnimationDelays.value = pool
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function resetPanel() {
@@ -83,8 +99,19 @@ function resetPanel() {
   checkboxLoading.value = false
   challengeVisible.value = false
   verifying.value = false
+  anchorVerified.value = false
   feedback.value = ''
   tileDisplayOrder.value = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  tileAnimationDelays.value = Array.from({ length: 9 }, () => 0)
+}
+
+function prepareChallengeState() {
+  chooseNextChallenge()
+  shuffleTileDisplayOrder()
+  randomizeTileAnimationDelays()
+  challengeVersion.value += 1
+  gridTransitionKey.value += 1
+  selectedTileIds.value = []
 }
 
 function chooseNextChallenge() {
@@ -101,12 +128,14 @@ function chooseNextChallenge() {
 }
 
 async function openChallenge() {
+  if (checkboxLoading.value || verifying.value || anchorVerified.value) {
+    return
+  }
+
   checkboxLoading.value = true
   feedback.value = ''
-  await new Promise((resolve) => window.setTimeout(resolve, 280))
-  shuffleTileDisplayOrder()
-  challengeVersion.value += 1
-  gridTransitionKey.value += 1
+  await delay(1000)
+  prepareChallengeState()
   challengeVisible.value = true
   checkboxLoading.value = false
 }
@@ -128,11 +157,8 @@ async function reloadChallenge() {
   selectedTileIds.value = []
   feedback.value = ''
   verifying.value = true
-  await new Promise((resolve) => window.setTimeout(resolve, 220))
-  chooseNextChallenge()
-  shuffleTileDisplayOrder()
-  challengeVersion.value += 1
-  gridTransitionKey.value += 1
+  await delay(220)
+  prepareChallengeState()
   verifying.value = false
 }
 
@@ -148,20 +174,28 @@ async function verifySelection() {
 
   verifying.value = true
   feedback.value = ''
-  await new Promise((resolve) => window.setTimeout(resolve, 360))
+  await delay(2000)
 
   if (isSelectionCorrect.value) {
+    challengeVisible.value = false
+    selectedTileIds.value = []
+    verifying.value = false
+    checkboxLoading.value = true
+    anchorVerified.value = false
+    await delay(1000)
+    checkboxLoading.value = false
+    anchorVerified.value = true
+    await delay(1000)
     emit('verified', currentChallenge.value.id)
     resetPanel()
     return
   }
 
-  feedback.value = '答案不太对，再整一题。'
-  chooseNextChallenge()
-  shuffleTileDisplayOrder()
-  challengeVersion.value += 1
-  gridTransitionKey.value += 1
+  feedback.value = '请重试'
+  await delay(900)
+  feedback.value = ''
   selectedTileIds.value = []
+  prepareChallengeState()
   verifying.value = false
 }
 
@@ -173,9 +207,7 @@ watch(
       return
     }
 
-    chooseNextChallenge()
-    shuffleTileDisplayOrder()
-    selectedTileIds.value = []
+    prepareChallengeState()
     feedback.value = ''
   },
   { immediate: true },
@@ -187,46 +219,52 @@ watch(
     <div v-if="open" class="modal-backdrop about-captcha-backdrop" @click.self="emit('close')">
       <div class="about-captcha-shell">
         <div class="captcha-container about-captcha-widget">
-          <div class="captcha-box" @click="openChallenge">
+          <div class="captcha-box">
             <div id="rc-anchor-container" class="rc-anchor rc-anchor-normal rc-anchor-light">
               <div id="recaptcha-accessible-status" class="rc-anchor-aria-status" aria-hidden="true">需要验证。</div>
               <div class="rc-anchor-error-msg-container">
                 <span class="rc-anchor-error-msg" aria-hidden="true" />
               </div>
-              <div class="rc-anchor-content">
-                <div class="rc-inline-block">
-                  <div class="rc-anchor-center-container">
-                    <div class="rc-anchor-center-item rc-anchor-checkbox-holder">
-                      <span
-                        id="recaptcha-anchor"
-                        class="recaptcha-checkbox goog-inline-block rc-anchor-checkbox"
-                        :class="{ 'recaptcha-checkbox-unchecked': !challengeVisible, 'rc-anchor-checkbox': true }"
-                        role="checkbox"
-                        aria-checked="false"
-                        tabindex="0"
-                      >
-                        <div v-show="!checkboxLoading" class="recaptcha-checkbox-border" role="presentation" />
-                        <div class="recaptcha-checkbox-borderAnimation" role="presentation" :class="{ loading: checkboxLoading }" />
-                        <div v-show="checkboxLoading" class="recaptcha-checkbox-spinner spinner" role="presentation">
-                          <div class="recaptcha-checkbox-spinner-overlay" />
-                        </div>
-                        <div class="recaptcha-checkbox-checkmark" role="presentation" />
-                      </span>
+              <div class="rc-anchor-main-row">
+                <div class="rc-anchor-content">
+                  <div class="rc-inline-block rc-anchor-checkbox-hit" @click="openChallenge">
+                    <div class="rc-anchor-center-container">
+                      <div class="rc-anchor-center-item rc-anchor-checkbox-holder">
+                        <span
+                          id="recaptcha-anchor"
+                          class="recaptcha-checkbox goog-inline-block rc-anchor-checkbox"
+                          :class="{
+                            'recaptcha-checkbox-unchecked': !anchorVerified,
+                            'recaptcha-checkbox-checked': anchorVerified,
+                            'rc-anchor-checkbox': true,
+                          }"
+                          role="checkbox"
+                          :aria-checked="anchorVerified ? 'true' : 'false'"
+                          tabindex="0"
+                        >
+                          <div v-show="!checkboxLoading" class="recaptcha-checkbox-border" role="presentation" />
+                          <div class="recaptcha-checkbox-borderAnimation" role="presentation" :class="{ loading: checkboxLoading }" />
+                          <div v-show="checkboxLoading" class="recaptcha-checkbox-spinner spinner" role="presentation">
+                            <div class="recaptcha-checkbox-spinner-overlay" />
+                          </div>
+                          <div class="recaptcha-checkbox-checkmark" role="presentation" />
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="rc-inline-block">
-                  <div class="rc-anchor-center-container">
-                    <label id="recaptcha-anchor-label" class="rc-anchor-center-item rc-anchor-checkbox-label" aria-hidden="true">
-                      是人吗你？
-                    </label>
+                  <div class="rc-anchor-copy-block">
+                    <div class="rc-anchor-center-container rc-anchor-copy-container">
+                      <label id="recaptcha-anchor-label" class="rc-anchor-center-item rc-anchor-checkbox-label" aria-hidden="true">
+                        是人吗你？
+                      </label>
+                      <div class="rc-anchor-normal-footer">
+                        <div class="rc-anchor-logo-portrait" aria-hidden="true" role="presentation">
+                          <div class="rc-anchor-logo-img rc-anchor-logo-img-portrait" />
+                          <div class="rc-anchor-logo-text">reCAPTCHA</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div class="rc-anchor-normal-footer">
-                <div class="rc-anchor-logo-portrait" aria-hidden="true" role="presentation">
-                  <div class="rc-anchor-logo-img rc-anchor-logo-img-portrait" />
-                  <div class="rc-anchor-logo-text">reCAPTCHA</div>
                 </div>
               </div>
             </div>
@@ -255,7 +293,7 @@ watch(
 
                 <div class="rc-imageselect-challenge">
                   <Transition name="captcha-grid-fade" mode="out-in">
-                    <div :key="gridTransitionKey" id="rc-imageselect-target" class="rc-imageselect-target" dir="ltr" role="presentation" aria-hidden="true">
+                    <div :key="gridTransitionKey" id="rc-imageselect-target" class="rc-imageselect-target" dir="ltr" role="presentation">
                       <table class="rc-imageselect-table-33">
                         <tbody>
                           <tr v-for="row in 3" :key="row">
@@ -271,13 +309,12 @@ watch(
                             >
                               <div class="rc-image-tile-target">
                                 <div :style="tileAnimationStyle(row, column)" class="rc-image-tile-wrapper about-captcha-tile-wrapper captcha-tile-animate">
-                                  <img
-                                    class="rc-image-tile-33 about-captcha-tile-composite"
-                                    :src="currentChallenge.imageUrl"
-                                    :alt="tileAt(row, column).alt"
-                                    :style="compositeTileStyle(row, column)"
-                                  />
-                                  <div class="rc-image-tile-overlay" />
+                                  <div class="about-captcha-tile-crop">
+                                    <div class="about-captcha-tile-motion">
+                                      <div class="about-captcha-tile-composite" :style="compositeTileStyle(row, column)" :aria-label="tileAt(row, column).alt" />
+                                      <div class="rc-image-tile-overlay" />
+                                    </div>
+                                  </div>
                                 </div>
                                 <div class="rc-imageselect-checkbox" />
                               </div>
@@ -317,7 +354,7 @@ watch(
                         :disabled="verifying"
                         @click="verifySelection"
                       >
-                        验证
+                        {{ verifying ? '验证中' : '验证' }}
                       </button>
                     </div>
                   </div>
@@ -336,21 +373,152 @@ watch(
 
 .about-captcha-backdrop {
   z-index: 140;
+  background: rgba(30, 22, 18, 0.36);
 }
 
 .about-captcha-shell {
-  width: 100%;
-  min-height: min(520px, calc(100vh - 48px));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: fit-content;
+  min-height: 0;
 }
 
 .about-captcha-widget {
   position: relative;
   z-index: 1;
-  border-radius: 6px;
-  overflow: hidden;
+  user-select: none;
+}
+
+.about-captcha-widget,
+.about-captcha-selector {
+  font-family: inherit;
+}
+
+.about-captcha-widget .rc-anchor {
+  display: flex;
+  align-items: center;
+  width: 300px;
+  height: 78px;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 3px;
+  overflow: visible;
+}
+
+.about-captcha-widget .rc-anchor-main-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 7px;
+  box-sizing: border-box;
+}
+
+.about-captcha-widget .rc-anchor-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 0;
+}
+
+.about-captcha-widget .rc-anchor-checkbox-hit {
+  cursor: pointer;
+}
+
+.about-captcha-widget .rc-inline-block,
+.about-captcha-widget .rc-anchor-center-container,
+.about-captcha-widget .rc-anchor-center-item {
+  height: auto;
+}
+
+.about-captcha-widget .rc-anchor-center-container {
+  display: flex;
+  align-items: center;
+}
+
+.about-captcha-widget .rc-anchor-copy-block {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.about-captcha-widget .rc-anchor-copy-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+}
+
+.about-captcha-widget .rc-anchor-checkbox-holder,
+.about-captcha-widget .rc-anchor-checkbox-label {
+  display: flex;
+  align-items: center;
+}
+
+.about-captcha-widget .rc-anchor-checkbox-holder {
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+}
+
+.about-captcha-widget .rc-anchor-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 0;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.about-captcha-widget .rc-anchor-checkbox-label {
+  width: auto;
+  margin: 0;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1;
+  color: #000;
+  white-space: nowrap;
+}
+
+.about-captcha-widget .rc-anchor-normal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 52px;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.about-captcha-widget .rc-anchor-logo-portrait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 47px;
+  min-width: 58px;
+  margin: 0;
+  line-height: 1;
+}
+
+.about-captcha-widget .rc-anchor-logo-img-portrait {
+  flex: 0 0 auto;
+}
+
+.about-captcha-widget .rc-anchor-logo-text {
+  font-family: inherit;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
 }
 
 .about-captcha-challenge-layer {
@@ -379,6 +547,7 @@ watch(
   display: block;
   font-size: 16px;
   line-height: 1.35;
+  color: #fff;
 }
 
 .about-captcha-selector .object-name {
@@ -387,17 +556,20 @@ watch(
   line-height: 1.15;
   font-weight: 700;
   margin: 6px 0 4px;
+  color: #fff;
 }
 
 .about-captcha-selector .rc-imageselect-instructions {
-  height: 114px;
+  min-height: 124px;
+  height: auto;
   margin-bottom: 8px;
 }
 
 .about-captcha-selector .rc-imageselect-desc-wrapper {
-  height: 114px;
+  min-height: 124px;
+  height: auto;
   box-sizing: border-box;
-  padding: 18px 24px 16px;
+  padding: 18px 24px 12px;
   display: flex;
   align-items: flex-start;
   border-radius: 8px 8px 0 0;
@@ -405,12 +577,53 @@ watch(
 
 .about-captcha-selector .rc-imageselect-desc-no-canonical {
   width: 100%;
+  font-family: inherit;
+}
+
+.about-captcha-selector .rc-imageselect-desc-wrapper,
+.about-captcha-selector .rc-imageselect-instructions,
+.about-captcha-selector .rc-imageselect-instructions strong {
+  font-family: inherit;
+}
+
+.about-captcha-selector .rc-imageselect-desc-wrapper * {
+  color: #fff;
+}
+
+.about-captcha-selector .rc-imageselect-challenge,
+.about-captcha-selector .rc-imageselect-target {
+  display: flex;
+  justify-content: center;
 }
 
 .about-captcha-tile-wrapper {
+  position: relative;
   width: 126px;
   height: 126px;
   border-radius: 2px;
+}
+
+.about-captcha-tile-crop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.about-captcha-tile-motion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: center;
+}
+
+.about-captcha-tile-composite {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .about-captcha-tile-image {
@@ -423,7 +636,7 @@ watch(
 
 .about-captcha-feedback {
   min-height: 20px;
-  margin: 0 7px 7px;
+  margin: 8px 7px 7px;
   font-size: 14px;
   line-height: 1.5;
   color: #d93025;
@@ -444,6 +657,37 @@ watch(
   animation-play-state: running;
 }
 
+.about-captcha-widget .recaptcha-checkbox-checkmark {
+  top: 50%;
+  left: 50%;
+  opacity: 0;
+  margin: 0;
+  transform: scale(0.72);
+  transform-origin: center;
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  translate: -50% -50%;
+}
+
+.about-captcha-widget .recaptcha-checkbox-checked .recaptcha-checkbox-checkmark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.about-captcha-selector .rc-imageselect-checkbox {
+  display: none;
+  pointer-events: none;
+}
+
+.about-captcha-selector .rc-imageselect-tileselected .about-captcha-tile-motion {
+  transform: scale(0.82);
+}
+
+.about-captcha-selector .rc-imageselect-tileselected .rc-imageselect-checkbox {
+  display: block;
+  background-repeat: no-repeat;
+  inset: 0;
+}
+
 .captcha-grid-fade-enter-active,
 .captcha-grid-fade-leave-active {
   transition: opacity 320ms ease;
@@ -456,13 +700,12 @@ watch(
 
 .captcha-subject-fade-enter-active,
 .captcha-subject-fade-leave-active {
-  transition: opacity 320ms ease, transform 320ms ease;
+  transition: opacity 320ms ease;
 }
 
 .captcha-subject-fade-enter-from,
 .captcha-subject-fade-leave-to {
   opacity: 0;
-  transform: translateY(6px);
 }
 
 .captcha-tile-animate {
@@ -490,10 +733,6 @@ watch(
 }
 
 @media (max-width: 900px) {
-  .about-captcha-shell {
-    min-height: min(520px, calc(100vh - 48px));
-  }
-
   .about-captcha-selector {
     width: min(408px, calc(100vw - 48px));
   }

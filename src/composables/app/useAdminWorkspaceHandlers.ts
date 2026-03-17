@@ -110,7 +110,9 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     addCourseStudent: deps.addCourseStudent,
     removeCourseStudent: deps.removeCourseStudent,
     deleteCourse: deps.deleteCourse,
-    setCourseWeekSelected: deps.setCourseWeekSelected,
+    setCourseWeekSelected: (payload: { weekNo: number; selected: boolean }) => {
+      deps.setCourseWeekSelected(payload.weekNo, payload.selected)
+    },
     addCourseSessions: deps.addCourseSessions,
     editCourseSession: deps.editCourseSession,
     removeCourseSession: deps.removeCourseSession,

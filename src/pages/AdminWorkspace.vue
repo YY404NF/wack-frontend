@@ -247,14 +247,9 @@ function closeAboutModal() {
 
   <Transition name="modal-float" appear>
     <div v-if="aboutModalOpen" class="modal-backdrop" @click.self="closeAboutModal">
-      <article class="modal-card modal-card-wide about-placeholder-modal">
-        <div class="wide-modal-header">
-          <div class="wide-modal-header-top">
-            <h3 class="wide-modal-header-title">关于</h3>
-            <div class="wide-modal-header-actions">
-              <button class="ghost-button compact-button modal-close" type="button" @click="closeAboutModal">关闭</button>
-            </div>
-          </div>
+      <article class="modal-card modal-card-narrow about-placeholder-modal">
+        <div class="wide-modal-header about-placeholder-header">
+          <h3 class="wide-modal-header-title">关于</h3>
           <p class="hint wide-modal-header-meta">空白浮窗，后续内容可以继续往里加。</p>
         </div>
         <div class="about-placeholder-body"></div>

@@ -341,6 +341,12 @@
   min-height: 44px;
 }
 
+.course-week-button.selected {
+  background: rgba(202, 89, 40, 0.16);
+  color: #9a471f;
+  border-color: rgba(202, 89, 40, 0.24);
+}
+
 .course-week-button,
 .course-calendar-week-button,
 .user-free-time-week-button {
@@ -1047,9 +1053,12 @@
   }
 
   .split-modal-layout,
-  .course-week-row,
   .user-free-time-week-row {
     grid-template-columns: 1fr;
+  }
+
+  .course-week-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .course-student-search-row-student {
