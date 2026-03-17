@@ -11,6 +11,7 @@
   padding: var(--modal-safe-gap);
   z-index: 120;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .modal-backdrop-contained {
@@ -31,6 +32,7 @@
   box-sizing: border-box;
   overflow: hidden;
   margin: auto;
+  touch-action: pan-y pinch-zoom;
 }
 
 .modal-float-enter-active,

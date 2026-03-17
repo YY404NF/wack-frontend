@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { InfoFilled } from '@element-plus/icons-vue'
 import type { SessionUser } from '../../api'
 import { adminNavItems, type AppTab } from '../../constants'
 import { getGreetingMeta } from '../../utils/greeting'
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
   logout: []
+  openAbout: []
 }>()
 
 const now = ref(new Date())
@@ -36,6 +38,10 @@ onBeforeUnmount(() => {
 
 <template>
   <aside class="admin-sidebar">
+    <button class="sidebar-about-button" type="button" aria-label="打开关于页面" @click="emit('openAbout')">
+      <InfoFilled class="sidebar-about-button-icon" aria-hidden="true" />
+    </button>
+
     <div class="sidebar-brand">
       <p class="eyebrow">WACK / 网安查课</p>
       <div class="sidebar-emoji">{{ greeting.emoji }}</div>

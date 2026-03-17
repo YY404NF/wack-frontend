@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watch } from 'vue'
 
 import LoginPage from './pages/LoginPage.vue'
 import SetupPage from './pages/SetupPage.vue'
@@ -26,6 +26,35 @@ const {
   studentWorkspaceHandlers,
   studentWorkspaceProps,
 } = useApp()
+
+const shouldLockAdminScroll = computed(() => !!me.value && isAdmin.value)
+
+let modalObserver: MutationObserver | null = null
+
+function updateGlobalScrollLock() {
+  const hasModal = document.querySelector('.modal-backdrop') !== null
+  document.documentElement.classList.toggle('global-scroll-lock', hasModal || shouldLockAdminScroll.value)
+  document.body.classList.toggle('global-scroll-lock', hasModal || shouldLockAdminScroll.value)
+}
+
+onMounted(() => {
+  modalObserver = new MutationObserver(() => {
+    updateGlobalScrollLock()
+  })
+  modalObserver.observe(document.body, { childList: true, subtree: true })
+  updateGlobalScrollLock()
+})
+
+watch(shouldLockAdminScroll, () => {
+  updateGlobalScrollLock()
+})
+
+onBeforeUnmount(() => {
+  modalObserver?.disconnect()
+  modalObserver = null
+  document.documentElement.classList.remove('global-scroll-lock')
+  document.body.classList.remove('global-scroll-lock')
+})
 </script>
 
 <template>

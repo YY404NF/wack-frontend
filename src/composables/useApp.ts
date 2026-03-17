@@ -79,12 +79,12 @@ export function useApp() {
     }
   }
 
-  async function ensureStudentFreeTimesLoaded() {
-    await studentState.ensureStudentFreeTimesLoaded()
+  async function ensureStudentFreeTimesLoaded(force = false) {
+    await studentState.ensureStudentFreeTimesLoaded(force)
   }
 
-  async function ensureStudentActiveCheckLoaded() {
-    await studentState.ensureStudentActiveCheckLoaded()
+  async function ensureStudentActiveCheckLoaded(force = false) {
+    await studentState.ensureStudentActiveCheckLoaded(force)
   }
 
   const appRouting = useAppRouting({

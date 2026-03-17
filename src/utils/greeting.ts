@@ -6,7 +6,7 @@ export function getGreetingMeta(now = new Date()): { tone: GreetingTone; label: 
     return { tone: 'morning', label: '上午好', emoji: '🌤' }
   }
   if (hour < 14) {
-    return { tone: 'noon', label: '中午好', emoji: '☀' }
+    return { tone: 'noon', label: '中午好', emoji: '🌞' }
   }
   if (hour < 19) {
     return { tone: 'afternoon', label: '下午好', emoji: '🌇' }

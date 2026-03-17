@@ -754,6 +754,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     if (nextTab !== previousTab && isAdmin.value) {
       closeAllModals()
       clearAdminSelections()
+      void loadRoleData()
     }
     if (isAdmin.value) {
       clearNotices()

@@ -10,8 +10,8 @@ type UseAppRoutingDeps = {
   me: Ref<SessionUser | null>
   booting: Ref<boolean>
   initialized: Ref<boolean>
-  ensureStudentFreeTimesLoaded: () => Promise<void>
-  ensureStudentActiveCheckLoaded: () => Promise<void>
+  ensureStudentFreeTimesLoaded: (force?: boolean) => Promise<void>
+  ensureStudentActiveCheckLoaded: (force?: boolean) => Promise<void>
 }
 
 export function useAppRouting(deps: UseAppRoutingDeps) {
@@ -77,10 +77,10 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
       return
     }
     if (tab === 'settings') {
-      void deps.ensureStudentFreeTimesLoaded()
+      void deps.ensureStudentFreeTimesLoaded(true)
     }
     if (tab === 'student') {
-      void deps.ensureStudentActiveCheckLoaded()
+      void deps.ensureStudentActiveCheckLoaded(true)
     }
   }
 

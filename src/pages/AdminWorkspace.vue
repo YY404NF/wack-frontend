@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import type { AppTab, StatusCode } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
+import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
 import type { ClassItem, CourseItem, UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
+import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 
 defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 
@@ -96,6 +100,26 @@ const emit = defineEmits<{
 function forwardUserStatus(studentId: string, status: number) {
   emit('setUserStatus', studentId, status)
 }
+
+const aboutCaptchaOpen = ref(false)
+const aboutModalOpen = ref(false)
+
+function openAboutEntry() {
+  aboutCaptchaOpen.value = true
+}
+
+function closeAboutCaptcha() {
+  aboutCaptchaOpen.value = false
+}
+
+function handleAboutVerified() {
+  aboutCaptchaOpen.value = false
+  aboutModalOpen.value = true
+}
+
+function closeAboutModal() {
+  aboutModalOpen.value = false
+}
 </script>
 
 <template>
@@ -111,7 +135,14 @@ function forwardUserStatus(studentId: string, status: number) {
   </div>
 
   <div class="admin-shell">
-    <AdminSidebar :me="me" :active-tab="activeTab" :role-name="roleName" @update:active-tab="emit('update:activeTab', $event)" @logout="emit('logout')" />
+    <AdminSidebar
+      :me="me"
+      :active-tab="activeTab"
+      :role-name="roleName"
+      @update:active-tab="emit('update:activeTab', $event)"
+      @logout="emit('logout')"
+      @open-about="openAboutEntry"
+    />
 
     <div class="admin-content">
       <main class="layout">
@@ -206,4 +237,28 @@ function forwardUserStatus(studentId: string, status: number) {
       </main>
     </div>
   </div>
+
+  <AboutCaptchaGate
+    :open="aboutCaptchaOpen"
+    :challenges="aboutCaptchaChallenges"
+    @close="closeAboutCaptcha"
+    @verified="handleAboutVerified"
+  />
+
+  <Transition name="modal-float" appear>
+    <div v-if="aboutModalOpen" class="modal-backdrop" @click.self="closeAboutModal">
+      <article class="modal-card modal-card-wide about-placeholder-modal">
+        <div class="wide-modal-header">
+          <div class="wide-modal-header-top">
+            <h3 class="wide-modal-header-title">关于</h3>
+            <div class="wide-modal-header-actions">
+              <button class="ghost-button compact-button modal-close" type="button" @click="closeAboutModal">关闭</button>
+            </div>
+          </div>
+          <p class="hint wide-modal-header-meta">空白浮窗，后续内容可以继续往里加。</p>
+        </div>
+        <div class="about-placeholder-body"></div>
+      </article>
+    </div>
+  </Transition>
 </template>

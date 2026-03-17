@@ -1,10 +1,17 @@
 .page-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 24px;
 }
 
 .page-shell.admin-mode {
   height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.global-scroll-lock,
+body.global-scroll-lock {
   overflow: hidden;
   overscroll-behavior: none;
 }
