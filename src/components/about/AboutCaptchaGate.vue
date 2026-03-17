@@ -14,7 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const selectedTileIds = ref<string[]>([])
-const currentIndex = ref(0)
+const currentIndex = ref(-1)
 const checkboxLoading = ref(false)
 const challengeVisible = ref(false)
 const verifying = ref(false)
@@ -24,6 +24,7 @@ const challengeVersion = ref(0)
 const gridTransitionKey = ref(0)
 const tileDisplayOrder = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9])
 const tileAnimationDelays = ref<number[]>(Array.from({ length: 9 }, () => 0))
+const flowSessionId = ref(0)
 
 const currentChallenge = computed(() => props.challenges[currentIndex.value] ?? props.challenges[0] ?? null)
 const isSelectionCorrect = computed(() => {
@@ -94,8 +95,23 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+function invalidateFlowSession() {
+  flowSessionId.value += 1
+}
+
+function isFlowSessionActive(sessionId: number) {
+  return props.open && flowSessionId.value === sessionId
+}
+
+function requestClose() {
+  invalidateFlowSession()
+  resetPanel()
+  emit('close')
+}
+
 function resetPanel() {
   selectedTileIds.value = []
+  currentIndex.value = -1
   checkboxLoading.value = false
   challengeVisible.value = false
   verifying.value = false
@@ -115,8 +131,18 @@ function prepareChallengeState() {
 }
 
 function chooseNextChallenge() {
-  if (props.challenges.length <= 1) {
+  if (props.challenges.length === 0) {
+    currentIndex.value = -1
+    return
+  }
+
+  if (props.challenges.length === 1) {
     currentIndex.value = 0
+    return
+  }
+
+  if (currentIndex.value < 0) {
+    currentIndex.value = Math.floor(Math.random() * props.challenges.length)
     return
   }
 
@@ -132,9 +158,13 @@ async function openChallenge() {
     return
   }
 
+  const sessionId = flowSessionId.value
   checkboxLoading.value = true
   feedback.value = ''
   await delay(1000)
+  if (!isFlowSessionActive(sessionId)) {
+    return
+  }
   prepareChallengeState()
   challengeVisible.value = true
   checkboxLoading.value = false
@@ -154,10 +184,14 @@ function toggleTile(tileId: string) {
 }
 
 async function reloadChallenge() {
+  const sessionId = flowSessionId.value
   selectedTileIds.value = []
   feedback.value = ''
   verifying.value = true
   await delay(220)
+  if (!isFlowSessionActive(sessionId)) {
+    return
+  }
   prepareChallengeState()
   verifying.value = false
 }
@@ -172,9 +206,14 @@ async function verifySelection() {
     return
   }
 
+  const sessionId = flowSessionId.value
+  const challengeId = currentChallenge.value.id
   verifying.value = true
   feedback.value = ''
   await delay(2000)
+  if (!isFlowSessionActive(sessionId)) {
+    return
+  }
 
   if (isSelectionCorrect.value) {
     challengeVisible.value = false
@@ -183,16 +222,25 @@ async function verifySelection() {
     checkboxLoading.value = true
     anchorVerified.value = false
     await delay(1000)
+    if (!isFlowSessionActive(sessionId)) {
+      return
+    }
     checkboxLoading.value = false
     anchorVerified.value = true
     await delay(1000)
-    emit('verified', currentChallenge.value.id)
+    if (!isFlowSessionActive(sessionId)) {
+      return
+    }
+    emit('verified', challengeId)
     resetPanel()
     return
   }
 
   feedback.value = '请重试'
   await delay(900)
+  if (!isFlowSessionActive(sessionId)) {
+    return
+  }
   feedback.value = ''
   selectedTileIds.value = []
   prepareChallengeState()
@@ -202,13 +250,12 @@ async function verifySelection() {
 watch(
   () => props.open,
   (value) => {
+    invalidateFlowSession()
+    resetPanel()
+
     if (!value) {
-      resetPanel()
       return
     }
-
-    prepareChallengeState()
-    feedback.value = ''
   },
   { immediate: true },
 )
@@ -216,7 +263,7 @@ watch(
 
 <template>
   <Transition name="modal-float" appear>
-    <div v-if="open" class="modal-backdrop about-captcha-backdrop" @click.self="emit('close')">
+    <div v-if="open" class="modal-backdrop about-captcha-backdrop" @click.self="requestClose">
       <div class="about-captcha-shell">
         <div class="captcha-container about-captcha-widget">
           <div class="captcha-box">
@@ -273,7 +320,7 @@ watch(
       </div>
 
       <Transition name="modal-float" appear>
-        <div v-if="challengeVisible && currentChallenge" class="about-captcha-challenge-layer" @click.self="emit('close')">
+        <div v-if="challengeVisible && currentChallenge" class="about-captcha-challenge-layer" @click.self="requestClose">
           <div class="captcha-selector about-captcha-selector">
             <div id="rc-imageselect">
               <div class="rc-imageselect-response-field" />
@@ -737,10 +784,19 @@ watch(
     width: min(408px, calc(100vw - 48px));
   }
 
+  .about-captcha-selector .rc-imageselect-table-33 {
+    table-layout: fixed;
+  }
+
+  .about-captcha-selector .rc-imageselect-table-33 td {
+    width: 33.3333%;
+  }
+
   .about-captcha-tile-wrapper {
-    width: auto;
+    width: 100%;
     height: auto;
-    aspect-ratio: 1;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
   }
 }
 </style>

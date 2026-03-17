@@ -64,6 +64,36 @@
   color: rgba(248, 239, 230, 0.7);
 }
 
+.student-hero-about-button {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 244, 238, 0.18);
+  background: rgba(255, 249, 243, 0.12);
+  color: #f8efe6;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.student-hero-about-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 249, 243, 0.2);
+  border-color: rgba(255, 244, 238, 0.28);
+}
+
+.student-hero-about-button-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .student-hero-body {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
@@ -547,6 +577,11 @@
 
   .student-hero-brand {
     margin-bottom: 14px;
+  }
+
+  .student-hero-about-button {
+    top: 16px;
+    right: 16px;
   }
 
   .student-hero-body {

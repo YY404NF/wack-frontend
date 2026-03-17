@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Calendar, HomeFilled, Setting } from '@element-plus/icons-vue'
 
 import type { AppTab } from '../constants'
+import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
 import StudentBottomNav from '../components/student/StudentBottomNav.vue'
 import StudentPanelContent from '../components/student/StudentPanelContent.vue'
 import type { StudentWorkspaceProps } from '../components/student/types'
+import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 import { getGreetingMeta } from '../utils/greeting'
 import { formatSectionTimeRange, getScheduleType, getSectionTimeRange, scheduleLabelMap, scheduleMap } from '../utils/schedule'
 
@@ -55,8 +57,28 @@ const navItems: Array<{ key: 'home' | 'student' | 'settings'; label: string; ico
   { key: 'settings', label: '设置', icon: Setting },
 ]
 
+const aboutCaptchaOpen = ref(false)
+const aboutModalOpen = ref(false)
+
 function sectionTimeText(section: number) {
   return formatSectionTimeRange(section, scheduleType.value)
+}
+
+function openAboutEntry() {
+  aboutCaptchaOpen.value = true
+}
+
+function closeAboutCaptcha() {
+  aboutCaptchaOpen.value = false
+}
+
+function handleAboutVerified() {
+  aboutCaptchaOpen.value = false
+  aboutModalOpen.value = true
+}
+
+function closeAboutModal() {
+  aboutModalOpen.value = false
 }
 
 onMounted(() => {
@@ -88,6 +110,7 @@ onBeforeUnmount(() => {
         @update:active-tab="emit('update:activeTab', $event)"
         @update:selected-student-id="emit('update:selectedStudentId', $event)"
         @logout="emit('logout')"
+        @open-about="openAboutEntry"
         @open-course="emit('openCourse', $event)"
         @update-student-status="(detailId, status) => emit('updateStudentStatus', detailId, status)"
         @complete-attendance="emit('completeAttendance')"
@@ -108,4 +131,23 @@ onBeforeUnmount(() => {
 
     <StudentBottomNav :active-tab="activeTab" :nav-items="navItems" @update:active-tab="emit('update:activeTab', $event)" />
   </div>
+
+  <AboutCaptchaGate
+    :open="aboutCaptchaOpen"
+    :challenges="aboutCaptchaChallenges"
+    @close="closeAboutCaptcha"
+    @verified="handleAboutVerified"
+  />
+
+  <Transition name="modal-float" appear>
+    <div v-if="aboutModalOpen" class="modal-backdrop" @click.self="closeAboutModal">
+      <article class="modal-card modal-card-narrow about-placeholder-modal">
+        <div class="wide-modal-header about-placeholder-header">
+          <h3 class="wide-modal-header-title">关于</h3>
+          <p class="hint wide-modal-header-meta">空白浮窗，后续内容可以继续往里加。</p>
+        </div>
+        <div class="about-placeholder-body"></div>
+      </article>
+    </div>
+  </Transition>
 </template>

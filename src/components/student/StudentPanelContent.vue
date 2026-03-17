@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { InfoFilled } from '@element-plus/icons-vue'
 import { type AppTab, type StatusCode } from '../../constants'
 import type { StudentGreeting, StudentWorkspaceProps } from './types'
 import StudentFreeTimeModal from './StudentFreeTimeModal.vue'
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
   'update:selectedStudentId': [value: number]
   logout: []
+  openAbout: []
   openCourse: [course: StudentWorkspaceProps['availableCourses'][number]]
   updateStudentStatus: [detailId: number, status: StatusCode]
   completeAttendance: []
@@ -37,6 +39,9 @@ const emit = defineEmits<{
   <Transition name="page-fade" mode="out-in">
     <section v-if="activeTab === 'home'" key="home" class="student-mobile-page student-home-page">
       <article class="student-hero-card">
+        <button class="student-hero-about-button" type="button" aria-label="打开关于页面" @click="emit('openAbout')">
+          <InfoFilled class="student-hero-about-button-icon" aria-hidden="true" />
+        </button>
         <p class="student-hero-brand eyebrow">WACK / 网安查课</p>
         <div class="student-hero-body">
           <div class="student-hero-icon" aria-hidden="true">{{ greeting.emoji }}</div>
