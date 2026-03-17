@@ -17,6 +17,7 @@ const selectedTileIds = ref<string[]>([])
 const currentIndex = ref(-1)
 const checkboxLoading = ref(false)
 const challengeVisible = ref(false)
+const reloading = ref(false)
 const verifying = ref(false)
 const anchorVerified = ref(false)
 const feedback = ref('')
@@ -114,6 +115,7 @@ function resetPanel() {
   currentIndex.value = -1
   checkboxLoading.value = false
   challengeVisible.value = false
+  reloading.value = false
   verifying.value = false
   anchorVerified.value = false
   feedback.value = ''
@@ -171,7 +173,7 @@ async function openChallenge() {
 }
 
 function toggleTile(tileId: string) {
-  if (verifying.value) {
+  if (verifying.value || reloading.value) {
     return
   }
 
@@ -187,17 +189,17 @@ async function reloadChallenge() {
   const sessionId = flowSessionId.value
   selectedTileIds.value = []
   feedback.value = ''
-  verifying.value = true
+  reloading.value = true
   await delay(220)
   if (!isFlowSessionActive(sessionId)) {
     return
   }
   prepareChallengeState()
-  verifying.value = false
+  reloading.value = false
 }
 
 async function verifySelection() {
-  if (!currentChallenge.value || verifying.value) {
+  if (!currentChallenge.value || verifying.value || reloading.value) {
     return
   }
 
@@ -319,7 +321,7 @@ watch(
         </div>
       </div>
 
-      <Transition name="modal-float" appear>
+      <Transition name="captcha-layer-fade" appear>
         <div v-if="challengeVisible && currentChallenge" class="about-captcha-challenge-layer" @click.self="requestClose">
           <div class="captcha-selector about-captcha-selector">
             <div id="rc-imageselect">
@@ -387,20 +389,20 @@ watch(
                           type="button"
                           class="rc-button goog-inline-block rc-button-reload"
                           title="换一个新的验证码"
-                          :disabled="verifying"
+                          :disabled="verifying || reloading"
                           @click="reloadChallenge"
                         />
                       </div>
                     </div>
                     <div class="verify-button-holder">
-                      <button
-                        id="recaptcha-verify-button"
-                        type="button"
-                        class="rc-button-default goog-inline-block"
-                        :class="{ 'rc-button-default-disabled': verifying }"
-                        :disabled="verifying"
-                        @click="verifySelection"
-                      >
+                        <button
+                          id="recaptcha-verify-button"
+                          type="button"
+                          class="rc-button-default goog-inline-block"
+                          :class="{ 'rc-button-default-disabled': verifying || reloading }"
+                          :disabled="verifying || reloading"
+                          @click="verifySelection"
+                        >
                         {{ verifying ? '验证中' : '验证' }}
                       </button>
                     </div>
@@ -733,6 +735,29 @@ watch(
   display: block;
   background-repeat: no-repeat;
   inset: 0;
+}
+
+.captcha-layer-fade-enter-active,
+.captcha-layer-fade-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.captcha-layer-fade-enter-active .captcha-selector,
+.captcha-layer-fade-leave-active .captcha-selector {
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.captcha-layer-fade-enter-from,
+.captcha-layer-fade-leave-to {
+  opacity: 0;
+}
+
+.captcha-layer-fade-enter-from .captcha-selector,
+.captcha-layer-fade-leave-to .captcha-selector {
+  opacity: 0;
+  transform: scale(0.985);
 }
 
 .captcha-grid-fade-enter-active,
