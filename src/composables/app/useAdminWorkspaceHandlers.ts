@@ -17,6 +17,7 @@ export type AdminWorkspaceHandlersDeps = {
   toggleCourseSelection: (courseId: number) => void
   toggleCoursePageSelection: () => void
   bulkDeleteCourses: () => Promise<void>
+  updateCourseCalendarTerm: (term: string) => void
   updateSystemSettings: (payload: { current_term_start_date: string }) => Promise<void>
   openCreateClassModal: () => void
   openEditClassModal: (item: any) => void
@@ -62,7 +63,7 @@ export type AdminWorkspaceHandlersDeps = {
   closeUserPasswordModal: () => void
   openUserFreeTimeModal: (user: any) => Promise<void>
   closeUserFreeTimeModal: () => void
-  updateUserFreeTimeTerm: (term: string) => void
+  updateUserFreeTimeTerm: (term: string) => Promise<void>
   toggleUserFreeTimeWeek: (payload: { weekday: number; section: number; weekNo: number }) => void
   toggleUserFreeTimeCell: (payload: { weekday: number; section: number }) => void
   saveUserFreeTime: () => Promise<void>
@@ -103,6 +104,7 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     toggleCourseSelection: deps.toggleCourseSelection,
     toggleCoursePageSelection: deps.toggleCoursePageSelection,
     bulkDeleteCourses: deps.bulkDeleteCourses,
+    updateCourseCalendarTerm: deps.updateCourseCalendarTerm,
     updateSystemSettings: deps.updateSystemSettings,
     openCreateClassModal: deps.openCreateClassModal,
     openEditClassModal: deps.openEditClassModal,

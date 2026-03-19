@@ -68,7 +68,6 @@ export type AdminCourseManageProps = {
 export type AdminCourseCalendarProps = {
   courseCalendar: CourseCalendarItem[]
   freeTimes: FreeTimeItem[]
-  classes: ClassItem[]
   courseTerms: MetaTermItem[]
   systemSettings: SystemSetting | null
 }

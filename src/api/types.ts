@@ -85,6 +85,13 @@ export interface ClassItem {
   updated_at?: string
 }
 
+export interface ClassOptionItem {
+  id: number
+  class_name: string
+  grade: number
+  major_name: string
+}
+
 export interface ClassStudentItem {
   id: number
   class_id: number
@@ -119,6 +126,16 @@ export interface StudentItem {
   major_name?: string | null
   created_at?: string
   updated_at?: string
+}
+
+export interface StudentOptionItem {
+  id: number
+  student_id: string
+  real_name: string
+  class_id?: number | null
+  class_name?: string | null
+  grade?: number | null
+  major_name?: string | null
 }
 
 export interface CourseItem {
@@ -262,6 +279,14 @@ export interface FreeTimeItem {
   term: string
   login_id: string
   real_name: string
+  weekday: number
+  section: number
+  free_weeks: string
+}
+
+export interface FreeTimeEditorItem {
+  id: number
+  term: string
   weekday: number
   section: number
   free_weeks: string

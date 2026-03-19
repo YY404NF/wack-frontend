@@ -23,6 +23,7 @@ const termSaving = ref(false)
 const termFormError = ref('')
 const editingTermId = ref<number | null>(null)
 const localTerms = ref<MetaTermItem[]>([])
+const visibleTermCount = ref(12)
 const termForm = reactive({
   startYear: new Date().getFullYear(),
   termNo: 1,
@@ -41,9 +42,13 @@ watch(
   () => props.courseTerms,
   (terms) => {
     localTerms.value = sortTermsForSelect(terms)
+    visibleTermCount.value = Math.min(12, Math.max(12, visibleTermCount.value))
   },
   { immediate: true },
 )
+
+const visibleTerms = computed(() => localTerms.value.slice(0, visibleTermCount.value))
+const hasMoreTerms = computed(() => visibleTerms.value.length < localTerms.value.length)
 
 function parseTermName(name: string) {
   const matched = name.match(/^(\d{4})-(\d{4})-(1|2)$/)
@@ -128,6 +133,10 @@ async function saveTerm() {
 function asMetaTermItem(row: Record<string, unknown>) {
   return row as unknown as MetaTermItem
 }
+
+function loadMoreTerms() {
+  visibleTermCount.value += 12
+}
 </script>
 
 <template>
@@ -173,13 +182,15 @@ function asMetaTermItem(row: Record<string, unknown>) {
           </div>
 
           <AdminDataList
-            :rows="localTerms as unknown as Array<Record<string, unknown>>"
+            :rows="visibleTerms as unknown as Array<Record<string, unknown>>"
             :columns="termColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
             row-key="id"
             empty-text="暂无学期数据"
             :show-actions="true"
             action-col-class="col-pct-20"
             table-class="user-manage-table"
+            :lazy-load="{ hasMore: hasMoreTerms, loading: false, buttonText: '滚动到底部继续加载学期' }"
+            @load-more="loadMoreTerms"
           >
             <template #actions="{ row }">
               <div class="inline-actions user-actions">

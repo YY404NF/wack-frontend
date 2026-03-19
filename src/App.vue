@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watch } from 'vue'
 
-import LoginPage from './pages/LoginPage.vue'
-import SetupPage from './pages/SetupPage.vue'
-import StudentWorkspace from './pages/StudentWorkspace.vue'
 import { useApp } from './composables/useApp'
 
+const LoginPage = defineAsyncComponent(() => import('./pages/LoginPage.vue'))
+const SetupPage = defineAsyncComponent(() => import('./pages/SetupPage.vue'))
 const AdminWorkspace = defineAsyncComponent(() => import('./pages/AdminWorkspace.vue'))
+const StudentWorkspace = defineAsyncComponent(() => import('./pages/StudentWorkspace.vue'))
 
 const {
   adminWorkspaceHandlers,

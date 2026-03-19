@@ -9,6 +9,7 @@ import {
   type CourseCalendarItem,
   type CourseItem,
   type DashboardSummary,
+  type FreeTimeEditorItem,
   type FreeTimeItem,
   type MetaTermItem,
   type SessionUser,
@@ -82,15 +83,36 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const users = ref<UserItem[]>([])
   const classes = ref<ClassItem[]>([])
   const students = ref<StudentItem[]>([])
+  const userRows = ref<UserItem[]>([])
+  const classRows = ref<ClassItem[]>([])
+  const studentRows = ref<StudentItem[]>([])
   const classStudents = ref<ClassStudentItem[]>([])
   const courses = ref<CourseItem[]>([])
+  const courseRows = ref<CourseItem[]>([])
   const courseTerms = ref<MetaTermItem[]>([])
   const courseCalendar = ref<CourseCalendarItem[]>([])
+  const courseCalendarTerm = ref('')
   const dashboard = ref<DashboardSummary | null>(null)
   const attendanceResults = ref<AttendanceResultItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
   const attendanceLogs = ref<AttendanceRecordLogItem[]>([])
+  const attendanceLogRows = ref<AttendanceRecordLogItem[]>([])
   const systemSettings = ref<SystemSetting | null>(null)
+  const userPage = ref(1)
+  const userPageSize = ref(10)
+  const userTotalPages = ref(1)
+  const coursePage = ref(1)
+  const coursePageSize = ref(10)
+  const courseTotalPages = ref(1)
+  const classPage = ref(1)
+  const classPageSize = ref(10)
+  const classTotalPages = ref(1)
+  const studentPage = ref(1)
+  const studentPageSize = ref(10)
+  const studentTotalPages = ref(1)
+  const attendanceLogsPage = ref(1)
+  const attendanceLogsPageSize = ref(10)
+  const attendanceLogsTotalPages = ref(1)
 
   const userSaving = ref(false)
   const passwordResetting = ref(false)
@@ -120,7 +142,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const freeTimeTargetName = ref('')
   const freeTimeTargetLoginId = ref('')
   const userFreeTimeTerm = ref(getCurrentAcademicTerm())
-  const userFreeTimeItems = ref<FreeTimeItem[]>([])
+  const userFreeTimeItems = ref<FreeTimeEditorItem[]>([])
   const userFreeTimeDraft = ref<Record<string, number[]>>({})
   const deletingCourseId = ref<number | null>(null)
   const deletingCourseName = ref('')
@@ -163,19 +185,14 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const isEditingClass = computed(() => editingClassId.value !== null)
 
   const adminCollections = useAdminCollections({
-    users,
-    classes,
-    students,
-    courses,
+    users: userRows,
+    classes: classRows,
+    students: studentRows,
+    courses: courseRows,
     courseTerms,
-    attendanceLogs,
+    attendanceLogs: attendanceLogRows,
     classStudents,
-    userFilters,
-    classFilters,
-    courseFilters,
-    attendanceLogFilters,
     classStudentFilters,
-    studentFilters,
     userFreeTimeItems,
     userFreeTimeTerm,
     currentUserId,
@@ -189,21 +206,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
     paginatedClasses,
     paginatedStudents,
     paginatedAttendanceLogs,
-    userPage,
-    userPageSize,
-    userTotalPages,
-    coursePage,
-    coursePageSize,
-    courseTotalPages,
-    classPage,
-    classPageSize,
-    classTotalPages,
-    studentPage,
-    studentPageSize,
-    studentTotalPages,
-    attendanceLogsPage,
-    attendanceLogsPageSize,
-    attendanceLogsTotalPages,
     selectedCourseIds,
     selectedClassIds,
     selectedStudentIds,
@@ -217,11 +219,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
     toggleStudentPageSelection,
     toggleUserSelection,
     toggleUserPageSelection,
-    usersView,
-    coursesView,
-    classesView,
-    studentsView,
-    attendanceLogsView,
   } = adminCollections
 
   function clearNotices() {
@@ -483,34 +480,42 @@ export function useAdminState(deps: UseAdminStateDeps) {
   }
 
   function updateUserPage(page: number) {
-    usersView.setPage(page)
+    userPage.value = page
   }
   function updateUserPageSize(size: number) {
-    usersView.setPageSize(size)
+    userPageSize.value = size
+    userPage.value = 1
   }
   function updateCoursePage(page: number) {
-    coursesView.setPage(page)
+    coursePage.value = page
   }
   function updateCoursePageSize(size: number) {
-    coursesView.setPageSize(size)
+    coursePageSize.value = size
+    coursePage.value = 1
+  }
+  function updateCourseCalendarTerm(term: string) {
+    courseCalendarTerm.value = term
   }
   function updateClassPage(page: number) {
-    classesView.setPage(page)
+    classPage.value = page
   }
   function updateClassPageSize(size: number) {
-    classesView.setPageSize(size)
+    classPageSize.value = size
+    classPage.value = 1
   }
   function updateStudentPage(page: number) {
-    studentsView.setPage(page)
+    studentPage.value = page
   }
   function updateStudentPageSize(size: number) {
-    studentsView.setPageSize(size)
+    studentPageSize.value = size
+    studentPage.value = 1
   }
   function updateAttendanceLogsPage(page: number) {
-    attendanceLogsView.setPage(page)
+    attendanceLogsPage.value = page
   }
   function updateAttendanceLogsPageSize(size: number) {
-    attendanceLogsView.setPageSize(size)
+    attendanceLogsPageSize.value = size
+    attendanceLogsPage.value = 1
   }
 
   function clearAdminSelections() {
@@ -556,13 +561,19 @@ export function useAdminState(deps: UseAdminStateDeps) {
           users,
           classes,
           students,
+          userRows,
+          classRows,
+          studentRows,
           courses,
+          courseRows,
           courseTerms,
           courseCalendar,
+          courseCalendarTerm,
           dashboard,
           attendanceResults,
           freeTimes,
           attendanceLogs,
+          attendanceLogRows,
           systemSettings,
           userForm,
           userFilters,
@@ -689,6 +700,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           openBulkDeleteCourseModal,
           updateCoursePage,
           updateCoursePageSize,
+          updateCourseCalendarTerm,
           toggleCourseSelection,
           toggleCoursePageSelection,
           openCreateClassModal,
@@ -746,15 +758,21 @@ export function useAdminState(deps: UseAdminStateDeps) {
     users.value = []
     classes.value = []
     students.value = []
+    userRows.value = []
+    classRows.value = []
+    studentRows.value = []
     classStudents.value = []
     courses.value = []
+    courseRows.value = []
     courseTerms.value = []
     courseCalendar.value = []
+    courseCalendarTerm.value = ''
     dashboard.value = null
     attendanceResults.value = []
     freeTimes.value = []
     systemSettings.value = null
     attendanceLogs.value = []
+    attendanceLogRows.value = []
     adminApp.value = null
     adminAppLoader = null
   }
@@ -767,6 +785,103 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
     if (isAdmin.value) {
       clearNotices()
+    }
+  })
+
+  watch(
+    () => [userFilters.studentId, userFilters.realName, userFilters.managedClassName, userFilters.role, userFilters.status] as const,
+    () => {
+      userPage.value = 1
+    },
+  )
+
+  watch(
+    () => [courseFilters.term, courseFilters.courseName, courseFilters.teacherName, courseFilters.classId] as const,
+    () => {
+      coursePage.value = 1
+    },
+  )
+
+  watch(
+    () => [classFilters.grade, classFilters.majorName, classFilters.className] as const,
+    () => {
+      classPage.value = 1
+    },
+  )
+
+  watch(
+    () => [studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
+    () => {
+      studentPage.value = 1
+    },
+  )
+
+  watch(
+    () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate] as const,
+    () => {
+      attendanceLogsPage.value = 1
+    },
+  )
+
+  watch(
+    () => [userPage.value, userPageSize.value, userFilters.studentId, userFilters.realName, userFilters.managedClassName, userFilters.role, userFilters.status] as const,
+    () => {
+      if (isAdmin.value && deps.activeTab.value === 'user-manage') {
+        void loadRoleData('user-manage')
+      }
+    },
+  )
+
+  watch(
+    () => [coursePage.value, coursePageSize.value, courseFilters.term, courseFilters.courseName, courseFilters.teacherName, courseFilters.classId] as const,
+    () => {
+      if (isAdmin.value && deps.activeTab.value === 'course-manage') {
+        void loadRoleData('course-manage')
+      }
+    },
+  )
+
+  watch(
+    () => [classPage.value, classPageSize.value, classFilters.grade, classFilters.majorName, classFilters.className] as const,
+    () => {
+      if (isAdmin.value && deps.activeTab.value === 'class-manage') {
+        void loadRoleData('class-manage')
+      }
+    },
+  )
+
+  watch(
+    () => [studentPage.value, studentPageSize.value, studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
+    () => {
+      if (isAdmin.value && deps.activeTab.value === 'student') {
+        void loadRoleData('student')
+      }
+    },
+  )
+
+  watch(
+    () => [
+      attendanceLogsPage.value,
+      attendanceLogsPageSize.value,
+      attendanceLogFilters.studentId,
+      attendanceLogFilters.operatorStudentId,
+      attendanceLogFilters.operationType,
+      attendanceLogFilters.newStatus,
+      attendanceLogFilters.operatedDate,
+    ] as const,
+    () => {
+      if (isAdmin.value && deps.activeTab.value === 'attendance-logs') {
+        void loadRoleData('attendance-logs')
+      }
+    },
+  )
+
+  watch(courseCalendarTerm, (nextTerm, previousTerm) => {
+    if (!previousTerm || nextTerm === previousTerm) {
+      return
+    }
+    if (isAdmin.value && deps.activeTab.value === 'course-calendar' && nextTerm) {
+      void loadRoleData('course-calendar')
     }
   })
 

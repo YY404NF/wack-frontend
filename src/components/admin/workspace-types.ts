@@ -36,6 +36,7 @@ export type AdminWorkspaceProps = {
   toast: string
   adminStats: AdminStatItem[]
   courseCalendar: CourseCalendarItem[]
+  courseCalendarTerm: string
   freeTimes: FreeTimeItem[]
   systemSettings: SystemSetting | null
   systemSettingSaving: boolean

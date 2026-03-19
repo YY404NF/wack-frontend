@@ -11,29 +11,18 @@ import type {
 } from './types'
 
 export const coursesApi = {
-  listCourses(query: { page?: number; page_size?: number } = {}) {
+  listCourses(query: { page?: number; page_size?: number; term?: string; course_name?: string; teacher_name?: string; class_id?: number | '' } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 100))
+    if (query.term?.trim()) params.set('term', query.term.trim())
+    if (query.course_name?.trim()) params.set('keyword', query.course_name.trim())
+    if (query.teacher_name?.trim()) params.set('teacher_name', query.teacher_name.trim())
+    if (typeof query.class_id === 'number' && query.class_id > 0) params.set('class_id', String(query.class_id))
     return request<PageResult<CourseItem>>(`${apiPaths.admin.courses}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
     }))
-  },
-  async listAllCourses() {
-    const pageSize = 100
-    let page = 1
-    let total = 0
-    const items: CourseItem[] = []
-
-    do {
-      const result = await this.listCourses({ page, page_size: pageSize })
-      items.push(...(result.items ?? []))
-      total = result.total ?? items.length
-      page += 1
-    } while (items.length < total)
-
-    return items
   },
   listCourseGroups(courseId: number) {
     return request<CourseGroupItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups`).then((items) => items ?? [])
@@ -151,7 +140,10 @@ export const coursesApi = {
       method: 'DELETE',
     })
   },
-  adminCourseCalendar() {
-    return request<CourseCalendarItem[] | null>(apiPaths.admin.courseCalendar)
+  adminCourseCalendar(term = '') {
+    const params = new URLSearchParams()
+    if (term.trim()) params.set('term', term.trim())
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<CourseCalendarItem[] | null>(`${apiPaths.admin.courseCalendar}${suffix}`)
   },
 }

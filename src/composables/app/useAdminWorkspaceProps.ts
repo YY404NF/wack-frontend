@@ -27,12 +27,14 @@ export type AdminWorkspacePropsDeps = {
   adminToast: Ref<string>
   adminStats: ComputedRef<Array<{ label: string; value: number; tone: string }>>
   courseCalendar: Ref<any[]>
+  courseCalendarTerm: Ref<string>
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
   systemSettingSaving: Ref<boolean>
   paginatedAttendanceLogs: ComputedRef<any[]>
   paginatedClasses: ComputedRef<ClassItem[]>
   classes: Ref<ClassItem[]>
+  students: Ref<StudentItem[]>
   paginatedStudents: ComputedRef<StudentItem[]>
   filteredClassStudents: ComputedRef<ClassStudentItem[]>
   paginatedUsers: ComputedRef<any[]>
@@ -48,7 +50,7 @@ export type AdminWorkspacePropsDeps = {
   userStatusUpdating: Ref<boolean>
   userPage: Ref<number>
   userPageSize: Ref<number>
-  userTotalPages: ComputedRef<number>
+  userTotalPages: Ref<number> | ComputedRef<number>
   selectedUserStudentIds: Ref<string[]>
   userPasswordModalOpen: Ref<boolean>
   userPasswordForm: AdminUserPasswordForm
@@ -72,7 +74,7 @@ export type AdminWorkspacePropsDeps = {
   editingCourseId: Ref<number | null>
   coursePage: Ref<number>
   coursePageSize: Ref<number>
-  courseTotalPages: ComputedRef<number>
+  courseTotalPages: Ref<number> | ComputedRef<number>
   selectedCourseIds: Ref<number[]>
   deletingCourseName: Ref<string>
   classForm: AdminClassForm
@@ -95,7 +97,7 @@ export type AdminWorkspacePropsDeps = {
   classDeleting: Ref<boolean>
   classPage: Ref<number>
   classPageSize: Ref<number>
-  classTotalPages: ComputedRef<number>
+  classTotalPages: Ref<number> | ComputedRef<number>
   selectedClassIds: Ref<number[]>
   deletingClassName: Ref<string>
   studentModalOpen: Ref<boolean>
@@ -106,13 +108,13 @@ export type AdminWorkspacePropsDeps = {
   editingStudentId: Ref<number | null>
   studentPage: Ref<number>
   studentPageSize: Ref<number>
-  studentTotalPages: ComputedRef<number>
+  studentTotalPages: Ref<number> | ComputedRef<number>
   selectedStudentIds: Ref<number[]>
   deletingStudentName: Ref<string>
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
-  attendanceLogsTotalPages: ComputedRef<number>
+  attendanceLogsTotalPages: Ref<number> | ComputedRef<number>
   profileForm: AdminProfileForm
   profileModalOpen: Ref<boolean>
   profileSaving: Ref<boolean>
@@ -129,13 +131,14 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     toast: deps.adminToast.value,
     adminStats: deps.adminStats.value,
     courseCalendar: deps.courseCalendar.value,
+    courseCalendarTerm: deps.courseCalendarTerm.value,
     freeTimes: deps.freeTimes.value,
     systemSettings: deps.systemSettings.value,
     systemSettingSaving: deps.systemSettingSaving.value,
     attendanceLogs: deps.paginatedAttendanceLogs.value,
     classes: deps.paginatedClasses.value,
     allClasses: deps.classes.value,
-    students: deps.paginatedStudents.value,
+    students: deps.activeTab.value === 'class-manage' ? deps.students.value : deps.paginatedStudents.value,
     classStudents: deps.filteredClassStudents.value,
     users: deps.paginatedUsers.value,
     currentUserId: deps.currentUserId.value,

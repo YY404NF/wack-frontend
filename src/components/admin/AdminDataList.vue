@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from 'vue'
+import { computed, onBeforeUnmount, ref, useSlots } from 'vue'
 
 type ListColumn = {
   key: string
@@ -60,7 +60,9 @@ const emit = defineEmits<{
 
 const slots = useSlots()
 const copyToast = ref('')
+const loadingMore = ref(false)
 let copyToastTimer: number | null = null
+let lazyLoadTimer: number | null = null
 
 const selectedKeySet = computed(() => new Set(props.selectedRowKeys))
 const visibleSelectableRows = computed(() => props.rows.filter((row) => props.isRowSelectable(row)))
@@ -148,6 +150,43 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
   }
   return normalizeCopyValue(row[column.key])
 }
+
+function requestLazyLoad() {
+  if (!props.lazyLoad?.hasMore || props.lazyLoad.loading || loadingMore.value) {
+    return
+  }
+  loadingMore.value = true
+  emit('loadMore')
+  if (lazyLoadTimer !== null) {
+    window.clearTimeout(lazyLoadTimer)
+  }
+  lazyLoadTimer = window.setTimeout(() => {
+    loadingMore.value = false
+    lazyLoadTimer = null
+  }, 240)
+}
+
+function handleTableScroll(event: Event) {
+  if (!props.lazyLoad || props.pagination) {
+    return
+  }
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 32) {
+    requestLazyLoad()
+  }
+}
+
+onBeforeUnmount(() => {
+  if (copyToastTimer !== null) {
+    window.clearTimeout(copyToastTimer)
+  }
+  if (lazyLoadTimer !== null) {
+    window.clearTimeout(lazyLoadTimer)
+  }
+})
 </script>
 
 <template>
@@ -155,7 +194,7 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
     <Teleport to="body">
       <div v-if="copyToast" class="toast-banner admin-data-list-copy-toast">{{ copyToast }}</div>
     </Teleport>
-    <div :class="['table-wrap', wrapperClass]">
+    <div :class="['table-wrap', wrapperClass]" @scroll="handleTableScroll">
       <table :class="['data-table', tableClass]">
         <colgroup>
           <col v-if="showSelection" class="selection-column" />
@@ -271,17 +310,15 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
       </div>
     </div>
 
-    <div v-else-if="lazyLoad" class="pagination-bar">
-      <div class="pagination-pages"></div>
-      <div class="inline-actions">
-        <button
-          class="ghost-button compact-button"
-          type="button"
-          :disabled="!lazyLoad.hasMore || !!lazyLoad.loading"
-          @click="emit('loadMore')"
-        >
-          {{ lazyLoad.loading ? '加载中...' : lazyLoad.buttonText ?? '继续加载' }}
-        </button>
+    <div v-else-if="lazyLoad" class="pagination-bar pagination-bar-lazy">
+      <div class="hint">
+        {{
+          lazyLoad.loading
+            ? '加载中...'
+            : lazyLoad.hasMore
+              ? lazyLoad.buttonText ?? '滚动到底部继续加载'
+              : '已加载全部内容'
+        }}
       </div>
     </div>
   </div>

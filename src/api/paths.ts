@@ -16,7 +16,9 @@ export const apiPaths = {
   admin: {
     users: buildPath(ADMIN_PREFIX, 'users'),
     classes: buildPath(ADMIN_PREFIX, 'classes'),
+    classOptions: buildPath(ADMIN_PREFIX, 'class-options'),
     students: buildPath(ADMIN_PREFIX, 'students'),
+    studentOptions: buildPath(ADMIN_PREFIX, 'student-options'),
     classStudents: buildPath(ADMIN_PREFIX, 'class-students'),
     courses: buildPath(ADMIN_PREFIX, 'courses'),
     courseCalendar: buildPath(ADMIN_PREFIX, 'course-calendar'),
@@ -37,6 +39,7 @@ export const apiPaths = {
   },
   shared: {
     freeTimes: buildPath('free-times'),
+    freeTimeEditor: buildPath('free-time-editor'),
     systemSettings: buildPath('system-settings'),
     metaTerms: buildPath('meta', 'terms'),
     metaSections: buildPath('meta', 'sections'),

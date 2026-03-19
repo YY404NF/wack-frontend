@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import type { AppTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
-import AdminOverviewPanel from './AdminOverviewPanel.vue'
-import AdminAttendancePanel from './AdminAttendancePanel.vue'
-import AdminAttendanceLogsPanel from './AdminAttendanceLogsPanel.vue'
-import AdminCourseCalendarPanel from './AdminCourseCalendarPanel.vue'
-import AdminCourseManagePanel from './AdminCourseManagePanel.vue'
-import AdminClassManagePanel from './AdminClassManagePanel.vue'
-import AdminStudentManagePanel from './AdminStudentManagePanel.vue'
-import AdminUserManagePanel from './AdminUserManagePanel.vue'
-import AdminSettingsPanel from './AdminSettingsPanel.vue'
+
+const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
+const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
+const AdminAttendanceLogsPanel = defineAsyncComponent(() => import('./AdminAttendanceLogsPanel.vue'))
+const AdminCourseCalendarPanel = defineAsyncComponent(() => import('./AdminCourseCalendarPanel.vue'))
+const AdminCourseManagePanel = defineAsyncComponent(() => import('./AdminCourseManagePanel.vue'))
+const AdminClassManagePanel = defineAsyncComponent(() => import('./AdminClassManagePanel.vue'))
+const AdminStudentManagePanel = defineAsyncComponent(() => import('./AdminStudentManagePanel.vue'))
+const AdminUserManagePanel = defineAsyncComponent(() => import('./AdminUserManagePanel.vue'))
+const AdminSettingsPanel = defineAsyncComponent(() => import('./AdminSettingsPanel.vue'))
 
 defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 
@@ -91,6 +93,7 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
+  updateCourseCalendarTerm: [term: string]
   updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
@@ -143,10 +146,11 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       v-else-if="activeTab === 'course-calendar'"
       key="course-calendar"
       :course-calendar="courseCalendar"
+      :selected-term="courseCalendarTerm"
       :free-times="freeTimes"
-      :classes="allClasses"
       :course-terms="courseTerms"
       :system-settings="systemSettings"
+      @update:selected-term="emit('updateCourseCalendarTerm', $event)"
     />
 
     <AdminCourseManagePanel

@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type ClassItem, type CourseItem, type FreeTimeItem, type StudentItem, type SystemSetting, type UserItem } from '../../api'
+import { api, type ClassItem, type CourseItem, type FreeTimeEditorItem, type StudentItem, type SystemSetting, type UserItem } from '../../api'
 import type { AdminClassStudentForm } from '../../components/admin/form-types'
 import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, formatFreeWeeks, parseFreeWeeks } from '../../utils/free-time'
 
@@ -18,7 +18,7 @@ type AdminBulkActionsStateDeps = {
   systemSettings: Ref<SystemSetting | null>
   freeTimeTargetLoginId: Ref<string>
   userFreeTimeTerm: Ref<string>
-  userFreeTimeItems: Ref<FreeTimeItem[]>
+  userFreeTimeItems: Ref<FreeTimeEditorItem[]>
   userFreeTimeDraft: Ref<Record<string, number[]>>
   selectedCourseIds: Ref<number[]>
   selectedClassIds: Ref<number[]>

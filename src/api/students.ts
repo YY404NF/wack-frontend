@@ -1,9 +1,17 @@
 import { request } from './client'
 import { apiPaths } from './paths'
-import type { PageResult, StudentItem } from './types'
+import type { PageResult, StudentItem, StudentOptionItem } from './types'
 
 export const studentsApi = {
-  listStudents(query: { page?: number; page_size?: number; class_id?: number | ''; keyword?: string } = {}) {
+  listStudents(query: {
+    page?: number
+    page_size?: number
+    class_id?: number | ''
+    keyword?: string
+    student_id?: string
+    real_name?: string
+    class_name?: string
+  } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 100))
@@ -13,25 +21,26 @@ export const studentsApi = {
     if (query.keyword?.trim()) {
       params.set('keyword', query.keyword.trim())
     }
+    if (query.student_id?.trim()) {
+      params.set('student_id', query.student_id.trim())
+    }
+    if (query.real_name?.trim()) {
+      params.set('real_name', query.real_name.trim())
+    }
+    if (query.class_name?.trim()) {
+      params.set('class_name', query.class_name.trim())
+    }
     return request<PageResult<StudentItem>>(`${apiPaths.admin.students}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
     }))
   },
-  async listAllStudents() {
-    const pageSize = 100
-    let page = 1
-    let total = 0
-    const items: StudentItem[] = []
-
-    do {
-      const result = await this.listStudents({ page, page_size: pageSize })
-      items.push(...(result.items ?? []))
-      total = result.total ?? items.length
-      page += 1
-    } while (items.length < total)
-
-    return items
+  listStudentOptions(query: { keyword?: string; binding?: 'unbound' } = {}) {
+    const params = new URLSearchParams()
+    if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
+    if (query.binding) params.set('binding', query.binding)
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<StudentOptionItem[] | null>(`${apiPaths.admin.studentOptions}${suffix}`).then((items) => items ?? [])
   },
   createStudent(input: { student_id: string; real_name: string; class_id?: number | null }) {
     return request<StudentItem>(apiPaths.admin.students, {

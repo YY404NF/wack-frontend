@@ -1,4 +1,4 @@
-import type { FreeTimeItem } from '../api'
+import type { FreeTimeEditorItem, FreeTimeItem } from '../api'
 
 export const FREE_TIME_WEEK_COUNT = 16
 export const FREE_TIME_VISIBLE_WEEKDAYS = [1, 2, 3, 4, 5] as const
@@ -20,7 +20,7 @@ export function createEmptyFreeTimeDraft() {
   return draft
 }
 
-export function createFreeTimeDraft(items: FreeTimeItem[], term: string) {
+export function createFreeTimeDraft(items: Array<FreeTimeItem | FreeTimeEditorItem>, term: string) {
   const draft = createEmptyFreeTimeDraft()
   for (const item of items) {
     if (item.term !== term) {

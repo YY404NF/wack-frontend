@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { api, type AttendanceRecordLogItem, type AttendanceRecordStudentItem } from '../../api'
 import { statusName } from '../../composables/app/view'
@@ -7,7 +7,7 @@ import type { StatusCode } from '../../constants'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceProps } from './types'
 
-const props = defineProps<AdminAttendanceProps>()
+defineProps<AdminAttendanceProps>()
 
 const emit = defineEmits<{
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
@@ -34,6 +34,10 @@ const sessionWeekNo = ref('')
 const sessionStatus = ref('')
 const sessionPage = ref(1)
 const sessionPageSize = ref(10)
+const sessionLoading = ref(false)
+const sessionError = ref('')
+const sessionRows = ref<AttendanceSessionSummary[]>([])
+const sessionTotalPages = ref(1)
 
 const detailKeyword = ref('')
 const detailStatus = ref('')
@@ -43,97 +47,12 @@ const activeSession = ref<AttendanceSessionSummary | null>(null)
 const detailLoading = ref(false)
 const detailError = ref('')
 const detailRecords = ref<AttendanceRecordStudentItem[]>([])
+const detailTotalPages = ref(1)
 const selectedRecordLogs = ref<AttendanceRecordLogItem[]>([])
 const selectedRecordLogName = ref('')
 const logsLoading = ref(false)
 const logsError = ref('')
 
-const sessionSummaries = computed<AttendanceSessionSummary[]>(() => {
-  const grouped = new Map<number, AttendanceSessionSummary>()
-  for (const item of props.attendanceResults) {
-    const existing = grouped.get(item.course_group_lesson_id)
-    if (existing) {
-      existing.student_count += 1
-      if (item.status === 0) existing.present_count += 1
-      else if (item.status === 1) existing.late_count += 1
-      else if (item.status === 2) existing.absent_count += 1
-      else if (item.status === 3) existing.leave_count += 1
-      continue
-    }
-    grouped.set(item.course_group_lesson_id, {
-      course_group_lesson_id: item.course_group_lesson_id,
-      course_id: item.course_id,
-      course_name: item.course_name,
-      teacher_name: item.teacher_name,
-      week_no: item.week_no,
-      session_no: item.session_no,
-      student_count: 1,
-      present_count: item.status === 0 ? 1 : 0,
-      late_count: item.status === 1 ? 1 : 0,
-      absent_count: item.status === 2 ? 1 : 0,
-      leave_count: item.status === 3 ? 1 : 0,
-    })
-  }
-  return Array.from(grouped.values()).sort((left, right) => {
-    if (left.week_no !== right.week_no) {
-      return right.week_no - left.week_no
-    }
-    if (left.session_no !== right.session_no) {
-      return right.session_no - left.session_no
-    }
-    return right.course_group_lesson_id - left.course_group_lesson_id
-  })
-})
-
-const filteredSessions = computed(() =>
-  sessionSummaries.value.filter((item) => {
-    const keyword = sessionKeyword.value.trim()
-    const byKeyword =
-      !keyword ||
-      item.course_name.includes(keyword) ||
-      item.teacher_name.includes(keyword) ||
-      String(item.course_group_lesson_id).includes(keyword)
-    const byWeekNo = !sessionWeekNo.value || String(item.week_no) === sessionWeekNo.value
-    const byStatus =
-      !sessionStatus.value ||
-      (sessionStatus.value === '0' && item.present_count > 0) ||
-      (sessionStatus.value === '1' && item.late_count > 0) ||
-      (sessionStatus.value === '2' && item.absent_count > 0) ||
-      (sessionStatus.value === '3' && item.leave_count > 0)
-    return byKeyword && byWeekNo && byStatus
-  }),
-)
-
-const paginatedSessions = computed(() => {
-  const start = (sessionPage.value - 1) * sessionPageSize.value
-  return filteredSessions.value.slice(start, start + sessionPageSize.value)
-})
-
-const sessionTotalPages = computed(() => Math.max(1, Math.ceil(filteredSessions.value.length / sessionPageSize.value)))
-
-const filteredDetailRecords = computed(() =>
-  detailRecords.value.filter((item) => {
-    const keyword = detailKeyword.value.trim()
-    const byKeyword =
-      !keyword ||
-      item.student_id.includes(keyword) ||
-      item.real_name.includes(keyword) ||
-      item.class_name.includes(keyword)
-    const byStatus =
-      !detailStatus.value ||
-      (detailStatus.value === 'unrecorded'
-        ? item.status === null || item.status === undefined
-        : String(item.status) === detailStatus.value)
-    return byKeyword && byStatus
-  }),
-)
-
-const paginatedDetailRecords = computed(() => {
-  const start = (detailPage.value - 1) * detailPageSize.value
-  return filteredDetailRecords.value.slice(start, start + detailPageSize.value)
-})
-
-const detailTotalPages = computed(() => Math.max(1, Math.ceil(filteredDetailRecords.value.length / detailPageSize.value)))
 const attendanceSessionColumns = [
   { key: 'course_name', label: '课程', colClass: 'col-pct-18' },
   { key: 'teacher_name', label: '教师', colClass: 'col-pct-14' },
@@ -175,20 +94,11 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
 
 async function openSessionDetail(item: AttendanceSessionSummary) {
   activeSession.value = item
-  detailLoading.value = true
-  detailError.value = ''
+  detailPage.value = 1
   selectedRecordLogs.value = []
   selectedRecordLogName.value = ''
   logsError.value = ''
-  try {
-    detailRecords.value = await api.adminGetAttendanceSession(item.course_group_lesson_id)
-    detailPage.value = 1
-  } catch (error) {
-    detailRecords.value = []
-    detailError.value = error instanceof Error ? error.message : '加载考勤明细失败'
-  } finally {
-    detailLoading.value = false
-  }
+  await loadDetailRecords()
 }
 
 function closeSessionDetail() {
@@ -200,6 +110,50 @@ function closeSessionDetail() {
   selectedRecordLogs.value = []
   selectedRecordLogName.value = ''
   logsError.value = ''
+}
+
+async function loadSessionRows() {
+  sessionLoading.value = true
+  sessionError.value = ''
+  try {
+    const result = await api.adminAttendanceSessions({
+      page: sessionPage.value,
+      page_size: sessionPageSize.value,
+      keyword: sessionKeyword.value,
+      week_no: sessionWeekNo.value,
+      status: sessionStatus.value,
+    })
+    sessionRows.value = (result.items ?? []) as unknown as AttendanceSessionSummary[]
+    sessionTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / sessionPageSize.value))
+  } catch (error) {
+    sessionRows.value = []
+    sessionError.value = error instanceof Error ? error.message : '加载考勤记录失败'
+  } finally {
+    sessionLoading.value = false
+  }
+}
+
+async function loadDetailRecords() {
+  if (!activeSession.value) {
+    return
+  }
+  detailLoading.value = true
+  detailError.value = ''
+  try {
+    const result = await api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
+      page: detailPage.value,
+      page_size: detailPageSize.value,
+      keyword: detailKeyword.value,
+      status: detailStatus.value,
+    })
+    detailRecords.value = result.items ?? []
+    detailTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / detailPageSize.value))
+  } catch (error) {
+    detailRecords.value = []
+    detailError.value = error instanceof Error ? error.message : '加载考勤明细失败'
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 async function openRecordLogs(item: AttendanceRecordStudentItem) {
@@ -230,15 +184,13 @@ watch([detailKeyword, detailStatus, detailPageSize], () => {
   detailPage.value = 1
 })
 
-watch(sessionTotalPages, (total) => {
-  if (sessionPage.value > total) {
-    sessionPage.value = total
-  }
-})
+watch([sessionPage, sessionPageSize, sessionKeyword, sessionWeekNo, sessionStatus], () => {
+  void loadSessionRows()
+}, { immediate: true })
 
-watch(detailTotalPages, (total) => {
-  if (detailPage.value > total) {
-    detailPage.value = total
+watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
+  if (activeSession.value) {
+    void loadDetailRecords()
   }
 })
 </script>
@@ -253,7 +205,7 @@ watch(detailTotalPages, (total) => {
       </div>
 
       <AdminDataList
-        :rows="paginatedDetailRecords as unknown as Array<Record<string, unknown>>"
+        :rows="detailRecords as unknown as Array<Record<string, unknown>>"
         :columns="attendanceDetailColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
         row-key="id"
         empty-text="暂无符合条件的考勤明细"
@@ -354,7 +306,7 @@ watch(detailTotalPages, (total) => {
 
     <template v-else>
       <AdminDataList
-        :rows="paginatedSessions as unknown as Array<Record<string, unknown>>"
+        :rows="sessionRows as unknown as Array<Record<string, unknown>>"
         :columns="attendanceSessionColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
         row-key="course_group_lesson_id"
         empty-text="暂无符合条件的考勤记录"
@@ -389,6 +341,11 @@ watch(detailTotalPages, (total) => {
           <div class="inline-actions user-actions">
             <button class="ghost-button compact-button" type="button" @click="openSessionDetail(row as AttendanceSessionSummary)">考勤明细</button>
           </div>
+        </template>
+        <template #empty>
+          <template v-if="sessionLoading">加载中...</template>
+          <template v-else-if="sessionError">{{ sessionError }}</template>
+          <template v-else>暂无符合条件的考勤记录</template>
         </template>
       </AdminDataList>
     </template>

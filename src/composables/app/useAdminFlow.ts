@@ -17,6 +17,7 @@ import {
 } from '../../api'
 import type { AppTab, StatusCode } from '../../constants'
 import { createClassForm, createCourseForm, createStudentForm } from './forms'
+import { selectDefaultTermName } from '../../utils/terms'
 
 type UserForm = {
   studentId: string
@@ -26,6 +27,41 @@ type UserForm = {
   role: number
   status: number
   managedClassId: number | ''
+}
+
+type UserFilters = {
+  studentId: string
+  realName: string
+  managedClassName: string
+  role: string
+  status: string
+}
+
+type CourseFilters = {
+  term: string
+  courseName: string
+  teacherName: string
+  classId: string
+}
+
+type ClassFilters = {
+  grade: string
+  majorName: string
+  className: string
+}
+
+type StudentFilters = {
+  studentId: string
+  realName: string
+  className: string
+}
+
+type AttendanceLogFilters = {
+  operatedDate: string
+  studentId: string
+  operatorStudentId: string
+  operationType: string
+  newStatus: string
 }
 
 type ProfileForm = {
@@ -63,15 +99,26 @@ export type AdminFlowDeps = {
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
   students: Ref<StudentItem[]>
+  userRows: Ref<UserItem[]>
+  classRows: Ref<ClassItem[]>
+  studentRows: Ref<StudentItem[]>
   courses: Ref<CourseItem[]>
+  courseRows: Ref<CourseItem[]>
   courseTerms: Ref<MetaTermItem[]>
   courseCalendar: Ref<CourseCalendarItem[]>
+  courseCalendarTerm: Ref<string>
   dashboard: Ref<DashboardSummary | null>
   attendanceResults: Ref<AttendanceResultItem[]>
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
   attendanceLogs: Ref<AttendanceRecordLogItem[]>
+  attendanceLogRows: Ref<AttendanceRecordLogItem[]>
   userForm: UserForm
+  userFilters: UserFilters
+  courseFilters: CourseFilters
+  classFilters: ClassFilters
+  studentFilters: StudentFilters
+  attendanceLogFilters: AttendanceLogFilters
   profileForm: ProfileForm
   userPasswordForm: UserPasswordForm
   courseForm: CourseForm
@@ -95,6 +142,21 @@ export type AdminFlowDeps = {
   studentSaving: Ref<boolean>
   studentDeleting: Ref<boolean>
   adminError: Ref<string>
+  userPage: Ref<number>
+  userPageSize: Ref<number>
+  userTotalPages: Ref<number>
+  coursePage: Ref<number>
+  coursePageSize: Ref<number>
+  courseTotalPages: Ref<number>
+  classPage: Ref<number>
+  classPageSize: Ref<number>
+  classTotalPages: Ref<number>
+  studentPage: Ref<number>
+  studentPageSize: Ref<number>
+  studentTotalPages: Ref<number>
+  attendanceLogsPage: Ref<number>
+  attendanceLogsPageSize: Ref<number>
+  attendanceLogsTotalPages: Ref<number>
   showAdminToast: (message: string) => void
   closeUserModal: () => void
   closeUserPasswordModal: () => void
@@ -121,49 +183,106 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   }
 
   async function loadAttendanceLogsData() {
-    const attendanceLogPageResult = await api.listAttendanceRecordLogs()
+    const attendanceLogPageResult = await api.listAttendanceRecordLogs({
+      page: deps.attendanceLogsPage.value,
+      page_size: deps.attendanceLogsPageSize.value,
+      student_id: deps.attendanceLogFilters.studentId,
+      operator_login_id: deps.attendanceLogFilters.operatorStudentId,
+      operation_type: deps.attendanceLogFilters.operationType,
+      new_status: deps.attendanceLogFilters.newStatus,
+      operated_date: deps.attendanceLogFilters.operatedDate,
+    })
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
+    deps.attendanceLogRows.value = attendanceLogPageResult.items ?? []
+    deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))
   }
 
   async function loadCourseCalendarData() {
-    const [terms, classes, calendar, freeTimeList, settings] = await Promise.all([
+    const [terms, settings] = await Promise.all([
       api.listMetaTerms(),
-      api.listAllClasses(),
-      api.adminCourseCalendar(),
-      api.adminFreeTimeCalendar(),
       api.getSystemSettings(),
     ])
+    const targetTerm = deps.courseCalendarTerm.value.trim() || selectDefaultTermName(terms) || ''
+    const [calendar, freeTimeList] = await Promise.all([
+      api.adminCourseCalendar(targetTerm),
+      api.adminFreeTimeCalendar(targetTerm),
+    ])
     deps.courseTerms.value = terms
-    deps.classes.value = classes
+    deps.courseCalendarTerm.value = targetTerm
     deps.courseCalendar.value = calendar ?? []
     deps.freeTimes.value = freeTimeList ?? []
     deps.systemSettings.value = settings
   }
 
   async function loadCourseManageData() {
-    const [courses, terms, classes] = await Promise.all([api.listAllCourses(), api.listMetaTerms(), api.listAllClasses()])
-    deps.courses.value = courses
+    const [coursePageResult, terms, classes] = await Promise.all([
+      api.listCourses({
+        page: deps.coursePage.value,
+        page_size: deps.coursePageSize.value,
+        term: deps.courseFilters.term,
+        course_name: deps.courseFilters.courseName,
+        teacher_name: deps.courseFilters.teacherName,
+        class_id: deps.courseFilters.classId === '' ? '' : Number(deps.courseFilters.classId),
+      }),
+      api.listMetaTerms(),
+      api.listClassOptions(),
+    ])
+    deps.courseRows.value = coursePageResult.items ?? []
     deps.courseTerms.value = terms
-    deps.classes.value = classes
+    deps.classes.value = classes as unknown as ClassItem[]
+    deps.courseTotalPages.value = Math.max(1, Math.ceil((coursePageResult.total ?? 0) / deps.coursePageSize.value))
   }
 
   async function loadClassManageData() {
-    const [classes, students] = await Promise.all([api.listAllClasses(), api.listAllStudents()])
-    deps.classes.value = classes
-    deps.students.value = students
+    const [classPageResult, students] = await Promise.all([
+      api.listClasses({
+        page: deps.classPage.value,
+        page_size: deps.classPageSize.value,
+        grade: deps.classFilters.grade,
+        major_name: deps.classFilters.majorName,
+        class_name: deps.classFilters.className,
+      }),
+      api.listStudentOptions({ binding: 'unbound' }),
+    ])
+    deps.classRows.value = classPageResult.items ?? []
+    deps.students.value = students as unknown as StudentItem[]
+    deps.classTotalPages.value = Math.max(1, Math.ceil((classPageResult.total ?? 0) / deps.classPageSize.value))
   }
 
   async function loadStudentManageData() {
-    const [students, classes] = await Promise.all([api.listAllStudents(), api.listAllClasses()])
-    deps.students.value = students
-    deps.classes.value = classes
+    const [studentPageResult, classes] = await Promise.all([
+      api.listStudents({
+        page: deps.studentPage.value,
+        page_size: deps.studentPageSize.value,
+        student_id: deps.studentFilters.studentId,
+        real_name: deps.studentFilters.realName,
+        class_name: deps.studentFilters.className,
+      }),
+      api.listClassOptions(),
+    ])
+    deps.studentRows.value = studentPageResult.items ?? []
+    deps.classes.value = classes as unknown as ClassItem[]
+    deps.studentTotalPages.value = Math.max(1, Math.ceil((studentPageResult.total ?? 0) / deps.studentPageSize.value))
   }
 
   async function loadUserManageData() {
-    const [users, classes, terms] = await Promise.all([api.listAllUsers(), api.listAllClasses(), api.listMetaTerms()])
-    deps.users.value = users
-    deps.classes.value = classes
+    const [userPageResult, classes, terms] = await Promise.all([
+      api.listUsers({
+        page: deps.userPage.value,
+        page_size: deps.userPageSize.value,
+        login_id: deps.userFilters.studentId,
+        real_name: deps.userFilters.realName,
+        managed_class_name: deps.userFilters.managedClassName,
+        role: deps.userFilters.role,
+        status: deps.userFilters.status,
+      }),
+      api.listClassOptions(),
+      api.listMetaTerms(),
+    ])
+    deps.userRows.value = userPageResult.items ?? []
+    deps.classes.value = classes as unknown as ClassItem[]
     deps.courseTerms.value = terms
+    deps.userTotalPages.value = Math.max(1, Math.ceil((userPageResult.total ?? 0) / deps.userPageSize.value))
   }
 
   async function loadSettingsData() {

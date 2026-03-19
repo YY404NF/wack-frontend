@@ -1,10 +1,13 @@
 import { request } from './client'
 import { apiPaths } from './paths'
-import type { FreeTimeInput, FreeTimeItem, FreeTimeQuery, PageResult } from './types'
+import type { FreeTimeEditorItem, FreeTimeInput, FreeTimeItem, FreeTimeQuery, PageResult } from './types'
 
 export const freeTimesApi = {
-  adminFreeTimeCalendar() {
-    return request<FreeTimeItem[] | null>(apiPaths.admin.freeTimeCalendar)
+  adminFreeTimeCalendar(term = '') {
+    const params = new URLSearchParams()
+    if (term.trim()) params.set('term', term.trim())
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<FreeTimeItem[] | null>(`${apiPaths.admin.freeTimeCalendar}${suffix}`)
   },
   listFreeTimes(query: FreeTimeQuery = {}) {
     const params = new URLSearchParams()
@@ -14,20 +17,11 @@ export const freeTimesApi = {
     if (query.login_id) params.set('login_id', query.login_id)
     return request<PageResult<FreeTimeItem>>(`${apiPaths.shared.freeTimes}?${params.toString()}`)
   },
-  async listAllFreeTimes(query: Omit<FreeTimeQuery, 'page' | 'page_size'> = {}) {
-    const pageSize = 100
-    let page = 1
-    let total = 0
-    const items: FreeTimeItem[] = []
-
-    do {
-      const result = await this.listFreeTimes({ ...query, page, page_size: pageSize })
-      items.push(...(result.items ?? []))
-      total = result.total ?? items.length
-      page += 1
-    } while (items.length < total)
-
-    return items
+  listFreeTimeEditor(query: { term: string; login_id?: string }) {
+    const params = new URLSearchParams()
+    params.set('term', query.term.trim())
+    if (query.login_id?.trim()) params.set('login_id', query.login_id.trim())
+    return request<FreeTimeEditorItem[] | null>(`${apiPaths.shared.freeTimeEditor}?${params.toString()}`).then((items) => items ?? [])
   },
   createFreeTime(input: FreeTimeInput) {
     return request<FreeTimeItem>(apiPaths.shared.freeTimes, {

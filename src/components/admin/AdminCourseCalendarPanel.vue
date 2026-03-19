@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import type { ClassItem, CourseCalendarItem, FreeTimeItem, MetaTermItem, SystemSetting } from '../../api'
+import type { CourseCalendarItem, FreeTimeItem, MetaTermItem, SystemSetting } from '../../api'
 import { weekdayLabels } from '../../constants'
 import { parseFreeWeeks } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
@@ -9,9 +9,13 @@ import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 const props = defineProps<{
   courseCalendar: CourseCalendarItem[]
   freeTimes: FreeTimeItem[]
-  classes: ClassItem[]
   courseTerms: MetaTermItem[]
+  selectedTerm: string
   systemSettings: SystemSetting | null
+}>()
+
+const emit = defineEmits<{
+  'update:selectedTerm': [term: string]
 }>()
 
 const WEEK_COUNT = 16
@@ -19,7 +23,6 @@ const WEEK_COUNT = 16
 const now = ref(new Date())
 const showingFreeTime = ref(false)
 const showWeekend = ref(false)
-const selectedTerm = ref('')
 const selectedWeek = ref(1)
 const hoveredCourse = ref<null | { title: string; lines: string[]; x: number; y: number }>(null)
 const tooltipRef = ref<HTMLElement | null>(null)
@@ -48,10 +51,15 @@ const activeSchedule = computed(() => scheduleMap[props.systemSettings?.current_
 const visibleWeekdays = computed(() => (showWeekend.value ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5]))
 
 const currentTerm = computed(() => selectDefaultTermName(props.courseTerms, now.value))
+const selectedTermModel = computed({
+  get: () => props.selectedTerm,
+  set: (value: string) => emit('update:selectedTerm', value),
+})
+const selectedTermMeta = computed(() => props.courseTerms.find((item) => item.name === selectedTermModel.value) ?? null)
 
 const currentWeek = computed(() => {
-  const startDate = props.systemSettings?.current_term_start_date
-  if (!startDate || selectedTerm.value !== currentTerm.value) {
+  const startDate = selectedTermMeta.value?.term_start_date
+  if (!startDate) {
     return 1
   }
   const start = new Date(`${startDate}T00:00:00`)
@@ -96,7 +104,7 @@ const currentSection = computed(() => {
 })
 
 const highlightCurrentSlot = computed(
-  () => selectedTerm.value === currentTerm.value && selectedWeek.value === currentWeek.value && visibleWeekdays.value.includes(currentWeekday.value),
+  () => selectedTermModel.value === currentTerm.value && selectedWeek.value === currentWeek.value && visibleWeekdays.value.includes(currentWeekday.value),
 )
 
 const termOptions = computed(() => {
@@ -116,7 +124,7 @@ const gridStyle = computed(() => ({
 
 const filteredCourses = computed(() =>
   props.courseCalendar.filter((item) => {
-    return item.term === selectedTerm.value
+    return item.term === selectedTermModel.value
   }),
 )
 
@@ -190,9 +198,7 @@ const freeTimeCells = computed(() =>
       Array.from(
         new Map(
           props.freeTimes
-            .filter(
-              (item) => item.term === selectedTerm.value && item.weekday === weekday && item.section === row.section && freeTimeMatchesWeek(item),
-            )
+            .filter((item) => item.term === selectedTermModel.value && item.weekday === weekday && item.section === row.section && freeTimeMatchesWeek(item))
             .map((item) => [item.login_id, item]),
         ).values(),
       ).sort((left, right) => left.real_name.localeCompare(right.real_name, 'zh-Hans-CN')),
@@ -272,8 +278,8 @@ const tooltipStyle = computed(() => {
 })
 
 watch(currentTerm, (value) => {
-  if (!selectedTerm.value || !termOptions.value.includes(selectedTerm.value)) {
-    selectedTerm.value = value
+  if (!selectedTermModel.value || !termOptions.value.includes(selectedTermModel.value)) {
+    selectedTermModel.value = value
   }
 })
 
@@ -286,17 +292,7 @@ watch(hoveredCourse, async (value) => {
   updateTooltipSize()
 })
 
-watch(
-  () => props.systemSettings?.current_term_start_date,
-  () => {
-    if (selectedTerm.value === currentTerm.value) {
-      selectedWeek.value = currentWeek.value
-    }
-  },
-)
-
 onMounted(() => {
-  selectedTerm.value = termOptions.value.includes(currentTerm.value) ? currentTerm.value : (termOptions.value[0] ?? '')
   selectedWeek.value = currentWeek.value
   window.addEventListener('resize', updateTooltipSize)
   timerId = window.setInterval(() => {
@@ -305,10 +301,14 @@ onMounted(() => {
 })
 
 watch(termOptions, (terms) => {
-  if (!selectedTerm.value || !terms.includes(selectedTerm.value)) {
-    selectedTerm.value = terms.includes(currentTerm.value) ? currentTerm.value : (terms[0] ?? '')
+  if (!selectedTermModel.value || !terms.includes(selectedTermModel.value)) {
+    selectedTermModel.value = terms.includes(currentTerm.value) ? currentTerm.value : (terms[0] ?? '')
   }
 }, { immediate: true })
+
+watch(selectedTermModel, () => {
+  selectedWeek.value = currentWeek.value
+})
 
 onBeforeUnmount(() => {
   window.clearInterval(timerId)
@@ -321,7 +321,7 @@ onBeforeUnmount(() => {
   <section class="workspace-card course-calendar-panel">
     <div class="course-calendar-toolbar course-calendar-toolbar-primary">
       <label class="field course-calendar-term-field course-calendar-toolbar-term">
-        <select v-model="selectedTerm">
+        <select v-model="selectedTermModel">
           <option v-for="term in termOptions" :key="term" :value="term">{{ term }}</option>
         </select>
       </label>

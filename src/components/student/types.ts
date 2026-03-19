@@ -1,4 +1,4 @@
-import type { AvailableCourseItem, ClassItem, ClassStudentItem, FreeTimeItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
+import type { AvailableCourseItem, ClassItem, ClassStudentItem, FreeTimeEditorItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
 import type { AppTab } from '../../constants'
 
 export type StudentWorkspaceProps = {
@@ -13,7 +13,7 @@ export type StudentWorkspaceProps = {
   managedClass: ClassItem | null
   managedClassStudents: ClassStudentItem[]
   managedClassStudentsModalOpen: boolean
-  freeTimes: FreeTimeItem[]
+  freeTimes: FreeTimeEditorItem[]
   freeTimeModalOpen: boolean
   freeTimeDraft: Record<string, number[]>
   freeTimeTerm: string

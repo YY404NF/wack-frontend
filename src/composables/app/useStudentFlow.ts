@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AvailableCourseItem, type FreeTimeItem, type MetaSectionItem, type SystemSetting } from '../../api'
+import { api, type AvailableCourseItem, type FreeTimeEditorItem, type MetaSectionItem, type SystemSetting } from '../../api'
 import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, FREE_TIME_WEEK_COUNT, buildFreeTimeCellKey, createFreeTimeDraft, formatFreeWeeks, parseFreeWeeks, type FreeTimeDraft } from '../../utils/free-time'
 
 type FreeTimeForm = {
@@ -12,7 +12,7 @@ type FreeTimeForm = {
 
 type StudentFlowDeps = {
   availableCourses: Ref<AvailableCourseItem[]>
-  freeTimes: Ref<FreeTimeItem[]>
+  freeTimes: Ref<FreeTimeEditorItem[]>
   systemSettings: Ref<SystemSetting | null>
   currentSchedule: Ref<'summer' | 'autumn'>
   metaSections: Ref<MetaSectionItem[]>
@@ -41,7 +41,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
   }
 
   async function loadStudentFreeTimes() {
-    deps.freeTimes.value = await api.listAllFreeTimes()
+    deps.freeTimes.value = await api.listFreeTimeEditor({ term: deps.freeTimeTerm.value })
     if (deps.freeTimeModalOpen.value) {
       syncFreeTimeDraft()
     }
@@ -63,7 +63,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
       } else {
         await api.createFreeTime(payload)
       }
-      deps.freeTimes.value = await api.listAllFreeTimes()
+      deps.freeTimes.value = await api.listFreeTimeEditor({ term: deps.freeTimeForm.term.trim() })
       deps.resetFreeTimeForm()
       deps.showStudentToast(successMessage)
     } catch (error) {
@@ -148,7 +148,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
       }
 
       await Promise.all(tasks)
-      deps.freeTimes.value = await api.listAllFreeTimes()
+      deps.freeTimes.value = await api.listFreeTimeEditor({ term })
       syncFreeTimeDraft()
       deps.freeTimeModalOpen.value = false
       deps.showStudentToast('空闲时间已保存')
@@ -159,7 +159,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
     }
   }
 
-  function editFreeTime(item: FreeTimeItem) {
+  function editFreeTime(item: FreeTimeEditorItem) {
     deps.freeTimeForm.term = item.term
     deps.freeTimeForm.weekday = item.weekday
     deps.freeTimeForm.section = item.section

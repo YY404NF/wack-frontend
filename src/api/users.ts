@@ -3,29 +3,17 @@ import { apiPaths } from './paths'
 import type { PageResult, UserItem, UserPageQuery } from './types'
 
 export const usersApi = {
-  listUsers(query: UserPageQuery = {}) {
+  listUsers(query: UserPageQuery & { login_id?: string; real_name?: string; managed_class_name?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 10))
     if (query.role) params.set('role', query.role)
     if (query.status) params.set('status', query.status)
     if (query.keyword) params.set('keyword', query.keyword)
+    if (query.login_id?.trim()) params.set('login_id', query.login_id.trim())
+    if (query.real_name?.trim()) params.set('real_name', query.real_name.trim())
+    if (query.managed_class_name?.trim()) params.set('managed_class_name', query.managed_class_name.trim())
     return request<PageResult<UserItem>>(`${apiPaths.admin.users}?${params.toString()}`)
-  },
-  async listAllUsers(query: Omit<UserPageQuery, 'page' | 'page_size'> = {}) {
-    const pageSize = 100
-    let page = 1
-    let total = 0
-    const items: UserItem[] = []
-
-    do {
-      const result = await this.listUsers({ ...query, page, page_size: pageSize })
-      items.push(...(result.items ?? []))
-      total = result.total ?? items.length
-      page += 1
-    } while (items.length < total)
-
-    return items
   },
   createUser(input: { login_id: string; real_name: string; password: string; role: number; status: number; managed_class_id?: number | null }) {
     return request<UserItem>(apiPaths.admin.users, {

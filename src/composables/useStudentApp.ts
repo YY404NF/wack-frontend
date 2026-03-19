@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 
-import { api, type AvailableCourseItem, type ClassItem, type ClassStudentItem, type FreeTimeItem, type MetaSectionItem, type SessionUser, type SystemSetting } from '../api'
+import { api, type AvailableCourseItem, type ClassItem, type ClassStudentItem, type FreeTimeEditorItem, type MetaSectionItem, type SessionUser, type SystemSetting } from '../api'
 import type { AppTab } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel } from './app/view'
@@ -31,7 +31,7 @@ type StudentAppDeps = {
   managedClass: Ref<ClassItem | null>
   managedClassStudents: Ref<ClassStudentItem[]>
   managedClassStudentsModalOpen: Ref<boolean>
-  freeTimes: Ref<FreeTimeItem[]>
+  freeTimes: Ref<FreeTimeEditorItem[]>
   freeTimeModalOpen: Ref<boolean>
   freeTimeTerm: Ref<string>
   freeTimeDraft: Ref<FreeTimeDraft>
@@ -151,7 +151,7 @@ export function useStudentApp(deps: StudentAppDeps) {
     deps.studentFreeTimesLoaded.value = true
   }
 
-  function editFreeTime(item: FreeTimeItem) {
+  function editFreeTime(item: FreeTimeEditorItem) {
     studentFlow.editFreeTime(item)
     void deps.setActiveTab('settings', 'push')
   }

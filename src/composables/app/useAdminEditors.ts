@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type CourseItem, type FreeTimeItem, type MetaTermItem, type UserItem } from '../../api'
+import { api, type CourseItem, type FreeTimeEditorItem, type MetaTermItem, type UserItem } from '../../api'
 import { buildFreeTimeCellKey, createFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
 import { selectDefaultTermId, selectDefaultTermName } from '../../utils/terms'
 
@@ -19,7 +19,7 @@ type UseAdminEditorsDeps = {
   freeTimeTargetName: Ref<string>
   freeTimeTargetLoginId: Ref<string>
   userFreeTimeTerm: Ref<string>
-  userFreeTimeItems: Ref<FreeTimeItem[]>
+  userFreeTimeItems: Ref<FreeTimeEditorItem[]>
   userFreeTimeDraft: Ref<Record<string, number[]>>
   userFreeTimeModalOpen: Ref<boolean>
   courseModalOpen: Ref<boolean>
@@ -29,13 +29,13 @@ type UseAdminEditorsDeps = {
 }
 
 export function useAdminEditors(deps: UseAdminEditorsDeps) {
-  function createUserFreeTimeDraft(items: FreeTimeItem[], term: string) {
+  function createUserFreeTimeDraft(items: FreeTimeEditorItem[], term: string) {
     deps.userFreeTimeDraft.value = createFreeTimeDraft(items, term)
   }
 
-  async function loadUserFreeTimeItems(loginId: string) {
-    deps.userFreeTimeItems.value = await api.listAllFreeTimes({ login_id: loginId })
-    createUserFreeTimeDraft(deps.userFreeTimeItems.value, deps.userFreeTimeTerm.value)
+  async function loadUserFreeTimeItems(loginId: string, term = deps.userFreeTimeTerm.value) {
+    deps.userFreeTimeItems.value = await api.listFreeTimeEditor({ login_id: loginId, term })
+    createUserFreeTimeDraft(deps.userFreeTimeItems.value, term)
   }
 
   async function openUserFreeTimeModal(user: UserItem) {
@@ -49,7 +49,7 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
     deps.userFreeTimeTerm.value = selectDefaultTermName(deps.courseTerms.value) || getCurrentAcademicTerm()
     deps.userFreeTimeModalOpen.value = true
     try {
-      await loadUserFreeTimeItems(user.login_id)
+      await loadUserFreeTimeItems(user.login_id, deps.userFreeTimeTerm.value)
     } catch (error) {
       deps.adminError.value = error instanceof Error ? error.message : '加载空闲时间失败'
       deps.userFreeTimeModalOpen.value = false
@@ -63,9 +63,13 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
     }
   }
 
-  function updateUserFreeTimeTerm(term: string) {
+  async function updateUserFreeTimeTerm(term: string) {
     deps.userFreeTimeTerm.value = term
-    createUserFreeTimeDraft(deps.userFreeTimeItems.value, term)
+    if (!deps.freeTimeTargetLoginId.value) {
+      createUserFreeTimeDraft(deps.userFreeTimeItems.value, term)
+      return
+    }
+    await loadUserFreeTimeItems(deps.freeTimeTargetLoginId.value, term)
   }
 
   function toggleUserFreeTimeWeek(payload: { weekday: number; section: number; weekNo: number }) {

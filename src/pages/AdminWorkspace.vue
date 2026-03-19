@@ -92,6 +92,7 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
+  updateCourseCalendarTerm: [term: string]
   updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
@@ -179,6 +180,7 @@ function closeAboutModal() {
           @toggle-course-selection="emit('toggleCourseSelection', $event)"
           @toggle-course-page-selection="emit('toggleCoursePageSelection')"
           @bulk-delete-courses="emit('bulkDeleteCourses')"
+          @update-course-calendar-term="emit('updateCourseCalendarTerm', $event)"
           @open-create-class-modal="emit('openCreateClassModal')"
           @open-edit-class-modal="emit('openEditClassModal', $event)"
           @open-class-student-modal="emit('openClassStudentModal', $event)"
