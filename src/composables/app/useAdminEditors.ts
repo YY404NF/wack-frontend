@@ -1,7 +1,8 @@
 import type { Ref } from 'vue'
 
-import { api, type CourseItem, type FreeTimeItem, type UserItem } from '../../api'
+import { api, type CourseItem, type FreeTimeItem, type MetaTermItem, type UserItem } from '../../api'
 import { buildFreeTimeCellKey, createFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
+import { selectDefaultTermId, selectDefaultTermName } from '../../utils/terms'
 
 type CourseForm = {
   termId: number | ''
@@ -14,6 +15,7 @@ type UseAdminEditorsDeps = {
   adminError: Ref<string>
   courseLoading: Ref<boolean>
   userFreeTimeLoading: Ref<boolean>
+  courseTerms: Ref<MetaTermItem[]>
   freeTimeTargetName: Ref<string>
   freeTimeTargetLoginId: Ref<string>
   userFreeTimeTerm: Ref<string>
@@ -44,7 +46,7 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
     deps.adminError.value = ''
     deps.freeTimeTargetName.value = `${user.real_name}（${user.login_id}）`
     deps.freeTimeTargetLoginId.value = user.login_id
-    deps.userFreeTimeTerm.value = getCurrentAcademicTerm()
+    deps.userFreeTimeTerm.value = selectDefaultTermName(deps.courseTerms.value) || getCurrentAcademicTerm()
     deps.userFreeTimeModalOpen.value = true
     try {
       await loadUserFreeTimeItems(user.login_id)
@@ -53,7 +55,7 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
       deps.userFreeTimeModalOpen.value = false
       deps.freeTimeTargetName.value = ''
       deps.freeTimeTargetLoginId.value = ''
-      deps.userFreeTimeTerm.value = getCurrentAcademicTerm()
+      deps.userFreeTimeTerm.value = selectDefaultTermName(deps.courseTerms.value) || getCurrentAcademicTerm()
       deps.userFreeTimeItems.value = []
       deps.userFreeTimeDraft.value = {}
     } finally {
@@ -96,6 +98,7 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
 
   function openCreateCourseModal() {
     deps.resetCourseForm()
+    deps.courseForm.termId = selectDefaultTermId(deps.courseTerms.value) ?? ''
     deps.courseModalOpen.value = true
   }
 

@@ -87,7 +87,7 @@ export function createUserFilters(): AdminUserFilters {
 
 export function createCourseFilters(): AdminCourseFilters {
   return {
-    term: getCurrentAcademicTerm(),
+    term: '',
     courseName: '',
     teacherName: '',
     classId: '',

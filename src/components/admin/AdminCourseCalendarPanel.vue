@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import type { ClassItem, CourseCalendarItem, FreeTimeItem, SystemSetting } from '../../api'
+import type { ClassItem, CourseCalendarItem, FreeTimeItem, MetaTermItem, SystemSetting } from '../../api'
 import { weekdayLabels } from '../../constants'
 import { parseFreeWeeks } from '../../utils/free-time'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<{
   courseCalendar: CourseCalendarItem[]
   freeTimes: FreeTimeItem[]
   classes: ClassItem[]
+  courseTerms: MetaTermItem[]
   systemSettings: SystemSetting | null
 }>()
 
@@ -45,14 +47,7 @@ const scheduleMap = {
 const activeSchedule = computed(() => scheduleMap[props.systemSettings?.current_schedule ?? 'summer'])
 const visibleWeekdays = computed(() => (showWeekend.value ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5]))
 
-const currentTerm = computed(() => {
-  const year = now.value.getFullYear()
-  const month = now.value.getMonth() + 1
-  if (month >= 2 && month <= 8) {
-    return `${year - 1}-${year}-2`
-  }
-  return `${year}-${year + 1}-1`
-})
+const currentTerm = computed(() => selectDefaultTermName(props.courseTerms, now.value))
 
 const currentWeek = computed(() => {
   const startDate = props.systemSettings?.current_term_start_date
@@ -105,7 +100,10 @@ const highlightCurrentSlot = computed(
 )
 
 const termOptions = computed(() => {
-  const terms = new Set<string>([currentTerm.value])
+  if (props.courseTerms.length > 0) {
+    return sortTermsForSelect(props.courseTerms).map((item) => item.name)
+  }
+  const terms = new Set<string>()
   for (const item of props.courseCalendar) terms.add(item.term)
   for (const item of props.freeTimes) terms.add(item.term)
   return Array.from(terms).sort((left, right) => right.localeCompare(left, 'zh-Hans-CN'))
@@ -274,7 +272,7 @@ const tooltipStyle = computed(() => {
 })
 
 watch(currentTerm, (value) => {
-  if (!selectedTerm.value) {
+  if (!selectedTerm.value || !termOptions.value.includes(selectedTerm.value)) {
     selectedTerm.value = value
   }
 })
@@ -305,6 +303,12 @@ onMounted(() => {
     now.value = new Date()
   }, 60_000)
 })
+
+watch(termOptions, (terms) => {
+  if (!selectedTerm.value || !terms.includes(selectedTerm.value)) {
+    selectedTerm.value = terms.includes(currentTerm.value) ? currentTerm.value : (terms[0] ?? '')
+  }
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   window.clearInterval(timerId)

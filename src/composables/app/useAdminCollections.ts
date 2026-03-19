@@ -10,6 +10,7 @@ import type {
   AdminUserFilters,
 } from '../../components/admin/form-types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import { usePagedCollection } from './usePagedCollection'
 import { useSelection } from './useSelection'
 
@@ -18,6 +19,7 @@ export type UseAdminCollectionsDeps = {
   classes: Ref<ClassItem[]>
   students: Ref<StudentItem[]>
   courses: Ref<CourseItem[]>
+  courseTerms: Ref<{ id: number; name: string; term_start_date: string }[]>
   attendanceLogs: Ref<AttendanceRecordLogItem[]>
   classStudents: Ref<ClassStudentItem[]>
   userFilters: AdminUserFilters
@@ -35,6 +37,9 @@ export type AdminCollectionsState = ReturnType<typeof useAdminCollections>
 
 export function useAdminCollections(deps: UseAdminCollectionsDeps) {
   const userFreeTimeTermOptions = computed(() => {
+    if (deps.courseTerms.value.length > 0) {
+      return sortTermsForSelect(deps.courseTerms.value).map((item) => item.name)
+    }
     const terms = new Set<string>([deps.userFreeTimeTerm.value, getCurrentAcademicTerm()])
     for (const item of deps.userFreeTimeItems.value) {
       terms.add(item.term)
@@ -166,6 +171,7 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
 
   return {
     userFreeTimeTermOptions,
+    defaultUserFreeTimeTerm: computed(() => selectDefaultTermName(deps.courseTerms.value)),
     filteredClassStudents,
     usersView,
     classesView,

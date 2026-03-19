@@ -16,6 +16,8 @@ const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
   logout: []
   openFreeTimeModal: []
+  openManagedClassStudentsModal: []
+  closeManagedClassStudentsModal: []
   closeFreeTimeModal: []
   toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
   toggleFreeTimeBlock: [payload: { weekday: number; section: number }]
@@ -118,6 +120,8 @@ onBeforeUnmount(() => {
         @logout="emit('logout')"
         @open-about="openAboutEntry"
         @open-free-time-modal="emit('openFreeTimeModal')"
+        @open-managed-class-students-modal="emit('openManagedClassStudentsModal')"
+        @close-managed-class-students-modal="emit('closeManagedClassStudentsModal')"
         @close-free-time-modal="emit('closeFreeTimeModal')"
         @toggle-free-time-week="emit('toggleFreeTimeWeek', $event)"
         @toggle-free-time-block="emit('toggleFreeTimeBlock', $event)"

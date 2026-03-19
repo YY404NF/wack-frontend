@@ -31,6 +31,7 @@ export const apiPaths = {
   },
   student: {
     coursesAvailable: buildPath(STUDENT_PREFIX, 'courses', 'available'),
+    managedClass: buildPath(STUDENT_PREFIX, 'managed-class'),
     attendanceSessions: buildPath(STUDENT_PREFIX, 'attendance-sessions'),
     attendanceRecords: buildPath(STUDENT_PREFIX, 'attendance-records'),
   },

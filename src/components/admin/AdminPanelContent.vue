@@ -144,6 +144,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       :course-calendar="courseCalendar"
       :free-times="freeTimes"
       :classes="allClasses"
+      :course-terms="courseTerms"
       :system-settings="systemSettings"
     />
 
@@ -275,6 +276,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       key="user-manage"
       :users="users"
       :all-classes="allClasses"
+      :course-terms="courseTerms"
       :current-user-id="currentUserId"
       :user-form="userForm"
       :user-filters="userFilters"

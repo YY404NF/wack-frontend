@@ -3,6 +3,8 @@ import { computed, reactive, ref, watch } from 'vue'
 import { api, type MetaTermItem } from '../../api'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminSettingsProps } from './types'
+import { getCurrentAcademicTerm } from '../../utils/free-time'
+import { sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<AdminSettingsProps>()
 
@@ -38,7 +40,7 @@ const termPreviewName = computed(() => `${termForm.startYear}-${termForm.startYe
 watch(
   () => props.courseTerms,
   (terms) => {
-    localTerms.value = [...terms].sort((left, right) => right.name.localeCompare(left.name, 'zh-Hans-CN'))
+    localTerms.value = sortTermsForSelect(terms)
   },
   { immediate: true },
 )
@@ -55,8 +57,9 @@ function parseTermName(name: string) {
 }
 
 function resetTermForm() {
-  termForm.startYear = new Date().getFullYear()
-  termForm.termNo = 1
+  const parsed = parseTermName(getCurrentAcademicTerm())
+  termForm.startYear = parsed?.startYear ?? new Date().getFullYear()
+  termForm.termNo = parsed?.termNo ?? 1
   termForm.termStartDate = ''
   termFormError.value = ''
   editingTermId.value = null

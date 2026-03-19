@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
   api,
@@ -13,6 +13,7 @@ import {
 } from '../../api'
 import { sectionLabels, weekdayLabels } from '../../constants'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminCourseManageProps } from './types'
 
@@ -46,12 +47,10 @@ const courseColumns = [
   { key: 'student_count', label: '人数', colClass: 'col-pct-10' },
 ] as const
 const termOptions = computed(() => {
-  const terms = new Set<string>([currentTerm])
-  for (const item of props.courseTerms) {
-    if (item.name) {
-      terms.add(item.name)
-    }
+  if (props.courseTerms.length > 0) {
+    return sortTermsForSelect(props.courseTerms).map((item) => item.name)
   }
+  const terms = new Set<string>([currentTerm])
   for (const item of props.courses) {
     if (item.term) {
       terms.add(item.term)
@@ -59,6 +58,16 @@ const termOptions = computed(() => {
   }
   return Array.from(terms).sort((left, right) => right.localeCompare(left, 'zh-Hans-CN'))
 })
+
+watch(
+  termOptions,
+  (terms) => {
+    if (!props.courseFilters.term || !terms.includes(props.courseFilters.term)) {
+      props.courseFilters.term = selectDefaultTermName(props.courseTerms) || terms[0] || ''
+    }
+  },
+  { immediate: true },
+)
 const courseGroupWorkspaceCourse = ref<CourseItem | null>(null)
 const courseGroups = ref<CourseGroupItem[]>([])
 const courseGroupsLoading = ref(false)

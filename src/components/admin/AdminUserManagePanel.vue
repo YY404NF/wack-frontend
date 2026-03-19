@@ -5,6 +5,7 @@ import { roleName } from '../../composables/app/view'
 import AdminDataList from './AdminDataList.vue'
 import AdminUserFreeTimeModal from './AdminUserFreeTimeModal.vue'
 import type { AdminUserManageProps } from './types'
+import { sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<AdminUserManageProps>()
 
@@ -43,6 +44,7 @@ const canBulkFreezeUsers = computed(
 const canBulkUnfreezeUsers = computed(
   () => selectedUsers.value.length > 0 && selectedUsers.value.every((user) => user.id !== props.currentUserId && user.status !== 1),
 )
+const freeTimeTermOptions = computed(() => sortTermsForSelect(props.courseTerms).map((item) => item.name))
 const singleStatusConfirmOpen = ref(false)
 const bulkStatusConfirmOpen = ref(false)
 const pendingStatusTarget = ref<{ loginId: string; realName: string; status: number } | null>(null)
@@ -270,7 +272,7 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? 'å
       :open="userFreeTimeModalOpen"
       :target-name="freeTimeTargetName"
       :term="userFreeTimeTerm"
-      :term-options="userFreeTimeTermOptions"
+      :term-options="freeTimeTermOptions"
       :loading="userFreeTimeLoading"
       :saving="userFreeTimeSaving"
       :draft="userFreeTimeDraft"

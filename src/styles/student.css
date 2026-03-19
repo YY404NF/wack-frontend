@@ -311,6 +311,45 @@
   flex-wrap: wrap;
 }
 
+.student-managed-class-modal {
+  max-height: min(720px, calc(100dvh - 120px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.student-managed-class-meta {
+  margin: 0;
+}
+
+.student-managed-class-student-list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.student-managed-class-student-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 252, 248, 0.88);
+  border: 1px solid rgba(83, 42, 19, 0.08);
+}
+
+.student-managed-class-student-item strong,
+.student-managed-class-student-item span {
+  margin: 0;
+}
+
+.student-managed-class-student-item span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .student-settings-inline-actions {
   display: flex;
   justify-content: flex-end;

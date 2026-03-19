@@ -3,6 +3,7 @@ import type {
   AttendanceResultItem,
   ClassItem,
   ClassStudentItem,
+  CourseCalendarItem,
   CourseItem,
   FreeTimeItem,
   MetaTermItem,
@@ -62,6 +63,14 @@ export type AdminCourseManageProps = {
   selectedCourseIds: number[]
   selectedCourseCount: number
   deletingCourseName: string
+}
+
+export type AdminCourseCalendarProps = {
+  courseCalendar: CourseCalendarItem[]
+  freeTimes: FreeTimeItem[]
+  classes: ClassItem[]
+  courseTerms: MetaTermItem[]
+  systemSettings: SystemSetting | null
 }
 
 export type AdminClassManageProps = {
@@ -142,6 +151,7 @@ export type AdminSettingsProps = {
 export type AdminUserManageProps = {
   users: UserItem[]
   allClasses: ClassItem[]
+  courseTerms: MetaTermItem[]
   currentUserId?: number
   userForm: AdminUserForm
   userFilters: AdminUserFilters

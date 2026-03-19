@@ -1,6 +1,6 @@
 import { request } from './client'
 import { apiPaths } from './paths'
-import type { ClassItem, ClassStudentCandidateItem, ClassStudentItem, PageResult } from './types'
+import type { ClassItem, ClassStudentCandidateItem, ClassStudentItem, ManagedClassSnapshot, PageResult } from './types'
 
 export const classesApi = {
   listClasses(query: { page?: number; page_size?: number } = {}) {
@@ -46,6 +46,12 @@ export const classesApi = {
   },
   listClassStudents(id: number) {
     return request<ClassStudentItem[]>(`${apiPaths.admin.classes}/${id}/students`)
+  },
+  getManagedClassSnapshot() {
+    return request<ManagedClassSnapshot>(apiPaths.student.managedClass).then((payload) => ({
+      managed_class: payload.managed_class ?? null,
+      class_students: payload.class_students ?? [],
+    }))
   },
   listClassStudentCandidates() {
     return request<ClassStudentCandidateItem[]>(apiPaths.admin.classStudents)

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import type { AttendanceResultItem, MetaTermItem } from '../../api'
 import type { AdminOverviewProps } from './types'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<AdminOverviewProps>()
 
@@ -37,10 +38,10 @@ type SessionSummary = {
 }
 
 const termOptions = computed(() => {
-  const termMap = new Map<string, MetaTermItem>()
-  for (const item of props.courseTerms) {
-    termMap.set(item.name, item)
+  if (props.courseTerms.length > 0) {
+    return sortTermsForSelect(props.courseTerms)
   }
+  const termMap = new Map<string, MetaTermItem>()
   for (const item of props.attendanceResults) {
     if (!termMap.has(item.term)) {
       termMap.set(item.term, {
@@ -50,12 +51,19 @@ const termOptions = computed(() => {
       })
     }
   }
-  return Array.from(termMap.values()).sort((left, right) => right.name.localeCompare(left.name, 'zh-Hans-CN'))
+  return sortTermsForSelect(Array.from(termMap.values()))
 })
 
-if (!selectedTerm.value) {
-  selectedTerm.value = termOptions.value[0]?.name ?? ''
-}
+watch(
+  termOptions,
+  (terms) => {
+    const names = new Set(terms.map((item) => item.name))
+    if (!selectedTerm.value || !names.has(selectedTerm.value)) {
+      selectedTerm.value = selectDefaultTermName(terms)
+    }
+  },
+  { immediate: true },
+)
 
 const filteredResults = computed(() =>
   props.attendanceResults.filter((item) => !selectedTerm.value || item.term === selectedTerm.value),

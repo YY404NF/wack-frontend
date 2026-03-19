@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 
-import type { AvailableCourseItem, FreeTimeItem, MetaSectionItem, SessionUser, SystemSetting } from '../api'
+import { api, type AvailableCourseItem, type ClassItem, type ClassStudentItem, type FreeTimeItem, type MetaSectionItem, type SessionUser, type SystemSetting } from '../api'
 import type { AppTab } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel } from './app/view'
@@ -28,6 +28,9 @@ type StudentAppDeps = {
   currentSchedule: Ref<'summer' | 'autumn'>
   metaSections: Ref<MetaSectionItem[]>
   availableCourses: Ref<AvailableCourseItem[]>
+  managedClass: Ref<ClassItem | null>
+  managedClassStudents: Ref<ClassStudentItem[]>
+  managedClassStudentsModalOpen: Ref<boolean>
   freeTimes: Ref<FreeTimeItem[]>
   freeTimeModalOpen: Ref<boolean>
   freeTimeTerm: Ref<string>
@@ -90,6 +93,25 @@ export function useStudentApp(deps: StudentAppDeps) {
   async function loadRoleData() {
     deps.studentFreeTimesLoaded.value = false
     await loadStudentCoreData(true)
+    if (deps.me.value?.role === 3) {
+      const managedClassData = await api.getManagedClassSnapshot()
+      deps.managedClass.value = managedClassData.managed_class
+      deps.managedClassStudents.value = managedClassData.class_students
+      return
+    }
+    deps.managedClass.value = null
+    deps.managedClassStudents.value = []
+  }
+
+  function openManagedClassStudentsModal() {
+    if (deps.me.value?.role !== 3 || !deps.managedClass.value) {
+      return
+    }
+    deps.managedClassStudentsModalOpen.value = true
+  }
+
+  function closeManagedClassStudentsModal() {
+    deps.managedClassStudentsModalOpen.value = false
   }
 
   async function saveFreeTime() {
@@ -155,6 +177,9 @@ export function useStudentApp(deps: StudentAppDeps) {
     currentSchedule: deps.currentSchedule.value,
     metaSections: deps.metaSections.value,
     availableCourses: deps.availableCourses.value,
+    managedClass: deps.managedClass.value,
+    managedClassStudents: deps.managedClassStudents.value,
+    managedClassStudentsModalOpen: deps.managedClassStudentsModalOpen.value,
     freeTimes: deps.freeTimes.value,
     freeTimeModalOpen: deps.freeTimeModalOpen.value,
     freeTimeDraft: deps.freeTimeDraft.value,
@@ -174,6 +199,8 @@ export function useStudentApp(deps: StudentAppDeps) {
       void deps.setActiveTab(value, 'push')
     },
     openFreeTimeModal,
+    openManagedClassStudentsModal,
+    closeManagedClassStudentsModal,
     closeFreeTimeModal,
     toggleFreeTimeWeek,
     toggleFreeTimeBlock,
@@ -189,6 +216,9 @@ export function useStudentApp(deps: StudentAppDeps) {
 
   function resetStudentState() {
     deps.availableCourses.value = []
+    deps.managedClass.value = null
+    deps.managedClassStudents.value = []
+    deps.managedClassStudentsModalOpen.value = false
     deps.editingFreeTimeId.value = null
     deps.freeTimeModalOpen.value = false
     deps.freeTimeTerm.value = getCurrentAcademicTerm()

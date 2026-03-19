@@ -20,6 +20,8 @@ const emit = defineEmits<{
   logout: []
   openAbout: []
   openFreeTimeModal: []
+  openManagedClassStudentsModal: []
+  closeManagedClassStudentsModal: []
   closeFreeTimeModal: []
   toggleFreeTimeWeek: [payload: { weekday: number; section: number; weekNo: number }]
   toggleFreeTimeBlock: [payload: { weekday: number; section: number }]
@@ -681,9 +683,16 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
             <span>姓名</span>
             <strong>{{ me.real_name }}</strong>
           </div>
+          <template v-if="me.role === 3">
+            <div v-if="managedClass" class="account-line">
+              <span>负责班级</span>
+              <strong>{{ managedClass.class_name }}</strong>
+            </div>
+          </template>
           <div class="student-settings-actions">
             <button class="primary-button" type="button" @click="emit('openPasswordModal')">修改密码</button>
             <button v-if="me.role === 2" class="ghost-button" type="button" @click="emit('openFreeTimeModal')">修改空闲时间</button>
+            <button v-if="me.role === 3 && managedClass" class="ghost-button" type="button" @click="emit('openManagedClassStudentsModal')">查看班级学生</button>
           </div>
         </div>
       </article>
@@ -763,6 +772,27 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
         </button>
       </div>
     </section>
+  </Transition>
+
+  <Transition name="modal-float" appear>
+    <div v-if="managedClassStudentsModalOpen" class="modal-backdrop">
+      <article class="modal-card modal-card-narrow student-managed-class-modal">
+        <div class="modal-header">
+          <h3>班级学生</h3>
+          <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeManagedClassStudentsModal')">关闭</button>
+        </div>
+        <p class="hint student-managed-class-meta" v-if="managedClass">
+          {{ managedClass.class_name }} · {{ managedClass.student_count }}人
+        </p>
+        <div class="student-managed-class-student-list">
+          <article v-for="student in managedClassStudents" :key="student.id" class="student-managed-class-student-item">
+            <strong>{{ student.real_name }}</strong>
+            <span>{{ student.student_id }}</span>
+          </article>
+          <p v-if="managedClassStudents.length === 0" class="empty-hint">暂无班级学生数据。</p>
+        </div>
+      </article>
+    </div>
   </Transition>
 
   <Transition name="modal-float" appear>

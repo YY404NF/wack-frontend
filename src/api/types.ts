@@ -94,6 +94,11 @@ export interface ClassStudentItem {
   updated_at?: string
 }
 
+export interface ManagedClassSnapshot {
+  managed_class: ClassItem | null
+  class_students: ClassStudentItem[]
+}
+
 export interface ClassStudentCandidateItem extends ClassStudentItem {
   class_name: string
   grade: number
