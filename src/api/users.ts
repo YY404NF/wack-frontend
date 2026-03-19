@@ -12,34 +12,50 @@ export const usersApi = {
     if (query.keyword) params.set('keyword', query.keyword)
     return request<PageResult<UserItem>>(`${apiPaths.admin.users}?${params.toString()}`)
   },
-  createUser(input: { student_id: string; real_name: string; password: string; role: number; status: number }) {
+  async listAllUsers(query: Omit<UserPageQuery, 'page' | 'page_size'> = {}) {
+    const pageSize = 100
+    let page = 1
+    let total = 0
+    const items: UserItem[] = []
+
+    do {
+      const result = await this.listUsers({ ...query, page, page_size: pageSize })
+      items.push(...(result.items ?? []))
+      total = result.total ?? items.length
+      page += 1
+    } while (items.length < total)
+
+    return items
+  },
+  createUser(input: { login_id: string; real_name: string; password: string; role: number; status: number; managed_class_id?: number | null }) {
     return request<UserItem>(apiPaths.admin.users, {
       method: 'POST',
       body: JSON.stringify(input),
     })
   },
   updateUser(
-    studentId: string,
+    loginId: string,
     input: {
-      student_id: string
+      login_id: string
       real_name: string
       role: number
       status: number
+      managed_class_id?: number | null
     },
   ) {
-    return request<UserItem>(`${apiPaths.admin.users}/${studentId}`, {
+    return request<UserItem>(`${apiPaths.admin.users}/${loginId}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     })
   },
-  updateUserStatus(studentId: string, status: number) {
-    return request<Record<string, never>>(`${apiPaths.admin.users}/${studentId}/status`, {
+  updateUserStatus(loginId: string, status: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.users}/${loginId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
   },
-  resetUserPassword(studentId: string, newPassword: string) {
-    return request<Record<string, never>>(`${apiPaths.admin.users}/${studentId}/password`, {
+  resetUserPassword(loginId: string, newPassword: string) {
+    return request<Record<string, never>>(`${apiPaths.admin.users}/${loginId}/password`, {
       method: 'PATCH',
       body: JSON.stringify({ new_password: newPassword }),
     })

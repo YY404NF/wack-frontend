@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { api, type AvailableCourseItem, type FreeTimeItem, type SystemSetting } from '../../api'
+import { api, type AvailableCourseItem, type FreeTimeItem, type MetaSectionItem, type SystemSetting } from '../../api'
 import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, FREE_TIME_WEEK_COUNT, buildFreeTimeCellKey, createFreeTimeDraft, formatFreeWeeks, parseFreeWeeks, type FreeTimeDraft } from '../../utils/free-time'
 
 type FreeTimeForm = {
@@ -14,6 +14,8 @@ type StudentFlowDeps = {
   availableCourses: Ref<AvailableCourseItem[]>
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
+  currentSchedule: Ref<'summer' | 'autumn'>
+  metaSections: Ref<MetaSectionItem[]>
   freeTimeModalOpen: Ref<boolean>
   freeTimeTerm: Ref<string>
   freeTimeDraft: Ref<FreeTimeDraft>
@@ -27,17 +29,19 @@ type StudentFlowDeps = {
 
 export function useStudentFlow(deps: StudentFlowDeps) {
   async function loadStudentCoreData() {
-    const [courses, systemSettings] = await Promise.all([
+    const [courses, systemSettings, sectionsData] = await Promise.all([
       api.studentAvailableCourses(),
       api.getSystemSettings(),
+      api.getMetaSections(),
     ])
     deps.availableCourses.value = courses ?? []
     deps.systemSettings.value = systemSettings
+    deps.currentSchedule.value = sectionsData.schedule
+    deps.metaSections.value = sectionsData.list ?? []
   }
 
   async function loadStudentFreeTimes() {
-    const freeTimePage = await api.listFreeTimes()
-    deps.freeTimes.value = freeTimePage.items ?? []
+    deps.freeTimes.value = await api.listAllFreeTimes()
     if (deps.freeTimeModalOpen.value) {
       syncFreeTimeDraft()
     }
@@ -59,8 +63,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
       } else {
         await api.createFreeTime(payload)
       }
-      const freeTimePage = await api.listFreeTimes()
-      deps.freeTimes.value = freeTimePage.items ?? []
+      deps.freeTimes.value = await api.listAllFreeTimes()
       deps.resetFreeTimeForm()
       deps.showStudentToast(successMessage)
     } catch (error) {
@@ -145,8 +148,7 @@ export function useStudentFlow(deps: StudentFlowDeps) {
       }
 
       await Promise.all(tasks)
-      const freeTimePage = await api.listFreeTimes()
-      deps.freeTimes.value = freeTimePage.items ?? []
+      deps.freeTimes.value = await api.listAllFreeTimes()
       syncFreeTimeDraft()
       deps.freeTimeModalOpen.value = false
       deps.showStudentToast('空闲时间已保存')

@@ -89,12 +89,11 @@
   display: grid;
   gap: 10px;
   align-content: start;
-  overflow-y: auto;
-  padding-right: 4px;
+  justify-items: center;
 }
 
 .sidebar-link {
-  width: 100%;
+  width: min(100%, 220px);
   display: flex;
   justify-content: center;
   text-align: center;
@@ -164,6 +163,57 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+.admin-path-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 18px;
+  font-size: 1.02rem;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 245, 0.96), rgba(250, 241, 232, 0.82)),
+    radial-gradient(circle at left center, rgba(207, 90, 46, 0.08), transparent 32%);
+  color: var(--text);
+  box-shadow: 0 10px 24px rgba(41, 23, 16, 0.06);
+}
+
+.admin-path-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.admin-path-home-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.admin-path-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-path-link:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.admin-path-separator {
+  color: var(--muted);
+}
+
+.admin-path-current {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1.06em;
 }
 
 .notice-stack {

@@ -64,7 +64,7 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
       return
     }
 
-    if (deps.me.value?.role === 2 && (studentTabKeys as readonly string[]).includes(tab)) {
+    if ((deps.me.value?.role === 2 || deps.me.value?.role === 3) && (studentTabKeys as readonly string[]).includes(tab)) {
       await deps.router[mode]({ name: 'student', params: { tab: tabToStudentSegment[tab as keyof typeof tabToStudentSegment] } })
     }
   }

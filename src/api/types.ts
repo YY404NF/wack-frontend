@@ -13,10 +13,11 @@ export interface PageResult<T> {
 
 export interface SessionUser {
   id?: number
-  student_id: string
+  login_id: string
   real_name: string
   role: number
   status: number
+  managed_class_id?: number | null
   last_login_at?: string | null
 }
 
@@ -39,6 +40,29 @@ export interface SystemSetting {
   id: number
   current_term_start_date: string
   current_schedule: 'summer' | 'autumn'
+  created_at?: string
+  updated_at?: string
+}
+
+export interface MetaSectionItem {
+  section: number
+  label: string
+  start_time: string
+  end_time: string
+  check_start_time: string
+  check_end_time: string
+}
+
+export interface MetaSectionsData {
+  schedule: 'summer' | 'autumn'
+  date: string
+  list: MetaSectionItem[]
+}
+
+export interface MetaTermItem {
+  id: number
+  name: string
+  term_start_date: string
   created_at?: string
   updated_at?: string
 }
@@ -76,51 +100,94 @@ export interface ClassStudentCandidateItem extends ClassStudentItem {
   major_name: string
 }
 
+export interface StudentItem {
+  id: number
+  class_id?: number | null
+  student_id: string
+  real_name: string
+  class_name?: string | null
+  grade?: number | null
+  major_name?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 export interface CourseItem {
   id: number
+  term_id: number
   term: string
+  grade: number
   course_name: string
   teacher_name: string
-  attendance_student_count: number
+  status: number
+  student_count: number
   class_names: string[]
   class_ids: number[]
 }
 
-export interface CourseSessionItem {
+export interface CourseGroupItem {
   id: number
+  term_id: number
   course_id: number
-  session_no: number
+  status: number
+  class_names: string[]
+  class_ids: number[]
+  student_count: number
+  lesson_count: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CourseGroupStudentItem {
+  id: number
+  term_id: number
+  course_group_id: number
+  student_id: number
+  class_id?: number | null
+  status: number
+  student_no: string
+  student_name: string
+  class_name?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CourseGroupLessonItem {
+  id: number
+  term_id: number
+  course_group_id: number
   week_no: number
   weekday: number
   section: number
   building_name: string
   room_name: string
+  status: number
   created_at?: string
   updated_at?: string
 }
 
-export interface CourseStudentDetailItem {
+export interface AvailableCourseGroupClassItem {
   id: number
-  course_id: number
-  student_id: string
-  real_name: string
-  created_at?: string
-  updated_at?: string
+  class_name: string
+  grade: number
+  major_name: string
+  student_count: number
 }
 
-export interface CourseClassItem {
+export interface AvailableCourseGroupStudentItem {
   id: number
-  course_id: number
   class_id: number
-  created_at?: string
-  updated_at?: string
+  student_no: string
+  student_name: string
+  class_name: string
+  grade: number
+  major_name: string
 }
 
-export interface CourseDetail {
-  course: CourseItem
-  students: CourseStudentDetailItem[]
-  classes: CourseClassItem[]
-  sessions: CourseSessionItem[]
+export interface CourseGroupDetail {
+  course_group: CourseGroupItem
+  students: CourseGroupStudentItem[]
+  sessions: CourseGroupLessonItem[]
 }
 
 export interface CourseCalendarItem {
@@ -141,26 +208,14 @@ export interface CourseCalendarItem {
   major_names: string[]
 }
 
-export interface AdminOperationLogItem {
+export interface AttendanceRecordLogItem {
   id: number
-  operator_user_id: number
-  operator_student_id: string
-  target_table: string
-  target_id: number
-  action_type: string
-  old_value?: string | null
-  new_value?: string | null
-  created_at: string
-}
-
-export interface AttendanceDetailLogItem {
-  id: number
-  attendance_detail_id: number
-  attendance_check_id: number
+  attendance_record_id: number
+  course_group_lesson_id: number
   student_id: string
   real_name: string
   operator_user_id: number
-  operator_student_id: string
+  operator_login_id: string
   old_status?: number | null
   new_status: number
   operation_type: string
@@ -176,22 +231,28 @@ export interface DashboardSummary {
   unset: number
 }
 
-export interface AttendanceResultItem {
-  attendance_check_id: number
-  attendance_detail_id: number
+export interface AttendanceRecordItem {
+  course_group_lesson_id: number
+  attendance_record_id: number
   course_id: number
+  term_id: number
+  term: string
   course_name: string
   teacher_name: string
   week_no: number
   session_no: number
   student_id: string
+  real_name: string
+  class_name: string
   status: number
 }
+
+export type AttendanceResultItem = AttendanceRecordItem
 
 export interface FreeTimeItem {
   id: number
   term: string
-  student_id: string
+  login_id: string
   real_name: string
   weekday: number
   section: number
@@ -200,7 +261,7 @@ export interface FreeTimeItem {
 
 export interface FreeTimeInput {
   term: string
-  student_id?: string
+  login_id?: string
   weekday: number
   section: number
   free_weeks: string
@@ -210,11 +271,11 @@ export interface FreeTimeQuery {
   page?: number
   page_size?: number
   term?: string
-  student_id?: string
+  login_id?: string
 }
 
 export interface AvailableCourseItem {
-  course_session_id: number
+  course_group_lesson_id: number
   course_id: number
   course_name: string
   teacher_name: string
@@ -223,33 +284,33 @@ export interface AvailableCourseItem {
   section: number
   building_name: string
   room_name: string
-  started_at?: string | null
   can_enter: boolean
   enter_deadline: string
-  attendance_check_id?: number | null
 }
 
-export interface AttendanceStudentItem {
+export interface AttendanceRecordStudentItem {
   id: number
-  attendance_check_id: number
+  course_group_lesson_id: number
   student_id: string
   real_name: string
+  class_id?: number | null
+  class_name: string
   status: number
   status_set_by_user_id?: number | null
   status_set_at?: string | null
 }
 
-export interface AttendanceCheckDetail {
-  attendance_check: {
-    id: number
-    course_session_id: number
-    started_by_user_id: number
-    started_by_student_id: string
-    started_at: string
-  }
-  course_session: {
+export interface AttendanceClassGroupItem {
+  class_id?: number | null
+  class_name: string
+  student_count: number
+}
+
+export interface AttendanceSessionDetail {
+  course_group_lesson: {
     id: number
     course_id: number
+    session_no: number
     week_no: number
     weekday: number
     section: number
@@ -257,5 +318,11 @@ export interface AttendanceCheckDetail {
     room_name: string
   }
   course: CourseItem
-  students: AttendanceStudentItem[]
+  class_groups: AttendanceClassGroupItem[]
+  students: AttendanceRecordStudentItem[]
+}
+
+export interface SubmitAttendanceStatusesResult {
+  applied_count: number
+  ignored_count: number
 }

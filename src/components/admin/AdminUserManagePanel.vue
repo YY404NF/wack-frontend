@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { UserItem } from '../../api'
+import { roleName } from '../../composables/app/view'
+import AdminDataList from './AdminDataList.vue'
 import AdminUserFreeTimeModal from './AdminUserFreeTimeModal.vue'
 import type { AdminUserManageProps } from './types'
 
@@ -32,9 +34,9 @@ const emit = defineEmits<{
 const selectedUserIdSet = computed(() => new Set(props.selectedUserStudentIds))
 const selectableUsers = computed(() => props.users.filter((user) => user.id !== props.currentUserId))
 const areAllUsersSelected = computed(
-  () => selectableUsers.value.length > 0 && selectableUsers.value.every((user) => selectedUserIdSet.value.has(user.student_id)),
+  () => selectableUsers.value.length > 0 && selectableUsers.value.every((user) => selectedUserIdSet.value.has(user.login_id)),
 )
-const selectedUsers = computed(() => props.users.filter((user) => selectedUserIdSet.value.has(user.student_id)))
+const selectedUsers = computed(() => props.users.filter((user) => selectedUserIdSet.value.has(user.login_id)))
 const canBulkFreezeUsers = computed(
   () => selectedUsers.value.length > 0 && selectedUsers.value.every((user) => user.id !== props.currentUserId && user.status !== 2),
 )
@@ -42,9 +44,14 @@ const canBulkUnfreezeUsers = computed(
   () => selectedUsers.value.length > 0 && selectedUsers.value.every((user) => user.id !== props.currentUserId && user.status !== 1),
 )
 
-function onPageSizeChange(event: Event) {
-  emit('updateUserPageSize', Number((event.target as HTMLSelectElement).value))
-}
+const userColumns = [
+  { key: 'login_id', label: '登录账号', colClass: 'col-pct-13' },
+  { key: 'real_name', label: '姓名', colClass: 'col-pct-7' },
+  { key: 'role', label: '角色', colClass: 'col-pct-7', copyValue: (row: Record<string, unknown>) => roleName(Number(row.role)) },
+  { key: 'managed_class_id', label: '负责班级', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => Number(row.role) === 3 ? managedClassName((row.managed_class_id as number | null | undefined) ?? null) : '-' },
+  { key: 'status', label: '状态', colClass: 'col-pct-7', copyValue: (row: Record<string, unknown>) => Number(row.status) === 1 ? '正常' : '冻结' },
+  { key: 'last_login_at', label: '上次登录时间', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => formatLastLogin((row.last_login_at as string | null | undefined) ?? null) },
+] as const
 
 function formatLastLogin(value?: string | null) {
   if (!value) {
@@ -52,12 +59,26 @@ function formatLastLogin(value?: string | null) {
   }
   return value.replace('T', ' ').slice(0, 19)
 }
+
+function managedClassName(classId?: number | null) {
+  if (typeof classId !== 'number') {
+    return '-'
+  }
+  const matched = props.allClasses.find((item) => item.id === classId)
+  if (!matched) {
+    return `班级 ${classId}`
+  }
+  return matched.class_name
+}
+
+function asUserItem(row: Record<string, unknown>) {
+  return row as unknown as UserItem
+}
 </script>
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading">
-      <h2>系统用户管理</h2>
+    <div class="section-heading section-heading-titleless">
       <button class="primary-button" type="button" @click="emit('openCreateUserModal')">创建用户</button>
     </div>
 
@@ -70,7 +91,7 @@ function formatLastLogin(value?: string | null) {
         </div>
         <form class="form-grid single-column-form" @submit.prevent="emit('createUser')">
           <label class="field">
-            <span>学号</span>
+            <span>登录账号</span>
             <input v-model="userForm.studentId" autocomplete="username" />
           </label>
           <label class="field">
@@ -91,7 +112,17 @@ function formatLastLogin(value?: string | null) {
             <span>角色</span>
             <select v-model.number="userForm.role">
               <option :value="2">查课学生</option>
+              <option :value="3">学委</option>
               <option :value="1">管理员</option>
+            </select>
+          </label>
+          <label v-if="userForm.role === 3" class="field">
+            <span>负责班级</span>
+            <select v-model.number="userForm.managedClassId">
+              <option value="">请选择班级</option>
+              <option v-for="item in allClasses" :key="item.id" :value="item.id">
+                {{ item.grade }}级 {{ item.major_name }} {{ item.class_name }}
+              </option>
             </select>
           </label>
           <button class="primary-button" type="submit" :disabled="creatingUser">
@@ -144,123 +175,93 @@ function formatLastLogin(value?: string | null) {
       @toggle-cell-weeks="emit('toggleUserFreeTimeCell', $event)"
     />
 
-    <div class="table-wrap user-table-wrap">
-      <table class="data-table user-manage-table">
-        <colgroup>
-          <col class="selection-column" />
-          <col class="user-col-student-id" />
-          <col class="user-col-name" />
-          <col class="user-col-role" />
-          <col class="user-col-status" />
-          <col class="user-col-last-login" />
-          <col class="user-col-actions" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th class="selection-column">
-              <span class="visually-hidden">选择</span>
-            </th>
-            <th>学号</th>
-            <th>姓名</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th>上次登录时间</th>
-            <th class="actions-column">操作</th>
-          </tr>
-          <tr class="table-filter-row">
-            <th class="table-filter-spacer" aria-hidden="true"></th>
-            <th class="table-filter-cell">
-              <input v-model="userFilters.studentId" aria-label="按学号筛选用户" />
-            </th>
-            <th class="table-filter-cell">
-              <input v-model="userFilters.realName" aria-label="按姓名筛选用户" />
-            </th>
-            <th class="table-filter-cell">
-              <select v-model="userFilters.role" aria-label="按角色筛选用户">
-                <option value="">全部</option>
-                <option value="1">管理员</option>
-                <option value="2">查课学生</option>
-              </select>
-            </th>
-            <th class="table-filter-cell">
-              <select v-model="userFilters.status" aria-label="按状态筛选用户">
-                <option value="">全部</option>
-                <option value="1">正常</option>
-                <option value="2">冻结</option>
-              </select>
-            </th>
-            <th class="table-filter-spacer" aria-hidden="true"></th>
-            <th class="table-filter-cell table-filter-actions-cell">
-              <div class="table-filter-actions">
-                <button
-                  class="ghost-button compact-button"
-                  :class="{ selected: areAllUsersSelected }"
-                  type="button"
-                  @click="emit('toggleUserPageSelection')"
-                >
-                  全选
-                </button>
-                <button class="ghost-button compact-button danger-button" type="button" :disabled="userStatusUpdating || !canBulkFreezeUsers" @click="emit('bulkFreezeUsers')">
-                  批量冻结
-                </button>
-                <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || !canBulkUnfreezeUsers" @click="emit('bulkUnfreezeUsers')">
-                  批量解冻
-                </button>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="user in users" :key="user.student_id">
-            <td class="selection-column">
-              <input
-                type="checkbox"
-                :checked="selectedUserIdSet.has(user.student_id)"
-                :disabled="user.id === currentUserId"
-                :aria-label="`选择用户 ${user.real_name}`"
-                @change="emit('toggleUserSelection', user.student_id)"
-              />
-            </td>
-            <td>{{ user.student_id }}</td>
-            <td>{{ user.real_name }}</td>
-            <td>{{ roleName(user.role) }}</td>
-            <td>{{ user.status === 1 ? '正常' : '冻结' }}</td>
-            <td>{{ formatLastLogin(user.last_login_at) }}</td>
-            <td class="actions-column">
-              <div class="inline-actions user-actions">
-                <button class="ghost-button compact-button" type="button" :disabled="user.id === currentUserId" @click="emit('openEditUserModal', user)">编辑信息</button>
-                <button class="ghost-button compact-button" type="button" :disabled="user.id === currentUserId" @click="emit('openUserPasswordModal', user)">更改密码</button>
-                <button class="ghost-button compact-button" type="button" :disabled="user.role !== 2" @click="emit('openUserFreeTimeModal', user)">编辑空闲时间</button>
-                <button class="ghost-button compact-button danger-button" type="button" :disabled="userStatusUpdating || user.id === currentUserId || user.status === 2" @click="emit('setUserStatus', user.student_id, 2)">冻结</button>
-                <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || user.id === currentUserId || user.status === 1" @click="emit('setUserStatus', user.student_id, 1)">解冻</button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="users.length === 0">
-            <td colspan="7" class="empty-cell">暂无符合条件的用户</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="pagination-bar">
-      <div class="pagination-pages">
-        <button
-          v-for="page in userTotalPages"
-          :key="page"
-          class="ghost-button compact-button pagination-button"
-          :class="{ selected: userPage === page }"
-          type="button"
-          @click="emit('updateUserPage', page)"
-        >
-          {{ page }}
-        </button>
-      </div>
-      <div class="pagination-size">
-        <select :value="userPageSize" @change="onPageSizeChange">
-          <option v-for="size in userPageOptions" :key="size" :value="size">{{ size }}</option>
+    <AdminDataList
+      table-class="user-manage-table"
+      action-col-class="col-pct-33"
+      :rows="users as unknown as Array<Record<string, unknown>>"
+      :columns="userColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+      row-key="login_id"
+      empty-text="暂无符合条件的用户"
+      :show-selection="true"
+      :selected-row-keys="selectedUserStudentIds"
+      :is-row-selectable="(row) => Number(row.id) !== currentUserId"
+      :show-actions="true"
+      :pagination="{ page: userPage, pageSize: userPageSize, totalPages: userTotalPages, pageOptions: userPageOptions }"
+      @update-page="emit('updateUserPage', $event)"
+      @update-page-size="emit('updateUserPageSize', $event)"
+      @toggle-row-selection="emit('toggleUserSelection', String($event))"
+    >
+      <template #filter-login_id>
+        <input v-model="userFilters.studentId" aria-label="按登录账号筛选用户" />
+      </template>
+      <template #filter-real_name>
+        <input v-model="userFilters.realName" aria-label="按姓名筛选用户" />
+      </template>
+      <template #filter-role>
+        <select v-model="userFilters.role" aria-label="按角色筛选用户">
+          <option value="">全部</option>
+          <option value="1">管理员</option>
+          <option value="2">查课学生</option>
+          <option value="3">学委</option>
         </select>
-      </div>
-    </div>
+      </template>
+      <template #filter-managed_class_id>
+        <input v-model="userFilters.managedClassName" aria-label="按负责班级筛选用户" />
+      </template>
+      <template #filter-status>
+        <select v-model="userFilters.status" aria-label="按状态筛选用户">
+          <option value="">全部</option>
+          <option value="1">正常</option>
+          <option value="2">冻结</option>
+        </select>
+      </template>
+      <template #filter-actions>
+        <button
+          class="ghost-button compact-button"
+          :class="{ selected: areAllUsersSelected }"
+          type="button"
+          @click="emit('toggleUserPageSelection')"
+        >
+          全选
+        </button>
+        <button class="ghost-button compact-button danger-button" type="button" :disabled="userStatusUpdating || !canBulkFreezeUsers" @click="emit('bulkFreezeUsers')">
+          批量冻结
+        </button>
+        <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || !canBulkUnfreezeUsers" @click="emit('bulkUnfreezeUsers')">
+          批量解冻
+        </button>
+      </template>
+      <template #cell-role="{ row }">
+        {{ roleName(Number(row.role)) }}
+      </template>
+      <template #cell-managed_class_id="{ row }">
+        {{ Number(row.role) === 3 ? managedClassName((row.managed_class_id as number | null | undefined) ?? null) : '-' }}
+      </template>
+      <template #cell-status="{ row }">
+        {{ Number(row.status) === 1 ? '正常' : '冻结' }}
+      </template>
+      <template #cell-last_login_at="{ row }">
+        {{ formatLastLogin((row.last_login_at as string | null | undefined) ?? null) }}
+      </template>
+      <template #actions="{ row }">
+        <div v-if="Number(row.id) !== currentUserId" class="inline-actions user-actions">
+          <button v-if="Number(row.role) === 2" class="ghost-button compact-button" type="button" @click="emit('openUserFreeTimeModal', asUserItem(row))">编辑空闲时间</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openEditUserModal', asUserItem(row))">编辑信息</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openUserPasswordModal', asUserItem(row))">更改密码</button>
+          <button
+            class="ghost-button compact-button"
+            :class="Number(row.status) === 1 ? 'danger-button' : 'success-button'"
+            type="button"
+            :disabled="userStatusUpdating"
+            @click="emit('setUserStatus', String(row.login_id), Number(row.status) === 1 ? 2 : 1)"
+          >
+            {{ Number(row.status) === 1 ? '冻结' : '解冻' }}
+          </button>
+        </div>
+        <div v-else class="inline-actions user-actions user-actions-placeholder" aria-hidden="true">
+          <span class="ghost-button compact-button">占位</span>
+        </div>
+      </template>
+    </AdminDataList>
   </section>
 </template>

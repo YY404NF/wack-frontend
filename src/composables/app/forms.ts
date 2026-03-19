@@ -4,11 +4,12 @@ import type {
   AdminClassForm,
   AdminClassStudentFilters,
   AdminClassStudentForm,
+  AdminStudentFilters,
+  AdminStudentForm,
   AdminCourseFilters,
   AdminCourseForm,
   AdminPasswordForm,
   AdminProfileForm,
-  AdminSystemLogFilters,
   AdminUserFilters,
   AdminUserForm,
   AdminUserPasswordForm,
@@ -70,6 +71,7 @@ export function createUserForm(): AdminUserForm {
     confirmPassword: '',
     role: 2,
     status: 1,
+    managedClassId: '',
   }
 }
 
@@ -77,6 +79,7 @@ export function createUserFilters(): AdminUserFilters {
   return {
     studentId: '',
     realName: '',
+    managedClassName: '',
     role: '',
     status: '',
   }
@@ -93,15 +96,10 @@ export function createCourseFilters(): AdminCourseFilters {
 
 export function createCourseForm(): AdminCourseForm {
   return {
-    term: getCurrentAcademicTerm(),
+    termId: '',
+    grade: new Date().getFullYear(),
     courseName: '',
     teacherName: '',
-    weekday: null,
-    section: null,
-    buildingName: '',
-    roomName: '',
-    selectedWeeks: [],
-    sessions: [],
   }
 }
 
@@ -135,14 +133,19 @@ export function createClassStudentForm(): AdminClassStudentForm {
   }
 }
 
-export function createSystemLogFilters(): AdminSystemLogFilters {
+export function createStudentFilters(): AdminStudentFilters {
   return {
-    operatorStudentId: '',
-    targetTable: '',
-    actionType: '',
-    targetId: '',
-    keyword: '',
-    createdDate: '',
+    className: '',
+    studentId: '',
+    realName: '',
+  }
+}
+
+export function createStudentForm(): AdminStudentForm {
+  return {
+    classId: '',
+    studentId: '',
+    realName: '',
   }
 }
 

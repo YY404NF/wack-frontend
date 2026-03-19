@@ -112,6 +112,10 @@ body.global-scroll-lock {
   margin-bottom: 18px;
 }
 
+.section-heading-titleless {
+  justify-content: flex-start;
+}
+
 .dual-grid,
 .student-layout {
   display: grid;

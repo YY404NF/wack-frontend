@@ -1,4 +1,4 @@
-import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type { AvailableCourseItem, FreeTimeItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
 import type { AppTab } from '../../constants'
 
 export type StudentWorkspaceProps = {
@@ -7,6 +7,8 @@ export type StudentWorkspaceProps = {
   pageError: string
   toast: string
   systemSettings: SystemSetting | null
+  currentSchedule: 'summer' | 'autumn'
+  metaSections: MetaSectionItem[]
   availableCourses: AvailableCourseItem[]
   freeTimes: FreeTimeItem[]
   freeTimeModalOpen: boolean

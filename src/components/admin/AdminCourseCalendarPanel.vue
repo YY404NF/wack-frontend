@@ -19,12 +19,6 @@ const showingFreeTime = ref(false)
 const showWeekend = ref(false)
 const selectedTerm = ref('')
 const selectedWeek = ref(1)
-const selectedGrade = ref('')
-const selectedMajor = ref('')
-const selectedClass = ref('')
-const courseKeyword = ref('')
-const teacherKeyword = ref('')
-const buildingKeyword = ref('')
 const hoveredCourse = ref<null | { title: string; lines: string[]; x: number; y: number }>(null)
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipSize = ref({ width: 0, height: 0 })
@@ -50,36 +44,6 @@ const scheduleMap = {
 
 const activeSchedule = computed(() => scheduleMap[props.systemSettings?.current_schedule ?? 'summer'])
 const visibleWeekdays = computed(() => (showWeekend.value ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5]))
-
-const gradeOptions = computed(() =>
-  Array.from(new Set(props.classes.map((item) => item.grade))).sort((left, right) => right - left),
-)
-
-const majorOptions = computed(() =>
-  Array.from(
-    new Set(
-      props.classes
-        .filter((item) => !selectedGrade.value || String(item.grade) === selectedGrade.value)
-        .map((item) => item.major_name),
-    ),
-  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-)
-
-const classOptions = computed(() =>
-  Array.from(
-    new Set(
-      props.classes
-        .filter((item) => (!selectedGrade.value || String(item.grade) === selectedGrade.value) && (!selectedMajor.value || item.major_name === selectedMajor.value))
-        .map((item) => item.class_name),
-    ),
-  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-)
-
-const buildingOptions = computed(() =>
-  Array.from(new Set(props.courseCalendar.map((item) => item.building_name)))
-    .filter(Boolean)
-    .sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-)
 
 const currentTerm = computed(() => {
   const year = now.value.getFullYear()
@@ -154,14 +118,7 @@ const gridStyle = computed(() => ({
 
 const filteredCourses = computed(() =>
   props.courseCalendar.filter((item) => {
-    const byTerm = item.term === selectedTerm.value
-    const byGrade = !selectedGrade.value || item.grades.some((grade) => String(grade) === selectedGrade.value)
-    const byMajor = !selectedMajor.value || item.major_names.includes(selectedMajor.value)
-    const byClass = !selectedClass.value || item.class_names.some((className) => className.includes(selectedClass.value.trim()))
-    const byCourse = !courseKeyword.value || item.course_name.includes(courseKeyword.value.trim())
-    const byTeacher = !teacherKeyword.value || item.teacher_name.includes(teacherKeyword.value.trim())
-    const byBuilding = !buildingKeyword.value || item.building_name.includes(buildingKeyword.value.trim())
-    return byTerm && byGrade && byMajor && byClass && byCourse && byTeacher && byBuilding
+    return item.term === selectedTerm.value
   }),
 )
 
@@ -238,7 +195,7 @@ const freeTimeCells = computed(() =>
             .filter(
               (item) => item.term === selectedTerm.value && item.weekday === weekday && item.section === row.section && freeTimeMatchesWeek(item),
             )
-            .map((item) => [item.student_id, item]),
+            .map((item) => [item.login_id, item]),
         ).values(),
       ).sort((left, right) => left.real_name.localeCompare(right.real_name, 'zh-Hans-CN')),
     ),
@@ -322,15 +279,6 @@ watch(currentTerm, (value) => {
   }
 })
 
-watch([selectedGrade, selectedMajor], () => {
-  if (selectedMajor.value && !majorOptions.value.includes(selectedMajor.value)) {
-    selectedMajor.value = ''
-  }
-  if (selectedClass.value && !classOptions.value.includes(selectedClass.value)) {
-    selectedClass.value = ''
-  }
-})
-
 watch(hoveredCourse, async (value) => {
   if (!value) {
     tooltipSize.value = { width: 0, height: 0 }
@@ -367,20 +315,8 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="workspace-card course-calendar-panel">
-    <div class="section-heading course-calendar-heading">
-      <h2>全院课程表</h2>
-    </div>
-
     <div class="course-calendar-toolbar course-calendar-toolbar-primary">
-      <button
-        class="ghost-button compact-button course-calendar-switch"
-        :class="{ selected: showingFreeTime }"
-        type="button"
-        @click="showingFreeTime = !showingFreeTime"
-      >
-        切换课程/空闲时间
-      </button>
-      <label class="field course-calendar-term-field">
+      <label class="field course-calendar-term-field course-calendar-toolbar-term">
         <select v-model="selectedTerm">
           <option v-for="term in termOptions" :key="term" :value="term">{{ term }}</option>
         </select>
@@ -397,53 +333,27 @@ onBeforeUnmount(() => {
           {{ weekNo }}
         </button>
       </div>
-      <button class="ghost-button compact-button" type="button" @click="showWeekend = !showWeekend">
+      <button
+        class="ghost-button compact-button course-calendar-weekend-toggle"
+        type="button"
+        @click="showWeekend = !showWeekend"
+      >
         {{ showWeekend ? '隐藏周末' : '显示周末' }}
       </button>
     </div>
 
-    <div class="table-filters course-calendar-filters" :class="{ 'filters-muted': showingFreeTime }">
-      <label class="field">
-        <span>年级</span>
-        <select v-model="selectedGrade" :disabled="showingFreeTime">
-          <option value="">全部</option>
-          <option v-for="grade in gradeOptions" :key="grade" :value="String(grade)">{{ grade }}</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>专业</span>
-        <select v-model="selectedMajor" :disabled="showingFreeTime">
-          <option value="">全部</option>
-          <option v-for="item in majorOptions" :key="item" :value="item">{{ item }}</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>班级</span>
-        <select v-model="selectedClass" :disabled="showingFreeTime">
-          <option value="">全部</option>
-          <option v-for="item in classOptions" :key="item" :value="item">{{ item }}</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>课程名称</span>
-        <input v-model="courseKeyword" :disabled="showingFreeTime" />
-      </label>
-      <label class="field">
-        <span>教师</span>
-        <input v-model="teacherKeyword" :disabled="showingFreeTime" />
-      </label>
-      <label class="field">
-        <span>教学楼</span>
-        <select v-model="buildingKeyword" :disabled="showingFreeTime">
-          <option value="">全部</option>
-          <option v-for="item in buildingOptions" :key="item" :value="item">{{ item }}</option>
-        </select>
-      </label>
-    </div>
-
     <div class="course-calendar-grid-wrap">
       <div class="course-calendar-grid" :style="gridStyle">
-        <div class="course-calendar-corner course-calendar-corner-top"></div>
+        <div class="course-calendar-corner course-calendar-corner-top">
+          <button
+            class="course-calendar-switch-text"
+            :class="{ 'course-calendar-switch-text-active': showingFreeTime }"
+            type="button"
+            @click="showingFreeTime = !showingFreeTime"
+          >
+            {{ showingFreeTime ? '切换到课程' : '切换到空闲时间' }}
+          </button>
+        </div>
         <div
           v-for="weekday in visibleWeekdays"
           :key="weekday"
@@ -489,7 +399,7 @@ onBeforeUnmount(() => {
                 v-for="item in freeTimeCells[rowIndex][columnIndex]"
                 :key="`free-${item.id}`"
                 class="course-tag course-tag-free"
-                :title="`${item.real_name}（${item.student_id}）`"
+                :title="`${item.real_name}（${item.login_id}）`"
               >
                 {{ item.real_name }}
               </div>

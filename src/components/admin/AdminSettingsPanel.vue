@@ -29,7 +29,7 @@ const emit = defineEmits<{
       <div class="account-summary">
         <div class="account-line">
           <span>账号 / 学号</span>
-          <strong>{{ me.student_id }}</strong>
+          <strong>{{ me.login_id }}</strong>
         </div>
         <div class="account-line">
           <span>姓名</span>

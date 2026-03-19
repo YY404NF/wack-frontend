@@ -3,13 +3,13 @@ import type { AppTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
 import AdminOverviewPanel from './AdminOverviewPanel.vue'
+import AdminAttendancePanel from './AdminAttendancePanel.vue'
 import AdminAttendanceLogsPanel from './AdminAttendanceLogsPanel.vue'
 import AdminCourseCalendarPanel from './AdminCourseCalendarPanel.vue'
 import AdminCourseManagePanel from './AdminCourseManagePanel.vue'
 import AdminClassManagePanel from './AdminClassManagePanel.vue'
-import AdminLogsPanel from './AdminLogsPanel.vue'
+import AdminStudentManagePanel from './AdminStudentManagePanel.vue'
 import AdminUserManagePanel from './AdminUserManagePanel.vue'
-import AdminPlaceholderPanel from './AdminPlaceholderPanel.vue'
 import AdminSettingsPanel from './AdminSettingsPanel.vue'
 
 defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
@@ -26,18 +26,29 @@ const emit = defineEmits<{
   closeBulkDeleteClassModal: []
   saveClass: []
   deleteClass: []
+  openCreateStudentModal: []
+  openEditStudentModal: [item: any]
+  closeStudentModal: []
+  openDeleteStudentModal: [item: any]
+  closeDeleteStudentModal: []
+  openBulkDeleteStudentModal: []
+  closeBulkDeleteStudentModal: []
+  saveStudent: []
+  deleteStudent: []
+  bulkDeleteStudents: []
   bulkDeleteClasses: []
   createClassStudent: []
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
-  importClasses: [files: File[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
+  updateStudentPage: [page: number]
+  updateStudentPageSize: [size: number]
+  toggleStudentSelection: [studentId: number]
+  toggleStudentPageSelection: []
   toggleClassSelection: [classId: number]
   toggleClassPageSelection: []
-  updateLogsPage: [page: number]
-  updateLogsPageSize: [size: number]
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
   openCreateUserModal: []
@@ -67,27 +78,13 @@ const emit = defineEmits<{
   setUserStatus: [studentId: string, status: number]
   openCreateCourseModal: []
   openEditCourseModal: [item: CourseItem]
-  openCourseStudentModal: [item: CourseItem]
   closeCourseModal: []
-  closeCourseStudentModal: []
   openDeleteCourseModal: [item: CourseItem]
   closeDeleteCourseModal: []
   openBulkDeleteCourseModal: []
   closeBulkDeleteCourseModal: []
   saveCourse: []
-  importCourses: [files: File[]]
-  addCourseStudentClass: [classId: number]
-  removeCourseStudentClass: [classId: number]
-  toggleCourseStudentClassSelection: [classId: number]
-  toggleCourseStudentSelection: [studentId: string]
-  addCourseStudent: [studentId: string]
-  removeCourseStudent: [studentId: string]
-  saveCourseStudents: []
   deleteCourse: []
-  setCourseWeekSelected: [payload: { weekNo: number; selected: boolean }]
-  addCourseSessions: []
-  editCourseSession: [sessionNo: number]
-  removeCourseSession: [sessionNo: number]
   updateCoursePage: [page: number]
   updateCoursePageSize: [size: number]
   toggleCourseSelection: [courseId: number]
@@ -101,6 +98,10 @@ const emit = defineEmits<{
 function forwardUserStatus(studentId: string, status: number) {
   emit('setUserStatus', studentId, status)
 }
+
+function forwardAdminStatus(detailId: number, status: StatusCode) {
+  emit('updateAdminStatus', detailId, status)
+}
 </script>
 
 <template>
@@ -110,13 +111,17 @@ function forwardUserStatus(studentId: string, status: number) {
       v-if="activeTab === 'overview'"
       key="overview"
       :admin-stats="adminStats"
+      :course-terms="courseTerms"
+      :attendance-results="attendanceResults"
     />
 
-    <AdminPlaceholderPanel
+    <AdminAttendancePanel
       v-else-if="activeTab === 'attendance'"
       key="attendance"
-      title="查课记录"
-      description="这一页先留空，后续再补查课记录列表、详情联查和状态维护。"
+      :attendance-results="attendanceResults"
+      :status-name="statusName"
+      :status-class="statusClass"
+      @update-admin-status="forwardAdminStatus"
     />
 
     <AdminAttendanceLogsPanel
@@ -146,22 +151,13 @@ function forwardUserStatus(studentId: string, status: number) {
       v-else-if="activeTab === 'course-manage'"
       key="course-manage"
       :courses="courses"
+      :course-terms="courseTerms"
       :all-classes="allClasses"
-      :course-student-candidates="courseStudentCandidates"
       :course-filters="courseFilters"
       :course-form="courseForm"
       :course-modal-open="courseModalOpen"
       :delete-course-modal-open="deleteCourseModalOpen"
       :bulk-delete-course-modal-open="bulkDeleteCourseModalOpen"
-      :course-student-modal-open="courseStudentModalOpen"
-      :course-student-loading="courseStudentLoading"
-      :course-student-saving="courseStudentSaving"
-      :course-importing="courseImporting"
-      :course-student-target-name="courseStudentTargetName"
-      :course-student-selected-class-ids="courseStudentSelectedClassIds"
-      :course-student-selected-student-ids="courseStudentSelectedStudentIds"
-      :course-student-class-student-map="courseStudentClassStudentMap"
-      :course-student-loose-students="courseStudentLooseStudents"
       :course-saving="courseSaving"
       :course-loading="courseLoading"
       :course-deleting="courseDeleting"
@@ -175,27 +171,13 @@ function forwardUserStatus(studentId: string, status: number) {
       :deleting-course-name="deletingCourseName"
       @open-create-course-modal="emit('openCreateCourseModal')"
       @open-edit-course-modal="emit('openEditCourseModal', $event)"
-      @open-course-student-modal="emit('openCourseStudentModal', $event)"
       @close-course-modal="emit('closeCourseModal')"
-      @close-course-student-modal="emit('closeCourseStudentModal')"
       @open-delete-course-modal="emit('openDeleteCourseModal', $event)"
       @close-delete-course-modal="emit('closeDeleteCourseModal')"
       @open-bulk-delete-course-modal="emit('openBulkDeleteCourseModal')"
       @close-bulk-delete-course-modal="emit('closeBulkDeleteCourseModal')"
       @save-course="emit('saveCourse')"
-      @import-courses="emit('importCourses', $event)"
-      @add-course-student-class="emit('addCourseStudentClass', $event)"
-      @remove-course-student-class="emit('removeCourseStudentClass', $event)"
-      @toggle-course-student-class-selection="emit('toggleCourseStudentClassSelection', $event)"
-      @toggle-course-student-selection="emit('toggleCourseStudentSelection', $event)"
-      @add-course-student="emit('addCourseStudent', $event)"
-      @remove-course-student="emit('removeCourseStudent', $event)"
-      @save-course-students="emit('saveCourseStudents')"
       @delete-course="emit('deleteCourse')"
-      @set-course-week-selected="emit('setCourseWeekSelected', $event)"
-      @add-course-sessions="emit('addCourseSessions')"
-      @edit-course-session="emit('editCourseSession', $event)"
-      @remove-course-session="emit('removeCourseSession', $event)"
       @update-course-page="emit('updateCoursePage', $event)"
       @update-course-page-size="emit('updateCoursePageSize', $event)"
       @toggle-course-selection="emit('toggleCourseSelection', $event)"
@@ -215,7 +197,6 @@ function forwardUserStatus(studentId: string, status: number) {
       :class-students="classStudents"
       :class-student-modal-open="classStudentModalOpen"
       :class-student-saving="classStudentSaving"
-      :class-student-importing="classStudentImporting"
       :editing-class-student-id="editingClassStudentId"
       :class-student-target-name="classStudentTargetName"
       :class-modal-open="classModalOpen"
@@ -246,7 +227,6 @@ function forwardUserStatus(studentId: string, status: number) {
       @start-edit-class-student="emit('startEditClassStudent', $event)"
       @save-editing-class-student="emit('saveEditingClassStudent')"
       @delete-class-student="emit('deleteClassStudent', $event)"
-      @import-classes="emit('importClasses', $event)"
       @update-class-page="emit('updateClassPage', $event)"
       @update-class-page-size="emit('updateClassPageSize', $event)"
       @toggle-class-selection="emit('toggleClassSelection', $event)"
@@ -254,10 +234,47 @@ function forwardUserStatus(studentId: string, status: number) {
       @bulk-delete-classes="emit('bulkDeleteClasses')"
     />
 
+    <AdminStudentManagePanel
+      v-else-if="activeTab === 'student'"
+      key="student"
+      :students="students"
+      :all-classes="allClasses"
+      :student-form="studentForm"
+      :student-filters="studentFilters"
+      :student-modal-open="studentModalOpen"
+      :delete-student-modal-open="deleteStudentModalOpen"
+      :bulk-delete-student-modal-open="bulkDeleteStudentModalOpen"
+      :student-saving="studentSaving"
+      :student-deleting="studentDeleting"
+      :is-editing-student="isEditingStudent"
+      :student-page="studentPage"
+      :student-page-size="studentPageSize"
+      :student-total-pages="studentTotalPages"
+      :student-page-options="studentPageOptions"
+      :selected-student-ids="selectedStudentIds"
+      :selected-student-count="selectedStudentCount"
+      :deleting-student-name="deletingStudentName"
+      @open-create-student-modal="emit('openCreateStudentModal')"
+      @open-edit-student-modal="emit('openEditStudentModal', $event)"
+      @close-student-modal="emit('closeStudentModal')"
+      @open-delete-student-modal="emit('openDeleteStudentModal', $event)"
+      @close-delete-student-modal="emit('closeDeleteStudentModal')"
+      @open-bulk-delete-student-modal="emit('openBulkDeleteStudentModal')"
+      @close-bulk-delete-student-modal="emit('closeBulkDeleteStudentModal')"
+      @save-student="emit('saveStudent')"
+      @delete-student="emit('deleteStudent')"
+      @bulk-delete-students="emit('bulkDeleteStudents')"
+      @update-student-page="emit('updateStudentPage', $event)"
+      @update-student-page-size="emit('updateStudentPageSize', $event)"
+      @toggle-student-selection="emit('toggleStudentSelection', $event)"
+      @toggle-student-page-selection="emit('toggleStudentPageSelection')"
+    />
+
     <AdminUserManagePanel
       v-else-if="activeTab === 'user-manage'"
       key="user-manage"
       :users="users"
+      :all-classes="allClasses"
       :current-user-id="currentUserId"
       :user-form="userForm"
       :user-filters="userFilters"
@@ -302,19 +319,6 @@ function forwardUserStatus(studentId: string, status: number) {
       @bulk-unfreeze-users="emit('bulkUnfreezeUsers')"
       @create-user="emit('createUser')"
       @set-user-status="forwardUserStatus"
-    />
-
-    <AdminLogsPanel
-      v-else-if="activeTab === 'logs'"
-      key="logs"
-      :logs="logs"
-      :log-filters="logFilters"
-      :logs-page="logsPage"
-      :logs-page-size="logsPageSize"
-      :logs-total-pages="logsTotalPages"
-      :logs-page-options="logsPageOptions"
-      @update-logs-page="emit('updateLogsPage', $event)"
-      @update-logs-page-size="emit('updateLogsPageSize', $event)"
     />
 
     <AdminSettingsPanel

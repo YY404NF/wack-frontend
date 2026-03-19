@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 
-import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type { AvailableCourseItem, FreeTimeItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
 import type { AppTab } from '../../constants'
 import { createFreeTimeForm } from './forms'
 import { useStudentApp } from '../useStudentApp'
@@ -33,6 +33,8 @@ export function useStudentState(deps: UseStudentStateDeps) {
   const availableCourses = ref<AvailableCourseItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
   const systemSettings = ref<SystemSetting | null>(null)
+  const currentSchedule = ref<'summer' | 'autumn'>('summer')
+  const metaSections = ref<MetaSectionItem[]>([])
   const freeTimeModalOpen = ref(false)
   const freeTimeTerm = ref(getCurrentAcademicTerm())
   const freeTimeDraft = ref(createEmptyFreeTimeDraft())
@@ -52,6 +54,8 @@ export function useStudentState(deps: UseStudentStateDeps) {
     studentError,
     studentToast,
     systemSettings,
+    currentSchedule,
+    metaSections,
     availableCourses,
     freeTimes,
     freeTimeForm,
@@ -83,6 +87,8 @@ export function useStudentState(deps: UseStudentStateDeps) {
     studentToast,
     freeTimes,
     systemSettings,
+    currentSchedule,
+    metaSections,
     ensureStudentFreeTimesLoaded: studentApp.ensureStudentFreeTimesLoaded,
     loadRoleData: studentApp.loadRoleData,
     clearNotices,

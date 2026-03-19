@@ -444,8 +444,8 @@ watch(
 .about-captcha-widget .rc-anchor {
   display: flex;
   align-items: center;
-  width: 300px;
-  height: 78px;
+  width: 276px;
+  height: 72px;
   padding: 0;
   box-sizing: border-box;
   border-radius: 3px;
@@ -457,7 +457,7 @@ watch(
   align-items: center;
   width: 100%;
   height: 100%;
-  padding: 0 7px;
+  padding: 0 6px;
   box-sizing: border-box;
 }
 
@@ -500,7 +500,7 @@ watch(
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 52px;
+  min-height: 48px;
 }
 
 .about-captcha-widget .rc-anchor-checkbox-holder,
@@ -511,8 +511,8 @@ watch(
 
 .about-captcha-widget .rc-anchor-checkbox-holder {
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
 }
 
 .about-captcha-widget .rc-anchor-checkbox {
@@ -541,8 +541,8 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 52px;
+  width: 58px;
+  height: 48px;
   flex: 0 0 auto;
   pointer-events: none;
 }
@@ -552,9 +552,9 @@ watch(
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 58px;
-  height: 47px;
-  min-width: 58px;
+  width: 52px;
+  height: 43px;
+  min-width: 52px;
   margin: 0;
   line-height: 1;
 }

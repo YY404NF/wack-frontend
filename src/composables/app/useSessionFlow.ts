@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import { api, clearToken, getToken, setToken, type SessionUser } from '../../api'
+import { useSessionStore } from '../../stores/session'
 import type { AppTab } from '../../constants'
 import { createSetupForm } from './forms'
 
@@ -37,6 +38,8 @@ type SessionFlowDeps = {
 }
 
 export function useSessionFlow(deps: SessionFlowDeps) {
+  const sessionStore = useSessionStore()
+
   async function loadSetupStatus() {
     const status = await api.setupStatus()
     deps.initialized.value = status.initialized
@@ -55,13 +58,14 @@ export function useSessionFlow(deps: SessionFlowDeps) {
     deps.setupError.value = ''
     try {
       await api.initializeSystem({
-        student_id: studentId,
+        login_id: studentId,
         real_name: deps.setupForm.realName.trim(),
         password,
       })
 
       const data = await api.login(studentId, password)
       setToken(data.token)
+      sessionStore.setSession(data)
       deps.initialized.value = true
       deps.me.value = data.user
       deps.loginForm.studentId = studentId
@@ -82,6 +86,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
     try {
       const data = await api.login(deps.loginForm.studentId.trim(), deps.loginForm.password)
       setToken(data.token)
+      sessionStore.setSession(data)
       deps.me.value = data.user
       await deps.loadRoleData()
       deps.setActiveTab(deps.resolveTabForRole(data.user.role), 'replace')
@@ -97,6 +102,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       await loadSetupStatus()
       if (!deps.initialized.value) {
         clearToken()
+        sessionStore.clearSession()
         deps.me.value = null
         deps.loginError.value = ''
         await deps.navigateToSetup()
@@ -108,12 +114,14 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       }
 
       const me = await api.me()
+      sessionStore.setUser(me)
       deps.me.value = me
       deps.setActiveTab(deps.resolveTabForRole(me.role), 'replace')
       deps.booting.value = false
       void deps.loadRoleData()
     } catch {
       clearToken()
+      sessionStore.clearSession()
       deps.me.value = null
       await deps.navigateToLogin()
     } finally {
@@ -124,7 +132,9 @@ export function useSessionFlow(deps: SessionFlowDeps) {
   }
 
   function logout() {
+    void api.logout().catch(() => undefined)
     clearToken()
+    sessionStore.clearSession()
     deps.me.value = null
     deps.resetAppData()
     void deps.navigateToLogin()

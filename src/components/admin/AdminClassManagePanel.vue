@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { ClassItem } from '../../api'
+import AdminDataList from './AdminDataList.vue'
 import type { AdminClassManageProps } from './types'
 
 const props = defineProps<AdminClassManageProps>()
@@ -21,7 +22,6 @@ const emit = defineEmits<{
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
-  importClasses: [files: File[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
   toggleClassSelection: [classId: number]
@@ -29,7 +29,6 @@ const emit = defineEmits<{
   bulkDeleteClasses: []
 }>()
 
-const importInputRef = ref<HTMLInputElement | null>(null)
 const gradeOptions = computed(() =>
   Array.from(new Set(props.classes.map((item) => item.grade))).sort((left, right) => right - left),
 )
@@ -38,35 +37,23 @@ const majorOptions = computed(() =>
 )
 const selectedClassIdSet = computed(() => new Set(props.selectedClassIds))
 const areAllClassesSelected = computed(() => props.classes.length > 0 && props.classes.every((item) => selectedClassIdSet.value.has(item.id)))
+const classColumns = [
+  { key: 'grade', label: '年级', colClass: 'col-pct-14' },
+  { key: 'major_name', label: '专业名称', colClass: 'col-pct-24' },
+  { key: 'class_name', label: '班级名称', colClass: 'col-pct-24' },
+  { key: 'student_count', label: '人数', colClass: 'col-pct-18' },
+] as const
 
-function onPageSizeChange(event: Event) {
-  emit('updateClassPageSize', Number((event.target as HTMLSelectElement).value))
+function asClassItem(row: Record<string, unknown>) {
+  return row as unknown as ClassItem
 }
 
-function openImportPicker() {
-  importInputRef.value?.click()
-}
-
-function onImportChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  if (files.length === 0) {
-    return
-  }
-  emit('importClasses', files)
-  input.value = ''
-}
 </script>
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading">
-      <h2>班级管理</h2>
+    <div class="section-heading section-heading-titleless">
       <div class="inline-actions">
-        <input ref="importInputRef" class="hidden-input" type="file" accept="application/json,.json" multiple @change="onImportChange" />
-        <button class="ghost-button compact-button" type="button" :disabled="classStudentImporting" @click="openImportPicker">
-          {{ classStudentImporting ? '导入中...' : '导入' }}
-        </button>
         <button class="primary-button" type="button" @click="emit('openCreateClassModal')">创建班级</button>
       </div>
     </div>
@@ -225,101 +212,55 @@ function onImportChange(event: Event) {
     </div>
     </Transition>
 
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th class="selection-column">
-              <span class="visually-hidden">选择</span>
-            </th>
-            <th>年级</th>
-            <th>专业名称</th>
-            <th>班级名称</th>
-            <th>人数</th>
-            <th class="actions-column">操作</th>
-          </tr>
-          <tr class="table-filter-row">
-            <th class="table-filter-spacer" aria-hidden="true"></th>
-            <th class="table-filter-cell">
-              <select v-model="classFilters.grade" aria-label="按年级筛选班级">
-                <option value="">全部</option>
-                <option v-for="grade in gradeOptions" :key="grade" :value="String(grade)">{{ grade }}</option>
-              </select>
-            </th>
-            <th class="table-filter-cell">
-              <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
-                <option value="">全部</option>
-                <option v-for="major in majorOptions" :key="major" :value="major">{{ major }}</option>
-              </select>
-            </th>
-            <th class="table-filter-cell">
-              <input v-model="classFilters.className" aria-label="按班级名称筛选班级" />
-            </th>
-            <th class="table-filter-spacer" aria-hidden="true"></th>
-            <th class="table-filter-cell table-filter-actions-cell">
-              <div class="table-filter-actions">
-                <button
-                  class="ghost-button compact-button"
-                  :class="{ selected: areAllClassesSelected }"
-                  type="button"
-                  @click="emit('toggleClassPageSelection')"
-                >
-                  全选
-                </button>
-                <button class="ghost-button compact-button danger-button" type="button" :disabled="classDeleting || selectedClassIds.length === 0" @click="emit('openBulkDeleteClassModal')">
-                  批量删除
-                </button>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in classes" :key="item.id">
-            <td class="selection-column">
-              <input
-                type="checkbox"
-                :checked="selectedClassIdSet.has(item.id)"
-                :aria-label="`选择班级 ${item.class_name}`"
-                @change="emit('toggleClassSelection', item.id)"
-              />
-            </td>
-            <td>{{ item.grade }}</td>
-            <td>{{ item.major_name }}</td>
-            <td>{{ item.class_name }}</td>
-            <td>{{ item.student_count }}</td>
-            <td class="actions-column">
-              <div class="inline-actions user-actions">
-                <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', item)">编辑信息</button>
-                <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', item)">编辑学生</button>
-                <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', item)">删除</button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="classes.length === 0">
-            <td colspan="6" class="empty-cell">暂无符合条件的班级</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="pagination-bar">
-      <div class="pagination-pages">
-        <button
-          v-for="page in classTotalPages"
-          :key="page"
-          class="ghost-button compact-button pagination-button"
-          :class="{ selected: classPage === page }"
-          type="button"
-          @click="emit('updateClassPage', page)"
-        >
-          {{ page }}
-        </button>
-      </div>
-      <div class="pagination-size">
-        <select :value="classPageSize" @change="onPageSizeChange">
-          <option v-for="size in classPageOptions" :key="size" :value="size">{{ size }}</option>
+    <AdminDataList
+      :rows="classes as unknown as Array<Record<string, unknown>>"
+      :columns="classColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+      row-key="id"
+      empty-text="暂无符合条件的班级"
+      :show-selection="true"
+      :selected-row-keys="selectedClassIds"
+      :show-actions="true"
+      action-col-class="col-pct-20"
+      :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions }"
+      @update-page="emit('updateClassPage', $event)"
+      @update-page-size="emit('updateClassPageSize', $event)"
+      @toggle-row-selection="emit('toggleClassSelection', Number($event))"
+    >
+      <template #filter-grade>
+        <select v-model="classFilters.grade" aria-label="按年级筛选班级">
+          <option value="">全部</option>
+          <option v-for="grade in gradeOptions" :key="grade" :value="String(grade)">{{ grade }}</option>
         </select>
-      </div>
-    </div>
+      </template>
+      <template #filter-major_name>
+        <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
+          <option value="">全部</option>
+          <option v-for="major in majorOptions" :key="major" :value="major">{{ major }}</option>
+        </select>
+      </template>
+      <template #filter-class_name>
+        <input v-model="classFilters.className" aria-label="按班级名称筛选班级" />
+      </template>
+      <template #filter-actions>
+        <button
+          class="ghost-button compact-button"
+          :class="{ selected: areAllClassesSelected }"
+          type="button"
+          @click="emit('toggleClassPageSelection')"
+        >
+          全选
+        </button>
+        <button class="ghost-button compact-button danger-button" type="button" :disabled="classDeleting || selectedClassIds.length === 0" @click="emit('openBulkDeleteClassModal')">
+          批量删除
+        </button>
+      </template>
+      <template #actions="{ row }">
+        <div class="inline-actions user-actions">
+          <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', asClassItem(row))">编辑信息</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', asClassItem(row))">编辑学生</button>
+          <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', asClassItem(row))">删除</button>
+        </div>
+      </template>
+    </AdminDataList>
   </section>
 </template>

@@ -1,9 +1,8 @@
 import type { Ref } from 'vue'
 
-import { api, type ClassItem, type CourseItem, type FreeTimeItem, type SystemSetting, type UserItem } from '../../api'
+import { api, type ClassItem, type CourseItem, type FreeTimeItem, type StudentItem, type SystemSetting, type UserItem } from '../../api'
 import type { AdminClassStudentForm } from '../../components/admin/form-types'
 import { FREE_TIME_VISIBLE_SECTIONS, FREE_TIME_VISIBLE_WEEKDAYS, buildFreeTimeCellKey, formatFreeWeeks, parseFreeWeeks } from '../../utils/free-time'
-import { parseImportedClassFile, parseImportedCourseFile } from './importers'
 
 type AdminBulkActionsCoreDeps = {
   adminError: Ref<string>
@@ -14,14 +13,16 @@ type AdminBulkActionsCoreDeps = {
 type AdminBulkActionsStateDeps = {
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
+  students: Ref<StudentItem[]>
   courses: Ref<CourseItem[]>
   systemSettings: Ref<SystemSetting | null>
-  freeTimeTargetStudentId: Ref<string>
+  freeTimeTargetLoginId: Ref<string>
   userFreeTimeTerm: Ref<string>
   userFreeTimeItems: Ref<FreeTimeItem[]>
   userFreeTimeDraft: Ref<Record<string, number[]>>
   selectedCourseIds: Ref<number[]>
   selectedClassIds: Ref<number[]>
+  selectedStudentIds: Ref<number[]>
   selectedUserStudentIds: Ref<string[]>
   classStudentTargetClassId: Ref<number | null>
   editingClassStudentId: Ref<number | null>
@@ -30,21 +31,21 @@ type AdminBulkActionsStateDeps = {
 }
 
 type AdminBulkActionsLoadingDeps = {
-  courseImporting: Ref<boolean>
   classStudentSaving: Ref<boolean>
-  classStudentImporting: Ref<boolean>
   userFreeTimeSaving: Ref<boolean>
   systemSettingSaving: Ref<boolean>
   courseDeleting: Ref<boolean>
   classDeleting: Ref<boolean>
+  studentDeleting: Ref<boolean>
   userStatusUpdating: Ref<boolean>
 }
 
 type AdminBulkActionsUiDeps = {
   closeBulkDeleteCourseModal: () => void
   closeBulkDeleteClassModal: () => void
+  closeBulkDeleteStudentModal: () => void
   closeUserFreeTimeModal: () => void
-  loadUserFreeTimeItems: (studentId: string) => Promise<void>
+  loadUserFreeTimeItems: (loginId: string) => Promise<void>
   loadClassStudents: (classId: number) => Promise<void>
   resetClassStudentForm: () => void
   resetEditingClassStudentForm: () => void
@@ -56,45 +57,6 @@ export type AdminBulkActionsDeps = AdminBulkActionsCoreDeps &
   AdminBulkActionsUiDeps
 
 export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
-  async function importCourses(files: File[]) {
-    if (files.length === 0) {
-      return
-    }
-    deps.courseImporting.value = true
-    deps.adminError.value = ''
-    const errors: string[] = []
-    let importedCount = 0
-
-    try {
-      for (const file of files) {
-        try {
-          const course = await parseImportedCourseFile(file)
-          const created = await api.createCourse(course)
-          try {
-            await api.replaceCourseSessions(created.id, course.sessions)
-          } catch (error) {
-            await api.deleteCourse(created.id).catch(() => undefined)
-            throw error
-          }
-          importedCount += 1
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '导入失败'
-          errors.push(`${file.name}: ${message}`)
-        }
-      }
-
-      if (importedCount > 0) {
-        await deps.loadAdminData()
-        deps.showScopedToast('admin', `已导入 ${importedCount} 门课程`)
-      }
-      if (errors.length > 0) {
-        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入课程失败，共 ${errors.length} 个文件失败：`
-        deps.adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
-      }
-    } finally {
-      deps.courseImporting.value = false
-    }
-  }
 
   async function createClassStudent() {
     if (deps.classStudentTargetClassId.value === null) {
@@ -163,48 +125,8 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     }
   }
 
-  async function importClasses(files: File[]) {
-    if (files.length === 0) {
-      return
-    }
-    deps.classStudentImporting.value = true
-    deps.adminError.value = ''
-    const errors: string[] = []
-    let importedCount = 0
-
-    try {
-      for (const file of files) {
-        try {
-          const payload = await parseImportedClassFile(file)
-          const created = await api.createClass(payload)
-          try {
-            await api.importClassStudents(created.id, payload.students)
-          } catch (error) {
-            await api.deleteClass(created.id).catch(() => undefined)
-            throw error
-          }
-          importedCount += 1
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '导入失败'
-          errors.push(`${file.name}: ${message}`)
-        }
-      }
-
-      if (importedCount > 0) {
-        await deps.loadAdminData()
-        deps.showScopedToast('admin', `已导入 ${importedCount} 个班级`)
-      }
-      if (errors.length > 0) {
-        const prefix = importedCount > 0 ? `部分导入失败，共 ${errors.length} 个文件失败：` : `导入班级失败，共 ${errors.length} 个文件失败：`
-        deps.adminError.value = [prefix, ...errors.map((item, index) => `${index + 1}. ${item}`)].join('\n')
-      }
-    } finally {
-      deps.classStudentImporting.value = false
-    }
-  }
-
   async function saveUserFreeTime() {
-    if (!deps.freeTimeTargetStudentId.value) {
+    if (!deps.freeTimeTargetLoginId.value) {
       return
     }
     deps.userFreeTimeSaving.value = true
@@ -234,7 +156,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
 
           const payload = {
             term,
-            student_id: deps.freeTimeTargetStudentId.value,
+            login_id: deps.freeTimeTargetLoginId.value,
             weekday,
             section,
             free_weeks: currentValue,
@@ -252,7 +174,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
       }
 
       await Promise.all(tasks)
-      await deps.loadUserFreeTimeItems(deps.freeTimeTargetStudentId.value)
+      await deps.loadUserFreeTimeItems(deps.freeTimeTargetLoginId.value)
       await deps.loadAdminData()
       deps.showScopedToast('admin', '空闲时间已保存')
       deps.closeUserFreeTimeModal()
@@ -348,6 +270,44 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     }
   }
 
+  async function bulkDeleteStudents() {
+    const ids = [...deps.selectedStudentIds.value]
+    if (ids.length === 0) {
+      return
+    }
+
+    deps.studentDeleting.value = true
+    deps.adminError.value = ''
+    const nameById = new Map(deps.students.value.map((item) => [item.id, `${item.real_name}（${item.student_id}）`]))
+    const failed: string[] = []
+    const failedIds = new Set<number>()
+    let deletedCount = 0
+    try {
+      for (const id of ids) {
+        try {
+          await api.deleteStudent(id)
+          deletedCount += 1
+        } catch (error) {
+          failedIds.add(id)
+          const label = nameById.get(id) ?? `ID ${id}`
+          const message = error instanceof Error ? error.message : '删除失败'
+          failed.push(`${label}（${message}）`)
+        }
+      }
+      await deps.loadAdminData()
+      deps.closeBulkDeleteStudentModal()
+      deps.selectedStudentIds.value = ids.filter((id) => failedIds.has(id))
+      if (deletedCount > 0) {
+        deps.showScopedToast('admin', `已删除 ${deletedCount} 个学生`)
+      }
+      if (failed.length > 0) {
+        deps.adminError.value = `部分删除失败：${failed.join('；')}`
+      }
+    } finally {
+      deps.studentDeleting.value = false
+    }
+  }
+
   async function bulkSetUserStatus(status: number) {
     const studentIds = [...deps.selectedUserStudentIds.value]
     if (studentIds.length === 0) {
@@ -357,7 +317,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     deps.userStatusUpdating.value = true
     deps.adminError.value = ''
     const actionLabel = status === 1 ? '解冻' : '冻结'
-    const nameByStudentId = new Map(deps.users.value.map((item) => [item.student_id, item.real_name]))
+    const nameByStudentId = new Map(deps.users.value.map((item) => [item.login_id, item.real_name]))
     const failed: string[] = []
     let updatedCount = 0
     try {
@@ -385,15 +345,14 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
   }
 
   return {
-    importCourses,
     createClassStudent,
     saveEditingClassStudent,
     deleteClassStudent,
-    importClasses,
     saveUserFreeTime,
     updateSystemSettings,
     bulkDeleteCourses,
     bulkDeleteClasses,
+    bulkDeleteStudents,
     bulkSetUserStatus,
   }
 }

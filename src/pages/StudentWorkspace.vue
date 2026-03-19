@@ -9,7 +9,7 @@ import StudentPanelContent from '../components/student/StudentPanelContent.vue'
 import type { StudentWorkspaceProps } from '../components/student/types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 import { getGreetingMeta } from '../utils/greeting'
-import { formatSectionTimeRange, getScheduleType, getSectionTimeRange, scheduleLabelMap, scheduleMap } from '../utils/schedule'
+import { formatSectionTimeRange, getSectionTimeRange, scheduleLabelMap, scheduleMap } from '../utils/schedule'
 
 const props = defineProps<StudentWorkspaceProps>()
 const emit = defineEmits<{
@@ -32,9 +32,20 @@ const emit = defineEmits<{
 const now = ref(new Date())
 let timerId = 0
 
-const scheduleType = computed(() => getScheduleType(props.systemSettings))
+const scheduleType = computed(() => props.currentSchedule ?? 'summer')
 const greeting = computed(() => getGreetingMeta(now.value))
-const scheduleItems = computed(() => scheduleMap[scheduleType.value])
+const scheduleItems = computed(() => {
+  if (props.metaSections.length > 0) {
+    return props.metaSections.map((item) => ({
+      section: item.section,
+      label: item.label,
+      lines:
+        scheduleMap[scheduleType.value].find((scheduleItem) => scheduleItem.section === item.section)?.lines ??
+        [`${item.start_time}-${item.end_time}`],
+    }))
+  }
+  return scheduleMap[scheduleType.value]
+})
 const activeScheduleSections = computed(() => {
   const currentMinutes = now.value.getHours() * 60 + now.value.getMinutes()
   return scheduleItems.value

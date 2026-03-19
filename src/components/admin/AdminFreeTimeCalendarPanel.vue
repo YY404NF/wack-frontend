@@ -12,7 +12,7 @@ defineProps<AdminFreeTimeCalendarProps>()
     </div>
     <div class="list-grid dense-grid">
       <article v-for="item in freeTimes" :key="item.id" class="record-card">
-        <strong>{{ item.student_id }}</strong>
+        <strong>{{ item.login_id }}</strong>
         <p>{{ slotLabel(item.weekday, item.section) }}</p>
         <small>{{ item.term }} · 空闲周 {{ item.free_weeks }}</small>
       </article>

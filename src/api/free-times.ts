@@ -11,8 +11,23 @@ export const freeTimesApi = {
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 50))
     if (query.term) params.set('term', query.term)
-    if (query.student_id) params.set('student_id', query.student_id)
+    if (query.login_id) params.set('login_id', query.login_id)
     return request<PageResult<FreeTimeItem>>(`${apiPaths.shared.freeTimes}?${params.toString()}`)
+  },
+  async listAllFreeTimes(query: Omit<FreeTimeQuery, 'page' | 'page_size'> = {}) {
+    const pageSize = 100
+    let page = 1
+    let total = 0
+    const items: FreeTimeItem[] = []
+
+    do {
+      const result = await this.listFreeTimes({ ...query, page, page_size: pageSize })
+      items.push(...(result.items ?? []))
+      total = result.total ?? items.length
+      page += 1
+    } while (items.length < total)
+
+    return items
   },
   createFreeTime(input: FreeTimeInput) {
     return request<FreeTimeItem>(apiPaths.shared.freeTimes, {

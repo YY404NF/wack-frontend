@@ -8,13 +8,13 @@ export type AppTab =
   | 'course-manage'
   | 'class-manage'
   | 'user-manage'
-  | 'logs'
   | 'student'
   | 'settings'
 
 export const roleLabels: Record<number, string> = {
   1: '管理员',
   2: '查课学生',
+  3: '学委',
 }
 
 export const statusLabels: Record<StatusCode, string> = {
@@ -44,14 +44,14 @@ export const sectionLabels: Record<number, string> = {
 }
 
 export const adminNavItems = [
-  { key: 'overview', label: '总览' },
-  { key: 'attendance', label: '查课记录' },
-  { key: 'attendance-logs', label: '查课日志' },
+  { key: 'overview', label: '主页' },
   { key: 'course-calendar', label: '全院课程表' },
+  { key: 'attendance', label: '考勤记录' },
+  { key: 'attendance-logs', label: '考勤日志' },
   { key: 'course-manage', label: '课程管理' },
   { key: 'class-manage', label: '班级管理' },
+  { key: 'student', label: '学生管理' },
   { key: 'user-manage', label: '系统用户管理' },
-  { key: 'logs', label: '系统日志' },
   { key: 'settings', label: '设置' },
 ] as const
 

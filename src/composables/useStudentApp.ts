@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 
-import type { AvailableCourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../api'
+import type { AvailableCourseItem, FreeTimeItem, MetaSectionItem, SessionUser, SystemSetting } from '../api'
 import type { AppTab } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel } from './app/view'
@@ -25,6 +25,8 @@ type StudentAppDeps = {
   studentError: Ref<string>
   studentToast: Ref<string>
   systemSettings: Ref<SystemSetting | null>
+  currentSchedule: Ref<'summer' | 'autumn'>
+  metaSections: Ref<MetaSectionItem[]>
   availableCourses: Ref<AvailableCourseItem[]>
   freeTimes: Ref<FreeTimeItem[]>
   freeTimeModalOpen: Ref<boolean>
@@ -51,6 +53,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     availableCourses: deps.availableCourses,
     freeTimes: deps.freeTimes,
     systemSettings: deps.systemSettings,
+    currentSchedule: deps.currentSchedule,
+    metaSections: deps.metaSections,
     editingFreeTimeId: deps.editingFreeTimeId,
     freeTimeModalOpen: deps.freeTimeModalOpen,
     freeTimeTerm: deps.freeTimeTerm,
@@ -71,6 +75,11 @@ export function useStudentApp(deps: StudentAppDeps) {
   }
 
   async function ensureStudentFreeTimesLoaded(force = false) {
+    if (deps.me.value?.role !== 2) {
+      deps.freeTimes.value = []
+      deps.studentFreeTimesLoaded.value = true
+      return
+    }
     if (!force && deps.studentFreeTimesLoaded.value) {
       return
     }
@@ -90,6 +99,9 @@ export function useStudentApp(deps: StudentAppDeps) {
   }
 
   async function openFreeTimeModal() {
+    if (deps.me.value?.role !== 2) {
+      return
+    }
     deps.freeTimeTerm.value = getCurrentAcademicTerm()
     await ensureStudentFreeTimesLoaded()
     studentFlow.syncFreeTimeDraft()
@@ -109,6 +121,9 @@ export function useStudentApp(deps: StudentAppDeps) {
   }
 
   async function saveFreeTimeDraft() {
+    if (deps.me.value?.role !== 2) {
+      return
+    }
     await ensureStudentFreeTimesLoaded()
     await studentFlow.saveFreeTimeDraft()
     deps.studentFreeTimesLoaded.value = true
@@ -120,6 +135,9 @@ export function useStudentApp(deps: StudentAppDeps) {
   }
 
   async function removeFreeTime(id: number) {
+    if (deps.me.value?.role !== 2) {
+      return
+    }
     await ensureStudentFreeTimesLoaded()
     await studentFlow.removeFreeTime(id)
   }
@@ -134,6 +152,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     pageError: deps.studentError.value,
     toast: deps.studentToast.value,
     systemSettings: deps.systemSettings.value,
+    currentSchedule: deps.currentSchedule.value,
+    metaSections: deps.metaSections.value,
     availableCourses: deps.availableCourses.value,
     freeTimes: deps.freeTimes.value,
     freeTimeModalOpen: deps.freeTimeModalOpen.value,
@@ -173,6 +193,8 @@ export function useStudentApp(deps: StudentAppDeps) {
     deps.freeTimeModalOpen.value = false
     deps.freeTimeTerm.value = getCurrentAcademicTerm()
     deps.freeTimeDraft.value = createEmptyFreeTimeDraft()
+    deps.currentSchedule.value = 'summer'
+    deps.metaSections.value = []
     deps.studentCoreLoaded.value = false
     deps.studentFreeTimesLoaded.value = false
   }

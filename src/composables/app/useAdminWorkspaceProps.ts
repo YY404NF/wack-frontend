@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
-import type { AttendanceResultItem, ClassItem, ClassStudentCandidateItem, ClassStudentItem, CourseItem, FreeTimeItem, SessionUser, SystemSetting } from '../../api'
+import type { AttendanceResultItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeItem, MetaTermItem, SessionUser, SystemSetting, StudentItem } from '../../api'
 import type {
   AdminAttendanceLogFilters,
   AdminClassForm,
@@ -11,7 +11,8 @@ import type {
   AdminCourseFilters,
   AdminPasswordForm,
   AdminProfileForm,
-  AdminSystemLogFilters,
+  AdminStudentFilters,
+  AdminStudentForm,
   AdminUserFilters,
   AdminUserForm,
   AdminUserPasswordForm,
@@ -29,15 +30,15 @@ export type AdminWorkspacePropsDeps = {
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
   systemSettingSaving: Ref<boolean>
-  paginatedLogs: ComputedRef<any[]>
   paginatedAttendanceLogs: ComputedRef<any[]>
   paginatedClasses: ComputedRef<ClassItem[]>
   classes: Ref<ClassItem[]>
+  paginatedStudents: ComputedRef<StudentItem[]>
   filteredClassStudents: ComputedRef<ClassStudentItem[]>
   paginatedUsers: ComputedRef<any[]>
-  courseStudentCandidates: Ref<ClassStudentCandidateItem[]>
   currentUserId: ComputedRef<number | undefined>
   paginatedCourses: ComputedRef<CourseItem[]>
+  courseTerms: Ref<MetaTermItem[]>
   attendanceResults: Ref<AttendanceResultItem[]>
   userForm: AdminUserForm
   userFilters: AdminUserFilters
@@ -65,15 +66,6 @@ export type AdminWorkspacePropsDeps = {
   courseModalOpen: Ref<boolean>
   deleteCourseModalOpen: Ref<boolean>
   bulkDeleteCourseModalOpen: Ref<boolean>
-  courseStudentModalOpen: Ref<boolean>
-  courseStudentLoading: Ref<boolean>
-  courseStudentSaving: Ref<boolean>
-  courseImporting: Ref<boolean>
-  courseStudentTargetName: Ref<string>
-  courseStudentSelectedClassIds: Ref<number[]>
-  courseStudentSelectedStudentIds: Ref<string[]>
-  courseStudentClassStudentMap: Ref<Record<number, ClassStudentItem[]>>
-  courseStudentLooseStudents: Ref<Array<{ student_id: string; real_name: string }>>
   courseSaving: Ref<boolean>
   courseLoading: Ref<boolean>
   courseDeleting: Ref<boolean>
@@ -88,9 +80,10 @@ export type AdminWorkspacePropsDeps = {
   classStudentForm: AdminClassStudentForm
   editingClassStudentForm: AdminClassStudentForm
   classStudentFilters: AdminClassStudentFilters
+  studentForm: AdminStudentForm
+  studentFilters: AdminStudentFilters
   classStudentModalOpen: Ref<boolean>
   classStudentSaving: Ref<boolean>
-  classStudentImporting: Ref<boolean>
   editingClassStudentId: Ref<number | null>
   classStudentTargetName: Ref<string>
   classModalOpen: Ref<boolean>
@@ -104,10 +97,17 @@ export type AdminWorkspacePropsDeps = {
   classTotalPages: ComputedRef<number>
   selectedClassIds: Ref<number[]>
   deletingClassName: Ref<string>
-  logFilters: AdminSystemLogFilters
-  logsPage: Ref<number>
-  logsPageSize: Ref<number>
-  logsTotalPages: ComputedRef<number>
+  studentModalOpen: Ref<boolean>
+  deleteStudentModalOpen: Ref<boolean>
+  bulkDeleteStudentModalOpen: Ref<boolean>
+  studentSaving: Ref<boolean>
+  studentDeleting: Ref<boolean>
+  editingStudentId: Ref<number | null>
+  studentPage: Ref<number>
+  studentPageSize: Ref<number>
+  studentTotalPages: ComputedRef<number>
+  selectedStudentIds: Ref<number[]>
+  deletingStudentName: Ref<string>
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
@@ -131,15 +131,15 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     freeTimes: deps.freeTimes.value,
     systemSettings: deps.systemSettings.value,
     systemSettingSaving: deps.systemSettingSaving.value,
-    logs: deps.paginatedLogs.value,
     attendanceLogs: deps.paginatedAttendanceLogs.value,
     classes: deps.paginatedClasses.value,
     allClasses: deps.classes.value,
+    students: deps.paginatedStudents.value,
     classStudents: deps.filteredClassStudents.value,
     users: deps.paginatedUsers.value,
-    courseStudentCandidates: deps.courseStudentCandidates.value,
     currentUserId: deps.currentUserId.value,
     courses: deps.paginatedCourses.value,
+    courseTerms: deps.courseTerms.value,
     attendanceResults: deps.attendanceResults.value,
     userForm: deps.userForm,
     userFilters: deps.userFilters,
@@ -168,15 +168,6 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     courseModalOpen: deps.courseModalOpen.value,
     deleteCourseModalOpen: deps.deleteCourseModalOpen.value,
     bulkDeleteCourseModalOpen: deps.bulkDeleteCourseModalOpen.value,
-    courseStudentModalOpen: deps.courseStudentModalOpen.value,
-    courseStudentLoading: deps.courseStudentLoading.value,
-    courseStudentSaving: deps.courseStudentSaving.value,
-    courseImporting: deps.courseImporting.value,
-    courseStudentTargetName: deps.courseStudentTargetName.value,
-    courseStudentSelectedClassIds: deps.courseStudentSelectedClassIds.value,
-    courseStudentSelectedStudentIds: deps.courseStudentSelectedStudentIds.value,
-    courseStudentClassStudentMap: deps.courseStudentClassStudentMap.value,
-    courseStudentLooseStudents: deps.courseStudentLooseStudents.value,
     courseSaving: deps.courseSaving.value,
     courseLoading: deps.courseLoading.value,
     courseDeleting: deps.courseDeleting.value,
@@ -195,7 +186,6 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     classStudentFilters: deps.classStudentFilters,
     classStudentModalOpen: deps.classStudentModalOpen.value,
     classStudentSaving: deps.classStudentSaving.value,
-    classStudentImporting: deps.classStudentImporting.value,
     editingClassStudentId: deps.editingClassStudentId.value,
     classStudentTargetName: deps.classStudentTargetName.value,
     classModalOpen: deps.classModalOpen.value,
@@ -211,11 +201,21 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     selectedClassIds: deps.selectedClassIds.value,
     selectedClassCount: deps.selectedClassIds.value.length,
     deletingClassName: deps.deletingClassName.value,
-    logFilters: deps.logFilters,
-    logsPage: deps.logsPage.value,
-    logsPageSize: deps.logsPageSize.value,
-    logsTotalPages: deps.logsTotalPages.value,
-    logsPageOptions: USER_PAGE_OPTIONS,
+    studentForm: deps.studentForm,
+    studentFilters: deps.studentFilters,
+    studentModalOpen: deps.studentModalOpen.value,
+    deleteStudentModalOpen: deps.deleteStudentModalOpen.value,
+    bulkDeleteStudentModalOpen: deps.bulkDeleteStudentModalOpen.value,
+    studentSaving: deps.studentSaving.value,
+    studentDeleting: deps.studentDeleting.value,
+    isEditingStudent: deps.editingStudentId.value !== null,
+    studentPage: deps.studentPage.value,
+    studentPageSize: deps.studentPageSize.value,
+    studentTotalPages: deps.studentTotalPages.value,
+    studentPageOptions: USER_PAGE_OPTIONS,
+    selectedStudentIds: deps.selectedStudentIds.value,
+    selectedStudentCount: deps.selectedStudentIds.value.length,
+    deletingStudentName: deps.deletingStudentName.value,
     attendanceLogFilters: deps.attendanceLogFilters,
     attendanceLogsPage: deps.attendanceLogsPage.value,
     attendanceLogsPageSize: deps.attendanceLogsPageSize.value,

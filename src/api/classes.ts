@@ -3,11 +3,29 @@ import { apiPaths } from './paths'
 import type { ClassItem, ClassStudentCandidateItem, ClassStudentItem, PageResult } from './types'
 
 export const classesApi = {
-  listClasses() {
-    return request<PageResult<ClassItem>>(`${apiPaths.admin.classes}?page=1&page_size=200`).then((page) => ({
+  listClasses(query: { page?: number; page_size?: number } = {}) {
+    const params = new URLSearchParams()
+    params.set('page', String(query.page ?? 1))
+    params.set('page_size', String(query.page_size ?? 100))
+    return request<PageResult<ClassItem>>(`${apiPaths.admin.classes}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
     }))
+  },
+  async listAllClasses() {
+    const pageSize = 100
+    let page = 1
+    let total = 0
+    const items: ClassItem[] = []
+
+    do {
+      const result = await this.listClasses({ page, page_size: pageSize })
+      items.push(...(result.items ?? []))
+      total = result.total ?? items.length
+      page += 1
+    } while (items.length < total)
+
+    return items
   },
   createClass(input: { class_name: string; grade: number; major_name: string }) {
     return request<ClassItem>(apiPaths.admin.classes, {
@@ -34,12 +52,6 @@ export const classesApi = {
   },
   createClassStudent(id: number, input: { student_id: string; real_name: string }) {
     return request<ClassStudentItem>(`${apiPaths.admin.classes}/${id}/students`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    })
-  },
-  importClassStudents(id: number, input: Array<{ student_id: string; real_name: string }>) {
-    return request<Record<string, never>>(`${apiPaths.admin.classes}/${id}/students/import`, {
       method: 'POST',
       body: JSON.stringify(input),
     })

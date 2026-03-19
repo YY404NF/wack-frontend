@@ -2,6 +2,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, type SessionUser } from '../api'
+import { useSessionStore } from '../stores/session'
 import { createLoginForm, createPasswordForm, createSetupForm } from './app/forms'
 import { useAdminState } from './app/useAdminState'
 import { useAppRouting } from './app/useAppRouting'
@@ -11,8 +12,12 @@ import { useStudentState } from './app/useStudentState'
 export function useApp() {
   const router = useRouter()
   const route = useRoute()
+  const sessionStore = useSessionStore()
 
-  const me = ref<SessionUser | null>(null)
+  const me = computed<SessionUser | null>({
+    get: () => sessionStore.me,
+    set: (value) => sessionStore.setUser(value),
+  })
   const authLoading = ref(false)
   const setupLoading = ref(false)
   const passwordSaving = ref(false)

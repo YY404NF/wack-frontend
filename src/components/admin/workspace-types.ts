@@ -1,14 +1,14 @@
 import type {
-  AdminOperationLogItem,
-  AttendanceDetailLogItem,
+  AttendanceRecordLogItem,
   AttendanceResultItem,
   ClassItem,
-  ClassStudentCandidateItem,
   ClassStudentItem,
   CourseCalendarItem,
   CourseItem,
   FreeTimeItem,
+  MetaTermItem,
   SessionUser,
+  StudentItem,
   SystemSetting,
   UserItem,
 } from '../../api'
@@ -22,7 +22,8 @@ import type {
   AdminCourseForm,
   AdminPasswordForm,
   AdminProfileForm,
-  AdminSystemLogFilters,
+  AdminStudentFilters,
+  AdminStudentForm,
   AdminUserFilters,
   AdminUserForm,
   AdminUserPasswordForm,
@@ -38,14 +39,14 @@ export type AdminWorkspaceProps = {
   freeTimes: FreeTimeItem[]
   systemSettings: SystemSetting | null
   systemSettingSaving: boolean
-  logs: AdminOperationLogItem[]
-  attendanceLogs: AttendanceDetailLogItem[]
+  attendanceLogs: AttendanceRecordLogItem[]
   classes: ClassItem[]
   allClasses: ClassItem[]
+  students: StudentItem[]
   users: UserItem[]
-  courseStudentCandidates: ClassStudentCandidateItem[]
   currentUserId?: number
   courses: CourseItem[]
+  courseTerms: MetaTermItem[]
   attendanceResults: AttendanceResultItem[]
   userForm: AdminUserForm
   userFilters: AdminUserFilters
@@ -74,15 +75,6 @@ export type AdminWorkspaceProps = {
   courseModalOpen: boolean
   deleteCourseModalOpen: boolean
   bulkDeleteCourseModalOpen: boolean
-  courseStudentModalOpen: boolean
-  courseStudentLoading: boolean
-  courseStudentSaving: boolean
-  courseImporting: boolean
-  courseStudentTargetName: string
-  courseStudentSelectedClassIds: number[]
-  courseStudentSelectedStudentIds: string[]
-  courseStudentClassStudentMap: Record<number, ClassStudentItem[]>
-  courseStudentLooseStudents: Array<{ student_id: string; real_name: string }>
   courseSaving: boolean
   courseLoading: boolean
   courseDeleting: boolean
@@ -102,7 +94,6 @@ export type AdminWorkspaceProps = {
   classStudents: ClassStudentItem[]
   classStudentModalOpen: boolean
   classStudentSaving: boolean
-  classStudentImporting: boolean
   editingClassStudentId: number | null
   classStudentTargetName: string
   classModalOpen: boolean
@@ -118,11 +109,21 @@ export type AdminWorkspaceProps = {
   selectedClassIds: number[]
   selectedClassCount: number
   deletingClassName: string
-  logFilters: AdminSystemLogFilters
-  logsPage: number
-  logsPageSize: number
-  logsTotalPages: number
-  logsPageOptions: number[]
+  studentForm: AdminStudentForm
+  studentFilters: AdminStudentFilters
+  studentModalOpen: boolean
+  deleteStudentModalOpen: boolean
+  bulkDeleteStudentModalOpen: boolean
+  studentSaving: boolean
+  studentDeleting: boolean
+  isEditingStudent: boolean
+  studentPage: number
+  studentPageSize: number
+  studentTotalPages: number
+  studentPageOptions: number[]
+  selectedStudentIds: number[]
+  selectedStudentCount: number
+  deletingStudentName: string
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number
   attendanceLogsPageSize: number

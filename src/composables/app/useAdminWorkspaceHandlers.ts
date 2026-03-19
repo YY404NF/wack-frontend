@@ -5,27 +5,13 @@ export type AdminWorkspaceHandlersDeps = {
   logout: () => void
   openCreateCourseModal: () => void
   openEditCourseModal: (item: any) => Promise<void>
-  openCourseStudentModal: (item: any) => Promise<void>
   closeCourseModal: () => void
-  closeCourseStudentModal: () => void
   openDeleteCourseModal: (item: any) => void
   closeDeleteCourseModal: () => void
   openBulkDeleteCourseModal: () => void
   closeBulkDeleteCourseModal: () => void
   saveCourse: () => Promise<void>
-  importCourses: (files: File[]) => Promise<void>
-  saveCourseStudents: () => Promise<void>
-  addCourseStudentClass: (classId: number) => Promise<void>
-  removeCourseStudentClass: (classId: number) => void
-  toggleCourseStudentClassSelection: (classId: number) => void
-  toggleCourseStudentSelection: (studentId: string) => void
-  addCourseStudent: (studentId: string) => void
-  removeCourseStudent: (studentId: string) => void
   deleteCourse: () => Promise<void>
-  setCourseWeekSelected: (weekNo: number, selected: boolean) => void
-  addCourseSessions: () => void
-  editCourseSession: (sessionNo: number) => void
-  removeCourseSession: (sessionNo: number) => void
   updateCoursePage: (page: number) => void
   updateCoursePageSize: (size: number) => void
   toggleCourseSelection: (courseId: number) => void
@@ -43,11 +29,24 @@ export type AdminWorkspaceHandlersDeps = {
   closeBulkDeleteClassModal: () => void
   saveClass: () => Promise<void>
   deleteClass: () => Promise<void>
+  openCreateStudentModal: () => void
+  openEditStudentModal: (item: any) => void
+  closeStudentModal: () => void
+  openDeleteStudentModal: (item: any) => void
+  closeDeleteStudentModal: () => void
+  openBulkDeleteStudentModal: () => void
+  closeBulkDeleteStudentModal: () => void
+  saveStudent: () => Promise<void>
+  deleteStudent: () => Promise<void>
+  bulkDeleteStudents: () => Promise<void>
+  updateStudentPage: (page: number) => void
+  updateStudentPageSize: (size: number) => void
+  toggleStudentSelection: (studentId: number) => void
+  toggleStudentPageSelection: () => void
   createClassStudent: () => Promise<void>
   startEditClassStudent: (studentId: number) => void
   saveEditingClassStudent: () => Promise<boolean>
   deleteClassStudent: (studentId: number) => Promise<void>
-  importClasses: (files: File[]) => Promise<void>
   updateClassPage: (page: number) => void
   updateClassPageSize: (size: number) => void
   toggleClassSelection: (classId: number) => void
@@ -56,8 +55,6 @@ export type AdminWorkspaceHandlersDeps = {
   openCreateUserModal: () => void
   updateAttendanceLogsPage: (page: number) => void
   updateAttendanceLogsPageSize: (size: number) => void
-  updateLogsPage: (page: number) => void
-  updateLogsPageSize: (size: number) => void
   openEditUserModal: (user: any) => void
   closeUserModal: () => void
   openUserPasswordModal: (user: any) => void
@@ -93,29 +90,13 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     logout: deps.logout,
     openCreateCourseModal: deps.openCreateCourseModal,
     openEditCourseModal: deps.openEditCourseModal,
-    openCourseStudentModal: deps.openCourseStudentModal,
     closeCourseModal: deps.closeCourseModal,
-    closeCourseStudentModal: deps.closeCourseStudentModal,
     openDeleteCourseModal: deps.openDeleteCourseModal,
     closeDeleteCourseModal: deps.closeDeleteCourseModal,
     openBulkDeleteCourseModal: deps.openBulkDeleteCourseModal,
     closeBulkDeleteCourseModal: deps.closeBulkDeleteCourseModal,
     saveCourse: deps.saveCourse,
-    importCourses: deps.importCourses,
-    saveCourseStudents: deps.saveCourseStudents,
-    addCourseStudentClass: deps.addCourseStudentClass,
-    removeCourseStudentClass: deps.removeCourseStudentClass,
-    toggleCourseStudentClassSelection: deps.toggleCourseStudentClassSelection,
-    toggleCourseStudentSelection: deps.toggleCourseStudentSelection,
-    addCourseStudent: deps.addCourseStudent,
-    removeCourseStudent: deps.removeCourseStudent,
     deleteCourse: deps.deleteCourse,
-    setCourseWeekSelected: (payload: { weekNo: number; selected: boolean }) => {
-      deps.setCourseWeekSelected(payload.weekNo, payload.selected)
-    },
-    addCourseSessions: deps.addCourseSessions,
-    editCourseSession: deps.editCourseSession,
-    removeCourseSession: deps.removeCourseSession,
     updateCoursePage: deps.updateCoursePage,
     updateCoursePageSize: deps.updateCoursePageSize,
     toggleCourseSelection: deps.toggleCourseSelection,
@@ -133,11 +114,24 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     closeBulkDeleteClassModal: deps.closeBulkDeleteClassModal,
     saveClass: deps.saveClass,
     deleteClass: deps.deleteClass,
+    openCreateStudentModal: deps.openCreateStudentModal,
+    openEditStudentModal: deps.openEditStudentModal,
+    closeStudentModal: deps.closeStudentModal,
+    openDeleteStudentModal: deps.openDeleteStudentModal,
+    closeDeleteStudentModal: deps.closeDeleteStudentModal,
+    openBulkDeleteStudentModal: deps.openBulkDeleteStudentModal,
+    closeBulkDeleteStudentModal: deps.closeBulkDeleteStudentModal,
+    saveStudent: deps.saveStudent,
+    deleteStudent: deps.deleteStudent,
+    bulkDeleteStudents: deps.bulkDeleteStudents,
+    updateStudentPage: deps.updateStudentPage,
+    updateStudentPageSize: deps.updateStudentPageSize,
+    toggleStudentSelection: deps.toggleStudentSelection,
+    toggleStudentPageSelection: deps.toggleStudentPageSelection,
     createClassStudent: deps.createClassStudent,
     startEditClassStudent: deps.startEditClassStudent,
     saveEditingClassStudent: deps.saveEditingClassStudent,
     deleteClassStudent: deps.deleteClassStudent,
-    importClasses: deps.importClasses,
     updateClassPage: deps.updateClassPage,
     updateClassPageSize: deps.updateClassPageSize,
     toggleClassSelection: deps.toggleClassSelection,
@@ -146,8 +140,6 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     openCreateUserModal: deps.openCreateUserModal,
     updateAttendanceLogsPage: deps.updateAttendanceLogsPage,
     updateAttendanceLogsPageSize: deps.updateAttendanceLogsPageSize,
-    updateLogsPage: deps.updateLogsPage,
-    updateLogsPageSize: deps.updateLogsPageSize,
     openEditUserModal: deps.openEditUserModal,
     closeUserModal: deps.closeUserModal,
     openUserPasswordModal: deps.openUserPasswordModal,

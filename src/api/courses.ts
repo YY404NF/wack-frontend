@@ -1,24 +1,146 @@
 import { request } from './client'
 import { apiPaths } from './paths'
-import type { CourseCalendarItem, CourseDetail, CourseItem } from './types'
+import type {
+  AvailableCourseGroupClassItem,
+  AvailableCourseGroupStudentItem,
+  CourseCalendarItem,
+  CourseGroupDetail,
+  CourseGroupItem,
+  CourseItem,
+  PageResult,
+} from './types'
 
 export const coursesApi = {
-  listCourses() {
-    return request<{ items: CourseItem[] | null }>(`${apiPaths.admin.courses}?page=1&page_size=50`).then((page) => ({
+  listCourses(query: { page?: number; page_size?: number } = {}) {
+    const params = new URLSearchParams()
+    params.set('page', String(query.page ?? 1))
+    params.set('page_size', String(query.page_size ?? 100))
+    return request<PageResult<CourseItem>>(`${apiPaths.admin.courses}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
     }))
   },
-  getCourse(courseId: number) {
-    return request<CourseDetail>(`${apiPaths.admin.courses}/${courseId}`)
+  async listAllCourses() {
+    const pageSize = 100
+    let page = 1
+    let total = 0
+    const items: CourseItem[] = []
+
+    do {
+      const result = await this.listCourses({ page, page_size: pageSize })
+      items.push(...(result.items ?? []))
+      total = result.total ?? items.length
+      page += 1
+    } while (items.length < total)
+
+    return items
   },
-  createCourse(input: { term: string; course_name: string; teacher_name: string; attendance_student_count: number }) {
+  listCourseGroups(courseId: number) {
+    return request<CourseGroupItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups`).then((items) => items ?? [])
+  },
+  getCourseGroup(courseId: number, groupId: number) {
+    return request<CourseGroupDetail>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}`)
+  },
+  listCourseGroupSessions(courseId: number, groupId: number) {
+    return request<CourseGroupDetail['sessions'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions`).then((items) => items ?? [])
+  },
+  createCourseGroupSession(
+    courseId: number,
+    groupId: number,
+    input: {
+      week_no: number
+      weekday: number
+      section: number
+      building_name: string
+      room_name: string
+    },
+  ) {
+    return request<CourseGroupDetail['sessions'][number]>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  },
+  updateCourseGroupSession(
+    courseId: number,
+    groupId: number,
+    sessionId: number,
+    input: {
+      week_no: number
+      weekday: number
+      section: number
+      building_name: string
+      room_name: string
+    },
+  ) {
+    return request<CourseGroupDetail['sessions'][number]>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions/${sessionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+  },
+  deleteCourseGroupSession(courseId: number, groupId: number, sessionId: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions/${sessionId}`, {
+      method: 'DELETE',
+    })
+  },
+  listCourseGroupStudents(courseId: number, groupId: number) {
+    return request<CourseGroupDetail['students'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`).then((items) => items ?? [])
+  },
+  listAvailableCourseGroupClasses(courseId: number, groupId: number, keyword = '') {
+    const params = new URLSearchParams()
+    if (keyword.trim()) {
+      params.set('keyword', keyword.trim())
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<AvailableCourseGroupClassItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-classes${suffix}`).then((items) => items ?? [])
+  },
+  addCourseGroupClasses(courseId: number, groupId: number, classIds: number[]) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/classes`, {
+      method: 'POST',
+      body: JSON.stringify({ class_ids: classIds }),
+    })
+  },
+  removeCourseGroupClass(courseId: number, groupId: number, classId: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/classes/${classId}`, {
+      method: 'DELETE',
+    })
+  },
+  listAvailableCourseGroupStudents(courseId: number, groupId: number, keyword = '') {
+    const params = new URLSearchParams()
+    if (keyword.trim()) {
+      params.set('keyword', keyword.trim())
+    }
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<AvailableCourseGroupStudentItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-students${suffix}`).then((items) => items ?? [])
+  },
+  addCourseGroupStudents(courseId: number, groupId: number, studentIds: number[]) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`, {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: studentIds }),
+    })
+  },
+  removeCourseGroupStudent(courseId: number, groupId: number, studentId: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students/${studentId}`, {
+      method: 'DELETE',
+    })
+  },
+  createCourseGroup(courseId: number) {
+    return request<CourseGroupItem>(`${apiPaths.admin.courses}/${courseId}/groups`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+  },
+  deleteCourseGroup(courseId: number, groupId: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}`, {
+      method: 'DELETE',
+    })
+  },
+  createCourse(input: { term_id: number; grade: number; course_name: string; teacher_name: string }) {
     return request<CourseItem>(apiPaths.admin.courses, {
       method: 'POST',
       body: JSON.stringify(input),
     })
   },
-  updateCourse(courseId: number, input: { term: string; course_name: string; teacher_name: string; attendance_student_count: number }) {
+  updateCourse(courseId: number, input: { term_id: number; grade: number; course_name: string; teacher_name: string }) {
     return request<CourseItem>(`${apiPaths.admin.courses}/${courseId}`, {
       method: 'PUT',
       body: JSON.stringify(input),
@@ -27,34 +149,6 @@ export const coursesApi = {
   deleteCourse(courseId: number) {
     return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}`, {
       method: 'DELETE',
-    })
-  },
-  replaceCourseStudents(courseId: number, students: Array<{ student_id: string; real_name: string }>) {
-    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/students`, {
-      method: 'PUT',
-      body: JSON.stringify({ students }),
-    })
-  },
-  replaceCourseClasses(courseId: number, classIds: number[]) {
-    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/classes`, {
-      method: 'PUT',
-      body: JSON.stringify({ class_ids: classIds }),
-    })
-  },
-  replaceCourseSessions(
-    courseId: number,
-    sessions: Array<{
-      session_no: number
-      week_no: number
-      weekday: number
-      section: number
-      building_name: string
-      room_name: string
-    }>,
-  ) {
-    return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/sessions`, {
-      method: 'PUT',
-      body: JSON.stringify({ sessions }),
     })
   },
   adminCourseCalendar() {

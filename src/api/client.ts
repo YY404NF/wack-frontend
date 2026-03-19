@@ -1,7 +1,10 @@
+import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponseHeaders } from 'axios'
+
 import type { ApiResponse } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 const TOKEN_KEY = 'wack-token'
+const REQUEST_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? 10000)
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) ?? ''
@@ -15,24 +18,72 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
-export async function request<T>(path: string, init?: RequestInit) {
-  const headers = new Headers(init?.headers ?? {})
+const apiClient = axios.create({
+  baseURL: API_BASE,
+  timeout: REQUEST_TIMEOUT,
+})
+
+apiClient.interceptors.request.use((config) => {
   const token = getToken()
+  const headers = config.headers ?? {}
   if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+    headers.Authorization = `Bearer ${token}`
   }
-  if (!(init?.body instanceof FormData) && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+  const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
   }
+  config.headers = headers
+  return config
+})
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
+function parseJsonBody(body: BodyInit | null | undefined, headers?: AxiosResponseHeaders | Record<string, unknown>) {
+  if (typeof body !== 'string') {
+    return body
+  }
+  const rawContentType = headers && 'Content-Type' in headers ? headers['Content-Type'] : headers && 'content-type' in headers ? headers['content-type'] : ''
+  const contentType = typeof rawContentType === 'string' ? rawContentType : ''
+  if (!contentType.includes('application/json')) {
+    return body
+  }
+  try {
+    return JSON.parse(body)
+  } catch {
+    return body
+  }
+}
+
+function buildConfig(init?: RequestInit): AxiosRequestConfig {
+  const headers = Object.fromEntries(new Headers(init?.headers ?? {}).entries())
+  return {
+    method: init?.method,
     headers,
-  })
-
-  const payload = (await response.json()) as ApiResponse<T>
-  if (!response.ok || payload.code !== 0) {
-    throw new Error(payload.message || `request failed: ${response.status}`)
+    data: parseJsonBody(init?.body, headers),
   }
-  return payload.data
+}
+
+export async function request<T>(path: string, init?: RequestInit) {
+  try {
+    const response = await apiClient.request<ApiResponse<T>>({
+      url: path,
+      ...buildConfig(init),
+    })
+    const payload = response.data
+    if (payload.code !== 0) {
+      throw new Error(payload.message || '请求失败')
+    }
+    return payload.data
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      const message =
+        error.response?.data && typeof error.response.data === 'object' && 'message' in error.response.data && typeof error.response.data.message === 'string'
+          ? error.response.data.message
+          : error.message || '请求失败'
+      throw new Error(message)
+    }
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('请求失败')
+  }
 }

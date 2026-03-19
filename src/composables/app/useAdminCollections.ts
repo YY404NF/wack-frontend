@@ -1,21 +1,12 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
-import type {
-  AdminOperationLogItem,
-  AttendanceDetailLogItem,
-  ClassItem,
-  ClassStudentCandidateItem,
-  ClassStudentItem,
-  CourseItem,
-  FreeTimeItem,
-  UserItem,
-} from '../../api'
+import type { AttendanceRecordLogItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeItem, StudentItem, UserItem } from '../../api'
 import type {
   AdminAttendanceLogFilters,
   AdminClassFilters,
   AdminClassStudentFilters,
   AdminCourseFilters,
-  AdminSystemLogFilters,
+  AdminStudentFilters,
   AdminUserFilters,
 } from '../../components/admin/form-types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
@@ -25,20 +16,16 @@ import { useSelection } from './useSelection'
 export type UseAdminCollectionsDeps = {
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
+  students: Ref<StudentItem[]>
   courses: Ref<CourseItem[]>
-  logs: Ref<AdminOperationLogItem[]>
-  attendanceLogs: Ref<AttendanceDetailLogItem[]>
+  attendanceLogs: Ref<AttendanceRecordLogItem[]>
   classStudents: Ref<ClassStudentItem[]>
-  courseStudentCandidates: Ref<ClassStudentCandidateItem[]>
-  courseStudentClassStudentMap: Ref<Record<number, ClassStudentItem[]>>
-  courseStudentLooseStudents: Ref<Array<{ student_id: string; real_name: string }>>
-  courseStudentSelectedStudentIds: Ref<string[]>
   userFilters: AdminUserFilters
   classFilters: AdminClassFilters
   courseFilters: AdminCourseFilters
-  logFilters: AdminSystemLogFilters
   attendanceLogFilters: AdminAttendanceLogFilters
   classStudentFilters: AdminClassStudentFilters
+  studentFilters: AdminStudentFilters
   userFreeTimeItems: Ref<FreeTimeItem[]>
   userFreeTimeTerm: Ref<string>
   currentUserId: ComputedRef<number | undefined>
@@ -58,13 +45,28 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
   const usersView = usePagedCollection({
     source: deps.users,
     predicate: (user) => {
-      const byStudentId = !deps.userFilters.studentId || user.student_id.includes(deps.userFilters.studentId.trim())
+      const byStudentId = !deps.userFilters.studentId || user.login_id.includes(deps.userFilters.studentId.trim())
       const byRealName = !deps.userFilters.realName || user.real_name.includes(deps.userFilters.realName.trim())
+      const byManagedClassName =
+        !deps.userFilters.managedClassName ||
+        (() => {
+          if (typeof user.managed_class_id !== 'number') {
+            return false
+          }
+          const matched = deps.classes.value.find((item) => item.id === user.managed_class_id)
+          return (matched?.class_name ?? '').includes(deps.userFilters.managedClassName.trim())
+        })()
       const byRole = !deps.userFilters.role || String(user.role) === deps.userFilters.role
       const byStatus = !deps.userFilters.status || String(user.status) === deps.userFilters.status
-      return byStudentId && byRealName && byRole && byStatus
+      return byStudentId && byRealName && byManagedClassName && byRole && byStatus
     },
-    resetDeps: () => [deps.userFilters.studentId, deps.userFilters.realName, deps.userFilters.role, deps.userFilters.status],
+    resetDeps: () => [
+      deps.userFilters.studentId,
+      deps.userFilters.realName,
+      deps.userFilters.managedClassName,
+      deps.userFilters.role,
+      deps.userFilters.status,
+    ],
   })
 
   const classesView = usePagedCollection({
@@ -76,6 +78,19 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
       return byGrade && byMajor && byName
     },
     resetDeps: () => [deps.classFilters.grade, deps.classFilters.majorName, deps.classFilters.className],
+  })
+
+  const studentsView = usePagedCollection({
+    source: deps.students,
+    predicate: (item) => {
+      const byClassName =
+        !deps.studentFilters.className ||
+        (item.class_name ?? '').includes(deps.studentFilters.className.trim())
+      const byStudentId = !deps.studentFilters.studentId || item.student_id.includes(deps.studentFilters.studentId.trim())
+      const byRealName = !deps.studentFilters.realName || item.real_name.includes(deps.studentFilters.realName.trim())
+      return byClassName && byStudentId && byRealName
+    },
+    resetDeps: () => [deps.studentFilters.className, deps.studentFilters.studentId, deps.studentFilters.realName],
   })
 
   const coursesView = usePagedCollection({
@@ -90,32 +105,11 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
     resetDeps: () => [deps.courseFilters.term, deps.courseFilters.courseName, deps.courseFilters.teacherName, deps.courseFilters.classId],
   })
 
-  const logsView = usePagedCollection({
-    source: deps.logs,
-    predicate: (item) => {
-      const byOperator = !deps.logFilters.operatorStudentId || item.operator_student_id.includes(deps.logFilters.operatorStudentId.trim())
-      const byTargetTable = !deps.logFilters.targetTable || item.target_table.includes(deps.logFilters.targetTable.trim())
-      const byActionType = !deps.logFilters.actionType || item.action_type.includes(deps.logFilters.actionType.trim())
-      const byTargetId = !deps.logFilters.targetId || String(item.target_id).includes(deps.logFilters.targetId.trim())
-      const byKeyword = !deps.logFilters.keyword || (item.new_value ?? '').includes(deps.logFilters.keyword.trim())
-      const byDate = !deps.logFilters.createdDate || item.created_at.startsWith(deps.logFilters.createdDate)
-      return byOperator && byTargetTable && byActionType && byTargetId && byKeyword && byDate
-    },
-    resetDeps: () => [
-      deps.logFilters.operatorStudentId,
-      deps.logFilters.targetTable,
-      deps.logFilters.actionType,
-      deps.logFilters.targetId,
-      deps.logFilters.keyword,
-      deps.logFilters.createdDate,
-    ],
-  })
-
   const attendanceLogsView = usePagedCollection({
     source: deps.attendanceLogs,
     predicate: (item) => {
       const byStudent = !deps.attendanceLogFilters.studentId || item.student_id.includes(deps.attendanceLogFilters.studentId.trim())
-      const byOperator = !deps.attendanceLogFilters.operatorStudentId || item.operator_student_id.includes(deps.attendanceLogFilters.operatorStudentId.trim())
+      const byOperator = !deps.attendanceLogFilters.operatorStudentId || item.operator_login_id.includes(deps.attendanceLogFilters.operatorStudentId.trim())
       const byType = !deps.attendanceLogFilters.operationType || item.operation_type.includes(deps.attendanceLogFilters.operationType.trim())
       const byStatus = !deps.attendanceLogFilters.newStatus || String(item.new_status) === deps.attendanceLogFilters.newStatus
       const byDate = !deps.attendanceLogFilters.operatedDate || item.operated_at.startsWith(deps.attendanceLogFilters.operatedDate)
@@ -153,33 +147,21 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
   const userSelection = useSelection({
     allItems: deps.users,
     pageItems: usersView.paginatedItems,
-    getId: (item) => item.student_id,
+    getId: (item) => item.login_id,
     canSelect: (item) => item.id !== deps.currentUserId.value,
   })
 
-  const courseStudentSelectedStudents = computed(() => {
-    const realNameByStudentId = new Map<string, string>()
-    for (const item of deps.courseStudentCandidates.value) {
-      realNameByStudentId.set(item.student_id, item.real_name)
-    }
-    for (const students of Object.values(deps.courseStudentClassStudentMap.value)) {
-      for (const student of students) {
-        realNameByStudentId.set(student.student_id, student.real_name)
-      }
-    }
-    for (const student of deps.courseStudentLooseStudents.value) {
-      realNameByStudentId.set(student.student_id, student.real_name)
-    }
-    return deps.courseStudentSelectedStudentIds.value.map((studentId) => ({
-      student_id: studentId,
-      real_name: realNameByStudentId.get(studentId) ?? studentId,
-    }))
+  const studentSelection = useSelection({
+    allItems: deps.students,
+    pageItems: studentsView.paginatedItems,
+    getId: (item) => item.id,
   })
 
   function clearAdminSelections() {
     courseSelection.clearSelection()
     classSelection.clearSelection()
     userSelection.clearSelection()
+    studentSelection.clearSelection()
   }
 
   return {
@@ -188,12 +170,11 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
     usersView,
     classesView,
     coursesView,
-    logsView,
     attendanceLogsView,
     paginatedUsers: usersView.paginatedItems,
     paginatedCourses: coursesView.paginatedItems,
     paginatedClasses: classesView.paginatedItems,
-    paginatedLogs: logsView.paginatedItems,
+    paginatedStudents: studentsView.paginatedItems,
     paginatedAttendanceLogs: attendanceLogsView.paginatedItems,
     userPage: usersView.page,
     userPageSize: usersView.pageSize,
@@ -204,22 +185,25 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
     classPage: classesView.page,
     classPageSize: classesView.pageSize,
     classTotalPages: classesView.totalPages,
-    logsPage: logsView.page,
-    logsPageSize: logsView.pageSize,
-    logsTotalPages: logsView.totalPages,
+    studentPage: studentsView.page,
+    studentPageSize: studentsView.pageSize,
+    studentTotalPages: studentsView.totalPages,
     attendanceLogsPage: attendanceLogsView.page,
     attendanceLogsPageSize: attendanceLogsView.pageSize,
     attendanceLogsTotalPages: attendanceLogsView.totalPages,
     selectedCourseIds: courseSelection.selectedIds,
     selectedClassIds: classSelection.selectedIds,
+    selectedStudentIds: studentSelection.selectedIds,
     selectedUserStudentIds: userSelection.selectedIds,
-    courseStudentSelectedStudents,
     clearAdminSelections,
     toggleCourseSelection: courseSelection.toggleSelection,
     toggleCoursePageSelection: courseSelection.togglePageSelection,
     toggleClassSelection: classSelection.toggleSelection,
     toggleClassPageSelection: classSelection.togglePageSelection,
+    toggleStudentSelection: studentSelection.toggleSelection,
+    toggleStudentPageSelection: studentSelection.togglePageSelection,
     toggleUserSelection: userSelection.toggleSelection,
     toggleUserPageSelection: userSelection.togglePageSelection,
+    studentsView,
   }
 }

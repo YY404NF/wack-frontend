@@ -15,17 +15,17 @@ type AdminBulkActionsInputDeps = Omit<AdminBulkActionsDeps, 'loadAdminData'>
 type AdminWorkspaceHandlersInputDeps = Omit<
   AdminWorkspaceHandlersDeps,
   | 'saveCourse'
-  | 'importCourses'
-  | 'saveCourseStudents'
   | 'deleteCourse'
   | 'bulkDeleteCourses'
   | 'updateSystemSettings'
   | 'saveClass'
   | 'deleteClass'
+  | 'saveStudent'
+  | 'deleteStudent'
+  | 'bulkDeleteStudents'
   | 'createClassStudent'
   | 'saveEditingClassStudent'
   | 'deleteClassStudent'
-  | 'importClasses'
   | 'bulkDeleteClasses'
   | 'saveUserFreeTime'
   | 'resetUserPassword'
@@ -72,10 +72,6 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     await adminFlow.saveCourse()
   }
 
-  async function saveCourseStudents() {
-    await adminFlow.saveCourseStudents()
-  }
-
   async function deleteCourse() {
     await adminFlow.deleteCourse()
   }
@@ -86,6 +82,14 @@ export function useAdminApp(deps: UseAdminAppDeps) {
 
   async function deleteClass() {
     await adminFlow.deleteClass()
+  }
+
+  async function saveStudent() {
+    await adminFlow.saveStudent()
+  }
+
+  async function deleteStudent() {
+    await adminFlow.deleteStudent()
   }
 
   async function updateAdminStatus(detailId: number, status: StatusCode) {
@@ -99,17 +103,17 @@ export function useAdminApp(deps: UseAdminAppDeps) {
   const adminWorkspaceHandlers = useAdminWorkspaceHandlers({
     ...deps,
     saveCourse,
-    importCourses: adminBulkActions.importCourses,
-    saveCourseStudents,
     deleteCourse,
     bulkDeleteCourses: adminBulkActions.bulkDeleteCourses,
     updateSystemSettings: adminBulkActions.updateSystemSettings,
     saveClass,
     deleteClass,
+    saveStudent,
+    deleteStudent,
+    bulkDeleteStudents: adminBulkActions.bulkDeleteStudents,
     createClassStudent: adminBulkActions.createClassStudent,
     saveEditingClassStudent: adminBulkActions.saveEditingClassStudent,
     deleteClassStudent: adminBulkActions.deleteClassStudent,
-    importClasses: adminBulkActions.importClasses,
     bulkDeleteClasses: adminBulkActions.bulkDeleteClasses,
     saveUserFreeTime: adminBulkActions.saveUserFreeTime,
     resetUserPassword,

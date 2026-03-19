@@ -5,11 +5,13 @@ export type AdminUserForm = {
   confirmPassword: string
   role: number
   status: number
+  managedClassId: number | ''
 }
 
 export type AdminUserFilters = {
   studentId: string
   realName: string
+  managedClassName: string
   role: string
   status: string
 }
@@ -21,25 +23,11 @@ export type AdminCourseFilters = {
   classId: string
 }
 
-export type AdminCourseSessionForm = {
-  sessionNo: number
-  weekNo: number
-  weekday: number
-  section: number
-  buildingName: string
-  roomName: string
-}
-
 export type AdminCourseForm = {
-  term: string
+  termId: number | ''
+  grade: number
   courseName: string
   teacherName: string
-  weekday: number | null
-  section: number | null
-  buildingName: string
-  roomName: string
-  selectedWeeks: number[]
-  sessions: AdminCourseSessionForm[]
 }
 
 export type AdminClassForm = {
@@ -64,13 +52,16 @@ export type AdminClassStudentForm = {
   realName: string
 }
 
-export type AdminSystemLogFilters = {
-  operatorStudentId: string
-  targetTable: string
-  actionType: string
-  targetId: string
-  keyword: string
-  createdDate: string
+export type AdminStudentFilters = {
+  className: string
+  studentId: string
+  realName: string
+}
+
+export type AdminStudentForm = {
+  classId: number | ''
+  studentId: string
+  realName: string
 }
 
 export type AdminAttendanceLogFilters = {

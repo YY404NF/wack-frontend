@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { HomeFilled } from '@element-plus/icons-vue'
 
 import type { AppTab, StatusCode } from '../constants'
+import { adminNavItems } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
 import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
@@ -9,7 +11,7 @@ import type { ClassItem, CourseItem, UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 
-defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
+const props = defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
@@ -25,18 +27,24 @@ const emit = defineEmits<{
   closeBulkDeleteClassModal: []
   saveClass: []
   deleteClass: []
+  openCreateStudentModal: []
+  openEditStudentModal: [item: any]
+  closeStudentModal: []
+  openDeleteStudentModal: [item: any]
+  closeDeleteStudentModal: []
+  saveStudent: []
+  deleteStudent: []
   bulkDeleteClasses: []
   createClassStudent: []
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
-  importClasses: [files: File[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
+  updateStudentPage: [page: number]
+  updateStudentPageSize: [size: number]
   toggleClassSelection: [classId: number]
   toggleClassPageSelection: []
-  updateLogsPage: [page: number]
-  updateLogsPageSize: [size: number]
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
   openCreateUserModal: []
@@ -66,27 +74,13 @@ const emit = defineEmits<{
   setUserStatus: [studentId: string, status: number]
   openCreateCourseModal: []
   openEditCourseModal: [item: CourseItem]
-  openCourseStudentModal: [item: CourseItem]
   closeCourseModal: []
-  closeCourseStudentModal: []
   openDeleteCourseModal: [item: CourseItem]
   closeDeleteCourseModal: []
   openBulkDeleteCourseModal: []
   closeBulkDeleteCourseModal: []
   saveCourse: []
-  importCourses: [files: File[]]
-  addCourseStudentClass: [classId: number]
-  removeCourseStudentClass: [classId: number]
-  toggleCourseStudentClassSelection: [classId: number]
-  toggleCourseStudentSelection: [studentId: string]
-  addCourseStudent: [studentId: string]
-  removeCourseStudent: [studentId: string]
-  saveCourseStudents: []
   deleteCourse: []
-  setCourseWeekSelected: [payload: { weekNo: number; selected: boolean }]
-  addCourseSessions: []
-  editCourseSession: [sessionNo: number]
-  removeCourseSession: [sessionNo: number]
   updateCoursePage: [page: number]
   updateCoursePageSize: [size: number]
   toggleCourseSelection: [courseId: number]
@@ -103,6 +97,10 @@ function forwardUserStatus(studentId: string, status: number) {
 
 const aboutCaptchaOpen = ref(false)
 const aboutModalOpen = ref(false)
+
+const activeTabLabel = computed(() => {
+  return adminNavItems.find((item) => item.key === props.activeTab)?.label ?? '当前页面'
+})
 
 function openAboutEntry() {
   aboutCaptchaOpen.value = true
@@ -146,6 +144,14 @@ function closeAboutModal() {
 
     <div class="admin-content">
       <main class="layout">
+        <header class="admin-path-bar">
+          <span class="admin-path-home" aria-hidden="true">
+            <HomeFilled class="admin-path-home-icon" />
+          </span>
+          <span class="admin-path-separator" aria-hidden="true">/</span>
+          <span class="admin-path-current">{{ activeTabLabel }}</span>
+        </header>
+
         <div v-if="pageError || toast" class="notice-stack">
           <p v-if="pageError" class="error-banner">{{ pageError }}</p>
           <p v-if="toast" class="toast-banner">{{ toast }}</p>
@@ -155,27 +161,13 @@ function closeAboutModal() {
           v-bind="$props"
           @open-create-course-modal="emit('openCreateCourseModal')"
           @open-edit-course-modal="emit('openEditCourseModal', $event)"
-          @open-course-student-modal="emit('openCourseStudentModal', $event)"
           @close-course-modal="emit('closeCourseModal')"
-          @close-course-student-modal="emit('closeCourseStudentModal')"
           @open-delete-course-modal="emit('openDeleteCourseModal', $event)"
           @close-delete-course-modal="emit('closeDeleteCourseModal')"
           @open-bulk-delete-course-modal="emit('openBulkDeleteCourseModal')"
           @close-bulk-delete-course-modal="emit('closeBulkDeleteCourseModal')"
           @save-course="emit('saveCourse')"
-          @import-courses="emit('importCourses', $event)"
-          @add-course-student-class="emit('addCourseStudentClass', $event)"
-          @remove-course-student-class="emit('removeCourseStudentClass', $event)"
-          @toggle-course-student-class-selection="emit('toggleCourseStudentClassSelection', $event)"
-          @toggle-course-student-selection="emit('toggleCourseStudentSelection', $event)"
-          @add-course-student="emit('addCourseStudent', $event)"
-          @remove-course-student="emit('removeCourseStudent', $event)"
-          @save-course-students="emit('saveCourseStudents')"
           @delete-course="emit('deleteCourse')"
-          @set-course-week-selected="emit('setCourseWeekSelected', $event)"
-          @add-course-sessions="emit('addCourseSessions')"
-          @edit-course-session="emit('editCourseSession', $event)"
-          @remove-course-session="emit('removeCourseSession', $event)"
           @update-course-page="emit('updateCoursePage', $event)"
           @update-course-page-size="emit('updateCoursePageSize', $event)"
           @toggle-course-selection="emit('toggleCourseSelection', $event)"
@@ -192,20 +184,26 @@ function closeAboutModal() {
           @close-bulk-delete-class-modal="emit('closeBulkDeleteClassModal')"
           @save-class="emit('saveClass')"
           @delete-class="emit('deleteClass')"
+          @open-create-student-modal="emit('openCreateStudentModal')"
+          @open-edit-student-modal="emit('openEditStudentModal', $event)"
+          @close-student-modal="emit('closeStudentModal')"
+          @open-delete-student-modal="emit('openDeleteStudentModal', $event)"
+          @close-delete-student-modal="emit('closeDeleteStudentModal')"
+          @save-student="emit('saveStudent')"
+          @delete-student="emit('deleteStudent')"
           @create-class-student="emit('createClassStudent')"
           @start-edit-class-student="emit('startEditClassStudent', $event)"
           @save-editing-class-student="emit('saveEditingClassStudent')"
           @delete-class-student="emit('deleteClassStudent', $event)"
-          @import-classes="emit('importClasses', $event)"
           @update-class-page="emit('updateClassPage', $event)"
           @update-class-page-size="emit('updateClassPageSize', $event)"
+          @update-student-page="emit('updateStudentPage', $event)"
+          @update-student-page-size="emit('updateStudentPageSize', $event)"
           @toggle-class-selection="emit('toggleClassSelection', $event)"
           @toggle-class-page-selection="emit('toggleClassPageSelection')"
           @bulk-delete-classes="emit('bulkDeleteClasses')"
           @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
           @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
-          @update-logs-page="emit('updateLogsPage', $event)"
-          @update-logs-page-size="emit('updateLogsPageSize', $event)"
           @open-create-user-modal="emit('openCreateUserModal')"
           @open-edit-user-modal="emit('openEditUserModal', $event)"
           @close-user-modal="emit('closeUserModal')"
