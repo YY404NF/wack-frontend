@@ -7,3 +7,7 @@
 @import './styles/admin-panels.css';
 @import './styles/student.css';
 @import './styles/modal.css';
+
+:where(a, button, input, select, textarea, label, summary, [role='button']) {
+  -webkit-tap-highlight-color: transparent;
+}
