@@ -732,11 +732,11 @@ export function useAdminState(deps: UseAdminStateDeps) {
     return adminAppLoader
   }
 
-  async function loadRoleData() {
+  async function loadRoleData(tab: AppTab = deps.activeTab.value) {
     clearNotices()
     const app = await ensureAdminApp()
     try {
-      await app.loadAdminData()
+      await app.loadAdminData(tab)
     } catch (error) {
       adminError.value = error instanceof Error ? error.message : '加载管理数据失败'
     }
@@ -763,7 +763,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     if (nextTab !== previousTab && isAdmin.value) {
       closeAllModals()
       clearAdminSelections()
-      void loadRoleData()
+      void loadRoleData(nextTab)
     }
     if (isAdmin.value) {
       clearNotices()

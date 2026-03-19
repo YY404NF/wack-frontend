@@ -15,7 +15,7 @@ import {
   type SystemSetting,
   type UserItem,
 } from '../../api'
-import type { StatusCode } from '../../constants'
+import type { AppTab, StatusCode } from '../../constants'
 import { createClassForm, createCourseForm, createStudentForm } from './forms'
 
 type UserForm = {
@@ -58,6 +58,7 @@ type StudentForm = {
 }
 
 export type AdminFlowDeps = {
+  activeTab: Ref<AppTab>
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
@@ -107,31 +108,101 @@ export type AdminFlowDeps = {
 }
 
 export function useAdminFlow(deps: AdminFlowDeps) {
-  async function loadAdminData() {
-    const [users, classes, students, courses, terms, calendar, summary, resultPage, freeTimeList, attendanceLogPageResult, settings] = await Promise.all([
-      api.listAllUsers(),
-      api.listAllClasses(),
-      api.listAllStudents(),
-      api.listAllCourses(),
-      api.listMetaTerms(),
-      api.adminCourseCalendar(),
-      api.adminAttendanceDashboard(),
-      api.adminAttendanceResults(),
-      api.adminFreeTimeCalendar(),
-      api.listAttendanceRecordLogs(),
-      api.getSystemSettings(),
-    ])
-    deps.users.value = users
-    deps.classes.value = classes
-    deps.students.value = students
-    deps.courses.value = courses
+  async function loadOverviewData() {
+    const [terms, summary, resultPage] = await Promise.all([api.listMetaTerms(), api.adminAttendanceDashboard(), api.adminAttendanceResults()])
     deps.courseTerms.value = terms
-    deps.courseCalendar.value = calendar ?? []
     deps.dashboard.value = summary
     deps.attendanceResults.value = resultPage.items ?? []
+  }
+
+  async function loadAttendanceData() {
+    const resultPage = await api.adminAttendanceResults()
+    deps.attendanceResults.value = resultPage.items ?? []
+  }
+
+  async function loadAttendanceLogsData() {
+    const attendanceLogPageResult = await api.listAttendanceRecordLogs()
+    deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
+  }
+
+  async function loadCourseCalendarData() {
+    const [terms, classes, calendar, freeTimeList, settings] = await Promise.all([
+      api.listMetaTerms(),
+      api.listAllClasses(),
+      api.adminCourseCalendar(),
+      api.adminFreeTimeCalendar(),
+      api.getSystemSettings(),
+    ])
+    deps.courseTerms.value = terms
+    deps.classes.value = classes
+    deps.courseCalendar.value = calendar ?? []
     deps.freeTimes.value = freeTimeList ?? []
     deps.systemSettings.value = settings
-    deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
+  }
+
+  async function loadCourseManageData() {
+    const [courses, terms, classes] = await Promise.all([api.listAllCourses(), api.listMetaTerms(), api.listAllClasses()])
+    deps.courses.value = courses
+    deps.courseTerms.value = terms
+    deps.classes.value = classes
+  }
+
+  async function loadClassManageData() {
+    const [classes, students] = await Promise.all([api.listAllClasses(), api.listAllStudents()])
+    deps.classes.value = classes
+    deps.students.value = students
+  }
+
+  async function loadStudentManageData() {
+    const [students, classes] = await Promise.all([api.listAllStudents(), api.listAllClasses()])
+    deps.students.value = students
+    deps.classes.value = classes
+  }
+
+  async function loadUserManageData() {
+    const [users, classes, terms] = await Promise.all([api.listAllUsers(), api.listAllClasses(), api.listMetaTerms()])
+    deps.users.value = users
+    deps.classes.value = classes
+    deps.courseTerms.value = terms
+  }
+
+  async function loadSettingsData() {
+    const terms = await api.listMetaTerms()
+    deps.courseTerms.value = terms
+  }
+
+  async function loadAdminData(tab: AppTab = deps.activeTab.value) {
+    switch (tab) {
+      case 'overview':
+        await loadOverviewData()
+        return
+      case 'attendance':
+        await loadAttendanceData()
+        return
+      case 'attendance-logs':
+        await loadAttendanceLogsData()
+        return
+      case 'course-calendar':
+        await loadCourseCalendarData()
+        return
+      case 'course-manage':
+        await loadCourseManageData()
+        return
+      case 'class-manage':
+        await loadClassManageData()
+        return
+      case 'student':
+        await loadStudentManageData()
+        return
+      case 'user-manage':
+        await loadUserManageData()
+        return
+      case 'settings':
+        await loadSettingsData()
+        return
+      default:
+        await loadOverviewData()
+    }
   }
 
   async function saveClass() {
