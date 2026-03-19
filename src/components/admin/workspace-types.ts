@@ -94,6 +94,7 @@ export type AdminWorkspaceProps = {
   classStudents: ClassStudentItem[]
   classStudentModalOpen: boolean
   classStudentSaving: boolean
+  classStudentImporting: boolean
   editingClassStudentId: number | null
   classStudentTargetName: string
   classModalOpen: boolean

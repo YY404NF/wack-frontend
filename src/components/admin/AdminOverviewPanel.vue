@@ -33,7 +33,6 @@ type SessionSummary = {
   late: number
   absent: number
   leave: number
-  unset: number
   total: number
 }
 
@@ -70,8 +69,8 @@ const filteredResults = computed(() =>
 )
 
 function attendanceRate(statuses: number[]) {
-  const total = statuses.filter((status) => status !== 0).length
-  const present = statuses.filter((status) => status === 1).length
+  const total = statuses.length
+  const present = statuses.filter((status) => status === 0).length
   return {
     present,
     total,
@@ -170,11 +169,10 @@ const recentSessions = computed(() => {
     const current = grouped.get(key)
     if (current) {
       current.total += 1
-      if (item.status === 1) current.present += 1
-      else if (item.status === 2) current.late += 1
-      else if (item.status === 3) current.absent += 1
-      else if (item.status === 4) current.leave += 1
-      else current.unset += 1
+      if (item.status === 0) current.present += 1
+      else if (item.status === 1) current.late += 1
+      else if (item.status === 2) current.absent += 1
+      else if (item.status === 3) current.leave += 1
       continue
     }
     grouped.set(key, {
@@ -185,11 +183,10 @@ const recentSessions = computed(() => {
       teacher_name: item.teacher_name,
       week_no: item.week_no,
       session_no: item.session_no,
-      present: item.status === 1 ? 1 : 0,
-      late: item.status === 2 ? 1 : 0,
-      absent: item.status === 3 ? 1 : 0,
-      leave: item.status === 4 ? 1 : 0,
-      unset: item.status === 0 ? 1 : 0,
+      present: item.status === 0 ? 1 : 0,
+      late: item.status === 1 ? 1 : 0,
+      absent: item.status === 2 ? 1 : 0,
+      leave: item.status === 3 ? 1 : 0,
       total: 1,
     })
   }
@@ -211,7 +208,7 @@ const recentSessions = computed(() => {
 
 const recentAbnormalStudents = computed(() =>
   filteredResults.value
-    .filter((item) => item.status === 2 || item.status === 3 || item.status === 4)
+    .filter((item) => item.status === 1 || item.status === 2 || item.status === 3)
     .sort((left, right) => {
       if (left.term !== right.term) {
         return right.term.localeCompare(left.term, 'zh-Hans-CN')
@@ -232,7 +229,7 @@ function rateText(value: number) {
 }
 
 function sessionSummaryText(item: SessionSummary) {
-  return `签到 ${item.present} / 迟到 ${item.late} / 缺勤 ${item.absent} / 请假 ${item.leave} / 未设置 ${item.unset}`
+  return `签到 ${item.present} / 迟到 ${item.late} / 缺勤 ${item.absent} / 请假 ${item.leave}`
 }
 </script>
 
@@ -344,7 +341,7 @@ function sessionSummaryText(item: SessionSummary) {
             </div>
             <div class="overview-session-meta">
               <strong>{{ item.term }} · 第 {{ item.week_no }} 周 / 第 {{ item.session_no }} 次</strong>
-              <small>{{ item.status === 2 ? '迟到' : item.status === 3 ? '缺勤' : '请假' }}</small>
+              <small>{{ item.status === 1 ? '迟到' : item.status === 2 ? '缺勤' : '请假' }}</small>
             </div>
           </div>
           <p v-if="recentAbnormalStudents.length === 0" class="empty-hint">当前学期暂无异常考勤记录</p>

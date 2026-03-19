@@ -105,6 +105,10 @@ export interface ClassStudentCandidateItem extends ClassStudentItem {
   major_name: string
 }
 
+export interface ClassStudentImportResult {
+  imported_count: number
+}
+
 export interface StudentItem {
   id: number
   class_id?: number | null
@@ -233,7 +237,6 @@ export interface DashboardSummary {
   late: number
   absent: number
   leave: number
-  unset: number
 }
 
 export interface AttendanceRecordItem {
@@ -295,12 +298,13 @@ export interface AvailableCourseItem {
 
 export interface AttendanceRecordStudentItem {
   id: number
+  attendance_record_id?: number | null
   course_group_lesson_id: number
   student_id: string
   real_name: string
   class_id?: number | null
   class_name: string
-  status: number
+  status?: number | null
   status_set_by_user_id?: number | null
   status_set_at?: string | null
 }

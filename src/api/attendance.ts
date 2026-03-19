@@ -53,8 +53,8 @@ export const attendanceApi = {
   adminAttendanceRecordLogs(recordId: number) {
     return request<AttendanceRecordLogItem[] | null>(`${apiPaths.admin.attendanceRecords}/${recordId}/logs`).then((items) => items ?? [])
   },
-  adminUpdateAttendanceStatus(recordId: number, status: number) {
-    return request<Record<string, never>>(`${apiPaths.admin.attendanceRecords}/${recordId}/status`, {
+  adminUpdateAttendanceStatus(sessionId: number, studentRefId: number, status: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.attendanceSessions}/${sessionId}/students/${studentRefId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
@@ -74,7 +74,7 @@ export const attendanceApi = {
       body: JSON.stringify({ status }),
     })
   },
-  submitAttendanceStatuses(sessionId: number, items: Array<{ attendance_record_id: number; status: number }>) {
+  submitAttendanceStatuses(sessionId: number, items: Array<{ student_ref_id: number; status: number }>) {
     return request<SubmitAttendanceStatusesResult>(`${apiPaths.student.attendanceSessions}/${sessionId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ items }),

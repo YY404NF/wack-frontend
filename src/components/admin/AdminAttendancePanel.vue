@@ -10,7 +10,7 @@ import type { AdminAttendanceProps } from './types'
 const props = defineProps<AdminAttendanceProps>()
 
 const emit = defineEmits<{
-  updateAdminStatus: [detailId: number, status: StatusCode]
+  updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
 }>()
 
 const PAGE_OPTIONS = [5, 10, 20, 50]
@@ -27,7 +27,6 @@ type AttendanceSessionSummary = {
   late_count: number
   absent_count: number
   leave_count: number
-  unset_count: number
 }
 
 const sessionKeyword = ref('')
@@ -55,11 +54,10 @@ const sessionSummaries = computed<AttendanceSessionSummary[]>(() => {
     const existing = grouped.get(item.course_group_lesson_id)
     if (existing) {
       existing.student_count += 1
-      if (item.status === 1) existing.present_count += 1
-      else if (item.status === 2) existing.late_count += 1
-      else if (item.status === 3) existing.absent_count += 1
-      else if (item.status === 4) existing.leave_count += 1
-      else existing.unset_count += 1
+      if (item.status === 0) existing.present_count += 1
+      else if (item.status === 1) existing.late_count += 1
+      else if (item.status === 2) existing.absent_count += 1
+      else if (item.status === 3) existing.leave_count += 1
       continue
     }
     grouped.set(item.course_group_lesson_id, {
@@ -70,11 +68,10 @@ const sessionSummaries = computed<AttendanceSessionSummary[]>(() => {
       week_no: item.week_no,
       session_no: item.session_no,
       student_count: 1,
-      present_count: item.status === 1 ? 1 : 0,
-      late_count: item.status === 2 ? 1 : 0,
-      absent_count: item.status === 3 ? 1 : 0,
-      leave_count: item.status === 4 ? 1 : 0,
-      unset_count: item.status === 0 ? 1 : 0,
+      present_count: item.status === 0 ? 1 : 0,
+      late_count: item.status === 1 ? 1 : 0,
+      absent_count: item.status === 2 ? 1 : 0,
+      leave_count: item.status === 3 ? 1 : 0,
     })
   }
   return Array.from(grouped.values()).sort((left, right) => {
@@ -99,11 +96,10 @@ const filteredSessions = computed(() =>
     const byWeekNo = !sessionWeekNo.value || String(item.week_no) === sessionWeekNo.value
     const byStatus =
       !sessionStatus.value ||
-      (sessionStatus.value === '0' && item.unset_count > 0) ||
-      (sessionStatus.value === '1' && item.present_count > 0) ||
-      (sessionStatus.value === '2' && item.late_count > 0) ||
-      (sessionStatus.value === '3' && item.absent_count > 0) ||
-      (sessionStatus.value === '4' && item.leave_count > 0)
+      (sessionStatus.value === '0' && item.present_count > 0) ||
+      (sessionStatus.value === '1' && item.late_count > 0) ||
+      (sessionStatus.value === '2' && item.absent_count > 0) ||
+      (sessionStatus.value === '3' && item.leave_count > 0)
     return byKeyword && byWeekNo && byStatus
   }),
 )
@@ -123,7 +119,11 @@ const filteredDetailRecords = computed(() =>
       item.student_id.includes(keyword) ||
       item.real_name.includes(keyword) ||
       item.class_name.includes(keyword)
-    const byStatus = !detailStatus.value || String(item.status) === detailStatus.value
+    const byStatus =
+      !detailStatus.value ||
+      (detailStatus.value === 'unrecorded'
+        ? item.status === null || item.status === undefined
+        : String(item.status) === detailStatus.value)
     return byKeyword && byStatus
   }),
 )
@@ -147,16 +147,19 @@ const attendanceDetailColumns = [
   { key: 'week', label: '周次', colClass: 'col-pct-18', copyValue: () => activeSession.value ? `第 ${activeSession.value.week_no} 周 / 第 ${activeSession.value.session_no} 次` : '-' },
   { key: 'student', label: '学号 / 姓名', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => `${row.student_id} / ${row.real_name}` },
   { key: 'class_name', label: '班级', colClass: 'col-pct-14', copyValue: (row: Record<string, unknown>) => String(row.class_name || '其他学生') },
-  { key: 'status', label: '状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => statusName(Number(row.status)) },
+  { key: 'status', label: '状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => row.status === null || row.status === undefined ? '未查' : statusName(Number(row.status)) },
   { key: 'edit_status', label: '修改', colClass: 'col-pct-12', copyable: false },
 ] as const
 
 const sessionSummaryText = (item: AttendanceSessionSummary) =>
-  `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count} / 未设置 ${item.unset_count}`
+  `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count}`
 
-function onStatusChange(event: Event, detailId: number) {
+function onStatusChange(event: Event, studentRefId: number) {
   const target = event.target as HTMLSelectElement
-  emit('updateAdminStatus', detailId, Number(target.value) as StatusCode)
+  if (!activeSession.value || target.value === '') {
+    return
+  }
+  emit('updateAdminStatus', activeSession.value.course_group_lesson_id, studentRefId, Number(target.value) as StatusCode)
 }
 
 function formatDateTime(value?: string | null) {
@@ -200,11 +203,17 @@ function closeSessionDetail() {
 }
 
 async function openRecordLogs(item: AttendanceRecordStudentItem) {
+  if (!item.attendance_record_id) {
+    selectedRecordLogs.value = []
+    selectedRecordLogName.value = `${item.real_name}（${item.student_id}）`
+    logsError.value = ''
+    return
+  }
   logsLoading.value = true
   logsError.value = ''
   selectedRecordLogName.value = `${item.real_name}（${item.student_id}）`
   try {
-    selectedRecordLogs.value = await api.adminAttendanceRecordLogs(item.id)
+    selectedRecordLogs.value = await api.adminAttendanceRecordLogs(item.attendance_record_id)
   } catch (error) {
     selectedRecordLogs.value = []
     logsError.value = error instanceof Error ? error.message : '加载修改记录失败'
@@ -260,11 +269,11 @@ watch(detailTotalPages, (total) => {
         <template #filter-status>
           <select v-model="detailStatus" aria-label="按状态筛选考勤明细">
             <option value="">全部</option>
-            <option value="0">未设置</option>
-            <option value="1">签到</option>
-            <option value="2">迟到</option>
-            <option value="3">缺勤</option>
-            <option value="4">请假</option>
+            <option value="unrecorded">未查</option>
+            <option value="0">签到</option>
+            <option value="1">迟到</option>
+            <option value="2">缺勤</option>
+            <option value="3">请假</option>
           </select>
         </template>
         <template #cell-course>
@@ -283,20 +292,22 @@ watch(detailTotalPages, (total) => {
           {{ value || '其他学生' }}
         </template>
         <template #cell-status="{ row }">
-          <span class="status-badge" :class="statusClass(Number(row.status))">{{ statusName(Number(row.status)) }}</span>
+          <span class="status-badge" :class="row.status === null || row.status === undefined ? 'tag-muted' : statusClass(Number(row.status))">
+            {{ row.status === null || row.status === undefined ? '未查' : statusName(Number(row.status)) }}
+          </span>
         </template>
         <template #cell-edit_status="{ row }">
-          <select class="mini-select" :value="row.status" @change="onStatusChange($event, Number(row.id))">
-            <option :value="0">未设置</option>
-            <option :value="1">签到</option>
-            <option :value="2">迟到</option>
-            <option :value="3">缺勤</option>
-            <option :value="4">请假</option>
+          <select class="mini-select" :value="row.status ?? ''" @change="onStatusChange($event, Number(row.id))">
+            <option value="">未查</option>
+            <option :value="0">签到</option>
+            <option :value="1">迟到</option>
+            <option :value="2">缺勤</option>
+            <option :value="3">请假</option>
           </select>
         </template>
         <template #actions="{ row }">
           <div class="inline-actions user-actions">
-            <button class="ghost-button compact-button" type="button" @click="openRecordLogs(asAttendanceRecordStudentItem(row))">查看修改记录</button>
+            <button class="ghost-button compact-button" type="button" :disabled="!asAttendanceRecordStudentItem(row).attendance_record_id" @click="openRecordLogs(asAttendanceRecordStudentItem(row))">查看修改记录</button>
           </div>
         </template>
         <template #empty>
@@ -332,7 +343,7 @@ watch(detailTotalPages, (total) => {
             <tr v-for="item in selectedRecordLogs" :key="item.id">
               <td>{{ formatDateTime(item.operated_at) }}</td>
               <td>{{ item.operator_login_id }}</td>
-              <td>{{ item.old_status === null || item.old_status === undefined ? '-' : statusName(item.old_status) }}</td>
+              <td>{{ item.operation_type === 'create_record' || item.old_status === null || item.old_status === undefined ? '-' : statusName(item.old_status) }}</td>
               <td>{{ statusName(item.new_status) }}</td>
               <td>{{ item.operation_type }}</td>
             </tr>
@@ -362,11 +373,10 @@ watch(detailTotalPages, (total) => {
         <template #filter-summary>
           <select v-model="sessionStatus" aria-label="按状态筛选考勤记录">
             <option value="">全部</option>
-            <option value="0">包含未设置</option>
-            <option value="1">包含签到</option>
-            <option value="2">包含迟到</option>
-            <option value="3">包含缺勤</option>
-            <option value="4">包含请假</option>
+            <option value="0">包含签到</option>
+            <option value="1">包含迟到</option>
+            <option value="2">包含缺勤</option>
+            <option value="3">包含请假</option>
           </select>
         </template>
         <template #cell-week_no="{ row }">

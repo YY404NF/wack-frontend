@@ -1,6 +1,6 @@
 import { request } from './client'
 import { apiPaths } from './paths'
-import type { ClassItem, ClassStudentCandidateItem, ClassStudentItem, ManagedClassSnapshot, PageResult } from './types'
+import type { ClassItem, ClassStudentCandidateItem, ClassStudentImportResult, ClassStudentItem, ManagedClassSnapshot, PageResult } from './types'
 
 export const classesApi = {
   listClasses(query: { page?: number; page_size?: number } = {}) {
@@ -45,7 +45,7 @@ export const classesApi = {
     })
   },
   listClassStudents(id: number) {
-    return request<ClassStudentItem[]>(`${apiPaths.admin.classes}/${id}/students`)
+    return request<ClassStudentItem[] | null>(`${apiPaths.admin.classes}/${id}/students`).then((items) => items ?? [])
   },
   getManagedClassSnapshot() {
     return request<ManagedClassSnapshot>(apiPaths.student.managedClass).then((payload) => ({
@@ -60,6 +60,14 @@ export const classesApi = {
     return request<ClassStudentItem>(`${apiPaths.admin.classes}/${id}/students`, {
       method: 'POST',
       body: JSON.stringify(input),
+    })
+  },
+  importClassStudents(id: number, file: File) {
+    const body = new FormData()
+    body.append('file', file)
+    return request<ClassStudentImportResult>(`${apiPaths.admin.classes}/${id}/students/import`, {
+      method: 'POST',
+      body,
     })
   },
   updateClassStudent(classId: number, studentId: number, input: { student_id: string; real_name: string }) {

@@ -16,10 +16,10 @@ export function slotLabel(weekday: number, section: number) {
 
 export function statusClass(status: number) {
   return {
-    'tag-good': status === 1,
-    'tag-warn': status === 2,
-    'tag-bad': status === 3,
-    'tag-calm': status === 4,
-    'tag-muted': status === 0,
+    'tag-good': status === 0,
+    'tag-warn': status === 1,
+    'tag-bad': status === 2,
+    'tag-calm': status === 3,
+    'tag-muted': status < 0 || Number.isNaN(status),
   }
 }

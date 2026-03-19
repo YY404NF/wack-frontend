@@ -130,7 +130,7 @@ export function useAdminCollections(deps: UseAdminCollectionsDeps) {
   })
 
   const filteredClassStudents = computed(() =>
-    deps.classStudents.value.filter((item) => {
+    (deps.classStudents.value ?? []).filter((item) => {
       const byStudentId = !deps.classStudentFilters.studentId || item.student_id.includes(deps.classStudentFilters.studentId.trim())
       const byRealName = !deps.classStudentFilters.realName || item.real_name.includes(deps.classStudentFilters.realName.trim())
       return byStudentId && byRealName

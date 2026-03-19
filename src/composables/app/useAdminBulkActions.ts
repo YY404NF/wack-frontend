@@ -32,6 +32,7 @@ type AdminBulkActionsStateDeps = {
 
 type AdminBulkActionsLoadingDeps = {
   classStudentSaving: Ref<boolean>
+  classStudentImporting: Ref<boolean>
   userFreeTimeSaving: Ref<boolean>
   systemSettingSaving: Ref<boolean>
   courseDeleting: Ref<boolean>
@@ -104,6 +105,24 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     }
   }
 
+  async function importClassStudents(file: File) {
+    if (deps.classStudentTargetClassId.value === null) {
+      return
+    }
+    deps.classStudentImporting.value = true
+    deps.adminError.value = ''
+    try {
+      const result = await api.importClassStudents(deps.classStudentTargetClassId.value, file)
+      await deps.loadClassStudents(deps.classStudentTargetClassId.value)
+      await deps.loadAdminData()
+      deps.showScopedToast('admin', `已导入 ${result.imported_count} 个学生`)
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '导入班级学生失败'
+    } finally {
+      deps.classStudentImporting.value = false
+    }
+  }
+
   async function deleteClassStudent(studentId: number) {
     if (deps.classStudentTargetClassId.value === null) {
       return
@@ -117,9 +136,9 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
       }
       await deps.loadClassStudents(deps.classStudentTargetClassId.value)
       await deps.loadAdminData()
-      deps.showScopedToast('admin', '班级学生已删除')
+      deps.showScopedToast('admin', '班级学生已移除')
     } catch (error) {
-      deps.adminError.value = error instanceof Error ? error.message : '删除班级学生失败'
+      deps.adminError.value = error instanceof Error ? error.message : '移除班级学生失败'
     } finally {
       deps.classStudentSaving.value = false
     }
@@ -347,6 +366,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
   return {
     createClassStudent,
     saveEditingClassStudent,
+    importClassStudents,
     deleteClassStudent,
     saveUserFreeTime,
     updateSystemSettings,

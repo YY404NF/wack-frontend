@@ -371,10 +371,10 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     }
   }
 
-  async function updateAdminStatus(detailId: number, status: StatusCode) {
+  async function updateAdminStatus(sessionId: number, studentRefId: number, status: StatusCode) {
     deps.adminError.value = ''
     try {
-      await api.adminUpdateAttendanceStatus(detailId, status)
+      await api.adminUpdateAttendanceStatus(sessionId, studentRefId, status)
       await loadAdminData()
       deps.showAdminToast('管理员修改已提交')
     } catch (error) {

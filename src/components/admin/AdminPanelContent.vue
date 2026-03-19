@@ -38,6 +38,7 @@ const emit = defineEmits<{
   bulkDeleteStudents: []
   bulkDeleteClasses: []
   createClassStudent: []
+  importClassStudents: [file: File]
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
@@ -91,7 +92,7 @@ const emit = defineEmits<{
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
   updateSystemSettings: [payload: { current_term_start_date: string }]
-  updateAdminStatus: [detailId: number, status: StatusCode]
+  updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
 }>()
 
@@ -99,8 +100,8 @@ function forwardUserStatus(studentId: string, status: number) {
   emit('setUserStatus', studentId, status)
 }
 
-function forwardAdminStatus(detailId: number, status: StatusCode) {
-  emit('updateAdminStatus', detailId, status)
+function forwardAdminStatus(sessionId: number, studentRefId: number, status: StatusCode) {
+  emit('updateAdminStatus', sessionId, studentRefId, status)
 }
 </script>
 
@@ -190,6 +191,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       v-else-if="activeTab === 'class-manage'"
       key="class-manage"
       :classes="classes"
+      :students="students"
       :class-form="classForm"
       :class-filters="classFilters"
       :class-student-form="classStudentForm"
@@ -198,6 +200,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       :class-students="classStudents"
       :class-student-modal-open="classStudentModalOpen"
       :class-student-saving="classStudentSaving"
+      :class-student-importing="classStudentImporting"
       :editing-class-student-id="editingClassStudentId"
       :class-student-target-name="classStudentTargetName"
       :class-modal-open="classModalOpen"
@@ -225,6 +228,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       @save-class="emit('saveClass')"
       @delete-class="emit('deleteClass')"
       @create-class-student="emit('createClassStudent')"
+      @import-class-students="emit('importClassStudents', $event)"
       @start-edit-class-student="emit('startEditClassStudent', $event)"
       @save-editing-class-student="emit('saveEditingClassStudent')"
       @delete-class-student="emit('deleteClassStudent', $event)"

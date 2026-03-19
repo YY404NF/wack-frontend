@@ -44,6 +44,7 @@ export type AdminWorkspaceHandlersDeps = {
   toggleStudentSelection: (studentId: number) => void
   toggleStudentPageSelection: () => void
   createClassStudent: () => Promise<void>
+  importClassStudents: (file: File) => Promise<void>
   startEditClassStudent: (studentId: number) => void
   saveEditingClassStudent: () => Promise<boolean>
   deleteClassStudent: (studentId: number) => Promise<void>
@@ -78,7 +79,7 @@ export type AdminWorkspaceHandlersDeps = {
   closePasswordModal: () => void
   createUser: () => Promise<void>
   setUserStatus: (studentId: string, status: number) => Promise<void>
-  updateAdminStatus: (detailId: number, status: StatusCode) => Promise<void>
+  updateAdminStatus: (sessionId: number, studentRefId: number, status: StatusCode) => Promise<void>
   changePassword: () => Promise<void>
 }
 
@@ -129,6 +130,7 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     toggleStudentSelection: deps.toggleStudentSelection,
     toggleStudentPageSelection: deps.toggleStudentPageSelection,
     createClassStudent: deps.createClassStudent,
+    importClassStudents: deps.importClassStudents,
     startEditClassStudent: deps.startEditClassStudent,
     saveEditingClassStudent: deps.saveEditingClassStudent,
     deleteClassStudent: deps.deleteClassStudent,

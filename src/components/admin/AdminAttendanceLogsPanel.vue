@@ -14,7 +14,7 @@ const attendanceLogColumns = [
   { key: 'student_id', label: '学生', colClass: 'col-pct-14' },
   { key: 'operator_login_id', label: '操作人', colClass: 'col-pct-14' },
   { key: 'attendance_record_id', label: '考勤记录 ID', colClass: 'col-pct-14' },
-  { key: 'old_status', label: '原状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => row.old_status === null || row.old_status === undefined ? '-' : statusName(Number(row.old_status)) },
+  { key: 'old_status', label: '原状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => row.operation_type === 'create_record' || row.old_status === null || row.old_status === undefined ? '-' : statusName(Number(row.old_status)) },
   { key: 'new_status', label: '新状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => statusName(Number(row.new_status)) },
   { key: 'operation_type', label: '操作类型', colClass: 'col-pct-16' },
 ] as const
@@ -47,11 +47,10 @@ function formatDateTime(value: string) {
       <template #filter-new_status>
         <select v-model="attendanceLogFilters.newStatus" aria-label="按新状态筛选考勤日志">
           <option value="">全部</option>
-          <option value="0">未设置</option>
-          <option value="1">签到</option>
-          <option value="2">迟到</option>
-          <option value="3">缺勤</option>
-          <option value="4">请假</option>
+          <option value="0">签到</option>
+          <option value="1">迟到</option>
+          <option value="2">缺勤</option>
+          <option value="3">请假</option>
         </select>
       </template>
       <template #filter-operation_type>
@@ -60,8 +59,8 @@ function formatDateTime(value: string) {
       <template #cell-operated_at="{ value }">
         {{ typeof value === 'string' ? formatDateTime(value) : '-' }}
       </template>
-      <template #cell-old_status="{ value }">
-        {{ value === null || value === undefined ? '-' : statusName(Number(value)) }}
+      <template #cell-old_status="{ row, value }">
+        {{ row.operation_type === 'create_record' || value === null || value === undefined ? '-' : statusName(Number(value)) }}
       </template>
       <template #cell-new_status="{ value }">
         {{ statusName(Number(value)) }}

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ClassItem } from '../../api'
+import { computed, ref, watch } from 'vue'
+import type { ClassItem, StudentItem } from '../../api'
 import AdminDataList from './AdminDataList.vue'
+import AdminFileImportModal from './AdminFileImportModal.vue'
 import type { AdminClassManageProps } from './types'
 
 const props = defineProps<AdminClassManageProps>()
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   saveClass: []
   deleteClass: []
   createClassStudent: []
+  importClassStudents: [file: File]
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
@@ -43,9 +45,142 @@ const classColumns = [
   { key: 'class_name', label: '班级名称', colClass: 'col-pct-24' },
   { key: 'student_count', label: '人数', colClass: 'col-pct-18' },
 ] as const
+const CLASS_STUDENT_BATCH_SIZE = 20
+const visibleClassStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
+const visibleUnboundStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
+const importModalOpen = ref(false)
+const importFile = ref<File | null>(null)
+
+const filteredUnboundStudents = computed(() => {
+  const studentIdKeyword = props.classStudentFilters.studentId.trim().toLowerCase()
+  const realNameKeyword = props.classStudentFilters.realName.trim().toLowerCase()
+
+  return props.students.filter((item) => {
+    if (item.class_id !== null && item.class_id !== undefined) {
+      return false
+    }
+    if (studentIdKeyword && !item.student_id.toLowerCase().includes(studentIdKeyword)) {
+      return false
+    }
+    if (realNameKeyword && !item.real_name.toLowerCase().includes(realNameKeyword)) {
+      return false
+    }
+    return true
+  })
+})
+
+const filteredClassStudents = computed(() => {
+  const studentIdKeyword = props.classStudentFilters.studentId.trim().toLowerCase()
+  const realNameKeyword = props.classStudentFilters.realName.trim().toLowerCase()
+
+  return props.classStudents.filter((item) => {
+    if (studentIdKeyword && !item.student_id.toLowerCase().includes(studentIdKeyword)) {
+      return false
+    }
+    if (realNameKeyword && !item.real_name.toLowerCase().includes(realNameKeyword)) {
+      return false
+    }
+    return true
+  })
+})
+const visibleClassStudents = computed(() => filteredClassStudents.value.slice(0, visibleClassStudentCount.value))
+const visibleUnboundStudents = computed(() => filteredUnboundStudents.value.slice(0, visibleUnboundStudentCount.value))
+
+watch(
+  () => [
+    props.classStudentModalOpen,
+    props.classStudentFilters.studentId,
+    props.classStudentFilters.realName,
+    props.classStudents.length,
+    props.students.length,
+  ],
+  () => {
+    visibleClassStudentCount.value = CLASS_STUDENT_BATCH_SIZE
+    visibleUnboundStudentCount.value = CLASS_STUDENT_BATCH_SIZE
+  },
+)
+
+watch(
+  () => props.classStudentModalOpen,
+  (open) => {
+    if (!open) {
+      closeImportModal()
+    }
+  },
+)
 
 function asClassItem(row: Record<string, unknown>) {
   return row as unknown as ClassItem
+}
+
+function loadMoreClassStudents() {
+  visibleClassStudentCount.value += CLASS_STUDENT_BATCH_SIZE
+}
+
+function loadMoreUnboundStudents() {
+  visibleUnboundStudentCount.value += CLASS_STUDENT_BATCH_SIZE
+}
+
+function handleClassStudentScroll(event: Event) {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 24) {
+    loadMoreClassStudents()
+  }
+}
+
+function handleUnboundStudentScroll(event: Event) {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 24) {
+    loadMoreUnboundStudents()
+  }
+}
+
+function addStudentToClass(student: StudentItem) {
+  props.classStudentForm.studentId = student.student_id
+  props.classStudentForm.realName = student.real_name
+  emit('createClassStudent')
+}
+
+const selectedImportFileName = computed(() => importFile.value?.name ?? '')
+const importActionDisabled = computed(() => !importFile.value || props.classStudentImporting)
+
+function openImportModal() {
+  importModalOpen.value = true
+}
+
+function closeImportModal() {
+  importModalOpen.value = false
+  importFile.value = null
+}
+
+function handleImportFileSelect(file: File | null) {
+  importFile.value = file
+}
+
+function submitImport() {
+  if (!importFile.value) {
+    return
+  }
+  emit('importClassStudents', importFile.value)
+}
+
+function downloadSampleCsv() {
+  const csvContent = '\uFEFF学号,姓名\n'
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = '班级学生导入示例.csv'
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
 }
 
 </script>
@@ -94,6 +229,7 @@ function asClassItem(row: Record<string, unknown>) {
           <div class="wide-modal-header-top">
             <h3 class="wide-modal-header-title">编辑学生</h3>
             <div class="wide-modal-header-actions">
+                <button class="ghost-button compact-button" type="button" @click="openImportModal">导入</button>
                 <button class="ghost-button compact-button" type="button" @click="emit('closeClassStudentModal')">关闭</button>
             </div>
           </div>
@@ -102,11 +238,16 @@ function asClassItem(row: Record<string, unknown>) {
         <div class="split-modal-layout">
           <div class="split-modal-main">
             <div class="section-heading modal-section-heading">
-              <h4>学生列表</h4>
+              <h4>班级学生</h4>
             </div>
 
-            <div class="table-wrap class-student-table-wrap">
-              <table class="data-table compact-table">
+            <div class="table-wrap class-student-table-wrap" @scroll="handleClassStudentScroll">
+              <table class="data-table compact-table class-student-manage-table">
+                <colgroup>
+                  <col class="class-student-col-id" />
+                  <col class="class-student-col-name" />
+                  <col class="class-student-col-action" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>学号</th>
@@ -124,24 +265,16 @@ function asClassItem(row: Record<string, unknown>) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="student in classStudents" :key="student.id">
-                    <td>
-                      <input v-if="editingClassStudentId === student.id" v-model="editingClassStudentForm.studentId" />
-                      <template v-else>{{ student.student_id }}</template>
-                    </td>
-                    <td>
-                      <input v-if="editingClassStudentId === student.id" v-model="editingClassStudentForm.realName" />
-                      <template v-else>{{ student.real_name }}</template>
-                    </td>
+                  <tr v-for="student in visibleClassStudents" :key="student.id">
+                    <td>{{ student.student_id }}</td>
+                    <td>{{ student.real_name }}</td>
                     <td class="actions-column">
                       <div class="inline-actions user-actions">
-                        <button class="ghost-button compact-button" type="button" :disabled="student.id < 0 || editingClassStudentId === student.id || classStudentSaving" @click="emit('startEditClassStudent', student.id)">编辑</button>
-                        <button class="ghost-button compact-button success-button" type="button" :disabled="student.id < 0 || editingClassStudentId !== student.id || classStudentSaving" @click="emit('saveEditingClassStudent')">保存</button>
-                        <button class="ghost-button compact-button danger-button" type="button" :disabled="editingClassStudentId === student.id || classStudentSaving" @click="emit('deleteClassStudent', student.id)">删除</button>
+                        <button class="ghost-button compact-button danger-button" type="button" :disabled="classStudentSaving" @click="emit('deleteClassStudent', student.id)">移除</button>
                       </div>
                     </td>
                   </tr>
-                  <tr v-if="classStudents.length === 0">
+                  <tr v-if="visibleClassStudents.length === 0">
                     <td colspan="3" class="empty-cell">暂无班级学生</td>
                   </tr>
                 </tbody>
@@ -150,26 +283,67 @@ function asClassItem(row: Record<string, unknown>) {
           </div>
 
           <aside class="split-modal-side">
-            <div class="course-section-heading">
-              <h4>新增学生</h4>
+            <div class="section-heading modal-section-heading">
+              <h4>未绑定学生</h4>
             </div>
-            <form class="form-grid single-column-form" @submit.prevent="emit('createClassStudent')">
-              <label class="field">
-                <span>学号</span>
-                <input v-model="classStudentForm.studentId" />
-              </label>
-              <label class="field">
-                <span>姓名</span>
-                <input v-model="classStudentForm.realName" />
-              </label>
-              <button class="primary-button" type="submit" :disabled="classStudentSaving">创建学生</button>
-            </form>
+
+            <div class="table-wrap class-student-table-wrap" @scroll="handleUnboundStudentScroll">
+              <table class="data-table compact-table class-student-manage-table">
+                <colgroup>
+                  <col class="class-student-col-id" />
+                  <col class="class-student-col-name" />
+                  <col class="class-student-col-action" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th class="actions-column">操作</th>
+                  </tr>
+                  <tr class="table-filter-row">
+                    <th class="table-filter-cell">
+                      <input v-model="classStudentFilters.studentId" aria-label="按学号筛选未绑定学生" />
+                    </th>
+                    <th class="table-filter-cell">
+                      <input v-model="classStudentFilters.realName" aria-label="按姓名筛选未绑定学生" />
+                    </th>
+                    <th class="table-filter-spacer" aria-hidden="true"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="student in visibleUnboundStudents" :key="student.id">
+                    <td>{{ student.student_id }}</td>
+                    <td>{{ student.real_name }}</td>
+                    <td class="actions-column">
+                      <div class="inline-actions user-actions">
+                        <button class="ghost-button compact-button success-button" type="button" :disabled="classStudentSaving" @click="addStudentToClass(student)">添加</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="visibleUnboundStudents.length === 0">
+                    <td colspan="3" class="empty-cell">暂无未绑定学生</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <div class="class-student-footer">
               <button class="ghost-button narrow-button" type="button" @click="emit('closeClassStudentModal')">关闭</button>
             </div>
           </aside>
         </div>
+        <AdminFileImportModal
+          :open="importModalOpen"
+          title="导入学生"
+          accept=".csv,text/csv"
+          :selected-file-name="selectedImportFileName"
+          :import-disabled="importActionDisabled"
+          :importing="classStudentImporting"
+          @close="closeImportModal"
+          @download-sample="downloadSampleCsv"
+          @select-file="handleImportFileSelect"
+          @submit="submitImport"
+        />
       </article>
     </div>
     </Transition>

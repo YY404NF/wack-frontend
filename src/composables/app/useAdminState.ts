@@ -104,6 +104,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const studentDeleting = ref(false)
   const userStatusUpdating = ref(false)
   const classStudentSaving = ref(false)
+  const classStudentImporting = ref(false)
   const userFreeTimeLoading = ref(false)
   const userFreeTimeSaving = ref(false)
   const systemSettingSaving = ref(false)
@@ -153,7 +154,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
       { label: '迟到', value: dashboard.value.late, tone: 'warn' },
       { label: '缺勤', value: dashboard.value.absent, tone: 'bad' },
       { label: '请假', value: dashboard.value.leave, tone: 'calm' },
-      { label: '未设置', value: dashboard.value.unset, tone: 'muted' },
     ]
   })
 
@@ -591,6 +591,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           studentDeleting,
           userStatusUpdating,
           classStudentSaving,
+          classStudentImporting,
           passwordSaving: deps.passwordSaving,
           userFreeTimeLoading,
           userFreeTimeSaving,

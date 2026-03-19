@@ -75,6 +75,7 @@ export type AdminCourseCalendarProps = {
 
 export type AdminClassManageProps = {
   classes: ClassItem[]
+  students: StudentItem[]
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -83,6 +84,7 @@ export type AdminClassManageProps = {
   classStudents: ClassStudentItem[]
   classStudentModalOpen: boolean
   classStudentSaving: boolean
+  classStudentImporting: boolean
   editingClassStudentId: number | null
   classStudentTargetName: string
   classModalOpen: boolean
@@ -178,4 +180,4 @@ export type AdminUserManageProps = {
   roleName: AdminRoleName
 }
 
-export type AdminUpdateStatusEmit = [detailId: number, status: StatusCode]
+export type AdminUpdateStatusEmit = [sessionId: number, studentRefId: number, status: StatusCode]

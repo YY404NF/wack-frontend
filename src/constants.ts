@@ -1,4 +1,4 @@
-export type StatusCode = 0 | 1 | 2 | 3 | 4
+export type StatusCode = 0 | 1 | 2 | 3
 export type AppTab =
   | 'home'
   | 'overview'
@@ -18,11 +18,10 @@ export const roleLabels: Record<number, string> = {
 }
 
 export const statusLabels: Record<StatusCode, string> = {
-  0: '未设置',
-  1: '签到',
-  2: '迟到',
-  3: '缺勤',
-  4: '请假',
+  0: '签到',
+  1: '迟到',
+  2: '缺勤',
+  3: '请假',
 }
 
 export const weekdayLabels: Record<number, string> = {

@@ -983,7 +983,7 @@
 
 .split-modal-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(520px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   min-height: 0;
   height: 100%;
@@ -994,19 +994,18 @@
 .split-modal-side {
   min-height: 0;
   max-height: 100%;
-  overflow-y: auto;
   overscroll-behavior: contain;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
 }
 
 .split-modal-main {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .split-modal-side {
-  display: grid;
-  align-content: start;
-  gap: 18px;
+  overflow: hidden;
 }
 
 .nested-modal-backdrop {
@@ -1050,18 +1049,75 @@
 }
 
 .class-student-table-wrap {
-  min-height: 0;
-  height: auto;
+  min-height: 360px;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .class-student-table-wrap .data-table {
-  min-width: 760px;
+  min-width: 0;
+}
+
+.class-student-manage-table {
+  table-layout: fixed;
+}
+
+.class-student-col-id {
+  width: 36%;
+}
+
+.class-student-col-name {
+  width: 36%;
+}
+
+.class-student-col-action {
+  width: 28%;
 }
 
 .class-student-table-wrap .actions-column {
-  min-width: 220px;
+  min-width: 0;
+}
+
+.file-import-modal {
+  display: grid;
+  gap: 20px;
+}
+
+.file-import-body {
+  min-height: 220px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.file-import-input {
+  display: none;
+}
+
+.file-import-select-button {
+  min-width: 148px;
+}
+
+.file-import-file-name {
+  margin: 0;
+  max-width: 100%;
+  text-align: center;
+  word-break: break-all;
+}
+
+.file-import-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wide-action-button {
+  min-width: 140px;
+  justify-content: center;
 }
 
 .course-student-editor-modal {
@@ -1395,8 +1451,8 @@
 
 .class-student-footer {
   display: flex;
-  justify-content: center;
-  margin-top: 18px;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .narrow-button {

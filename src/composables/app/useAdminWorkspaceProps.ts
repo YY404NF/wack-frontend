@@ -84,6 +84,7 @@ export type AdminWorkspacePropsDeps = {
   studentFilters: AdminStudentFilters
   classStudentModalOpen: Ref<boolean>
   classStudentSaving: Ref<boolean>
+  classStudentImporting: Ref<boolean>
   editingClassStudentId: Ref<number | null>
   classStudentTargetName: Ref<string>
   classModalOpen: Ref<boolean>
@@ -186,6 +187,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     classStudentFilters: deps.classStudentFilters,
     classStudentModalOpen: deps.classStudentModalOpen.value,
     classStudentSaving: deps.classStudentSaving.value,
+    classStudentImporting: deps.classStudentImporting.value,
     editingClassStudentId: deps.editingClassStudentId.value,
     classStudentTargetName: deps.classStudentTargetName.value,
     classModalOpen: deps.classModalOpen.value,

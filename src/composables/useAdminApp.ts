@@ -24,6 +24,7 @@ type AdminWorkspaceHandlersInputDeps = Omit<
   | 'deleteStudent'
   | 'bulkDeleteStudents'
   | 'createClassStudent'
+  | 'importClassStudents'
   | 'saveEditingClassStudent'
   | 'deleteClassStudent'
   | 'bulkDeleteClasses'
@@ -92,8 +93,8 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     await adminFlow.deleteStudent()
   }
 
-  async function updateAdminStatus(detailId: number, status: StatusCode) {
-    await adminFlow.updateAdminStatus(detailId, status)
+  async function updateAdminStatus(sessionId: number, studentRefId: number, status: StatusCode) {
+    await adminFlow.updateAdminStatus(sessionId, studentRefId, status)
   }
 
   const adminBulkActions = useAdminBulkActions({ ...deps, loadAdminData })
@@ -112,6 +113,7 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     deleteStudent,
     bulkDeleteStudents: adminBulkActions.bulkDeleteStudents,
     createClassStudent: adminBulkActions.createClassStudent,
+    importClassStudents: adminBulkActions.importClassStudents,
     saveEditingClassStudent: adminBulkActions.saveEditingClassStudent,
     deleteClassStudent: adminBulkActions.deleteClassStudent,
     bulkDeleteClasses: adminBulkActions.bulkDeleteClasses,

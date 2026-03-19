@@ -65,10 +65,10 @@ const searchKeyword = ref('')
 const studentRowRefs = new Map<number, HTMLElement>()
 
 const attendanceStatusOptions = [
-  { value: 2, label: '迟到', className: 'late' },
-  { value: 3, label: '缺勤', className: 'absent' },
-  { value: 4, label: '请假', className: 'leave' },
-  { value: 1, label: '签到', className: 'present' },
+  { value: 1, label: '迟到', className: 'late' },
+  { value: 2, label: '缺勤', className: 'absent' },
+  { value: 3, label: '请假', className: 'leave' },
+  { value: 0, label: '签到', className: 'present' },
 ] as const
 
 function sessionSummary(weekNo: number, weekday: number, section: number) {
@@ -112,15 +112,15 @@ function studentClassKey(student: Pick<AttendanceRecordStudentItem, 'class_id'>)
 }
 
 function persistedStatus(student: AttendanceRecordStudentItem) {
-  return student.status
+  return student.status ?? null
 }
 
 function effectiveStatus(student: AttendanceRecordStudentItem) {
-  return localStatusDraft.value[student.id] ?? student.status
+  return localStatusDraft.value[student.id] ?? student.status ?? null
 }
 
 function isStudentLocked(student: AttendanceRecordStudentItem) {
-  return persistedStatus(student) !== 0
+  return persistedStatus(student) !== null
 }
 
 function buildClassGroupsFromStudents(students: AttendanceRecordStudentItem[], baseGroups: AttendanceClassGroupItem[] = []) {
@@ -178,7 +178,7 @@ const previewSelectableCount = computed(() => {
     return 0
   }
   return previewCheckDetail.value.students.filter((student) => {
-    return selectedClassKeys.value.includes(studentClassKey(student)) && persistedStatus(student) === 0
+    return selectedClassKeys.value.includes(studentClassKey(student)) && persistedStatus(student) === null
   }).length
 })
 
@@ -187,7 +187,7 @@ const previewRecordedCount = computed(() => {
     return 0
   }
   return previewCheckDetail.value.students.filter((student) => {
-    return selectedClassKeys.value.includes(studentClassKey(student)) && persistedStatus(student) !== 0
+    return selectedClassKeys.value.includes(studentClassKey(student)) && persistedStatus(student) !== null
   }).length
 })
 
@@ -278,38 +278,38 @@ function chooseRandomStudentIds(students: AttendanceRecordStudentItem[], targetC
 }
 
 function statusLabel(student: AttendanceRecordStudentItem) {
-  if (effectiveStatus(student) === 1) {
+  if (effectiveStatus(student) === 0) {
     return '签到'
   }
-  if (effectiveStatus(student) === 2) {
+  if (effectiveStatus(student) === 1) {
     return '迟到'
   }
-  if (effectiveStatus(student) === 3) {
+  if (effectiveStatus(student) === 2) {
     return '缺勤'
   }
-  if (effectiveStatus(student) === 4) {
+  if (effectiveStatus(student) === 3) {
     return '请假'
   }
-  if (effectiveStatus(student) === 0 && activeSkippedIdSet.value.has(student.id)) {
+  if (effectiveStatus(student) === null && activeSkippedIdSet.value.has(student.id)) {
     return '跳过'
   }
   return ''
 }
 
 function statusClassName(student: AttendanceRecordStudentItem) {
-  if (effectiveStatus(student) === 1) {
+  if (effectiveStatus(student) === 0) {
     return 'present'
   }
-  if (effectiveStatus(student) === 2) {
+  if (effectiveStatus(student) === 1) {
     return 'late'
   }
-  if (effectiveStatus(student) === 3) {
+  if (effectiveStatus(student) === 2) {
     return 'absent'
   }
-  if (effectiveStatus(student) === 4) {
+  if (effectiveStatus(student) === 3) {
     return 'leave'
   }
-  if (effectiveStatus(student) === 0 && activeSkippedIdSet.value.has(student.id)) {
+  if (effectiveStatus(student) === null && activeSkippedIdSet.value.has(student.id)) {
     return 'skip'
   }
   return 'unset'
@@ -341,7 +341,7 @@ function findNextFocusableStudent(currentId: number) {
   }
   for (let index = currentIndex + 1; index < orderedVisibleStudents.value.length; index += 1) {
     const student = orderedVisibleStudents.value[index]
-    if (!(effectiveStatus(student) === 0 && activeSkippedIdSet.value.has(student.id))) {
+    if (!(effectiveStatus(student) === null && activeSkippedIdSet.value.has(student.id))) {
       return student
     }
   }
@@ -363,7 +363,7 @@ async function tryRestoreAttendanceDraft(detail: AttendanceSessionDetail) {
   const availableClassKeys = new Set(buildClassGroupsFromStudents(detail.students, detail.class_groups ?? []).map((group) => classKey(group)))
   const restoredClassKeys = draft.classKeys.filter((key) => availableClassKeys.has(key))
   const effectiveClassKeys = restoredClassKeys.length > 0 ? restoredClassKeys : [...availableClassKeys]
-  const unlockedStudents = new Map(detail.students.filter((student) => student.status === 0).map((student) => [student.id, student]))
+  const unlockedStudents = new Map(detail.students.filter((student) => student.status === null || student.status === undefined).map((student) => [student.id, student]))
 
   const restoredStatuses: Record<number, number> = {}
   for (const [detailId, status] of Object.entries(draft.statuses)) {
@@ -374,7 +374,7 @@ async function tryRestoreAttendanceDraft(detail: AttendanceSessionDetail) {
     if (!unlockedStudents.has(numericId)) {
       continue
     }
-    if (status < 1 || status > 4) {
+    if (status < 0 || status > 3) {
       continue
     }
     restoredStatuses[numericId] = status
@@ -397,7 +397,7 @@ async function tryRestoreAttendanceDraft(detail: AttendanceSessionDetail) {
   checkPageOpen.value = true
 
   const firstStudent = detail.students.find((student) => {
-    return effectiveClassKeys.includes(studentClassKey(student)) && !(effectiveStatus(student) === 0 && restoredSkippedIds.includes(student.id))
+    return effectiveClassKeys.includes(studentClassKey(student)) && !(effectiveStatus(student) === null && restoredSkippedIds.includes(student.id))
   }) ?? detail.students.find((student) => effectiveClassKeys.includes(studentClassKey(student))) ?? null
   if (firstStudent) {
     await focusStudent(firstStudent.id, 'auto')
@@ -411,19 +411,19 @@ async function startAttendanceCheck() {
     return
   }
   const selectedStudents = previewCheckDetail.value.students.filter((student) => selectedClassKeys.value.includes(studentClassKey(student)))
-  const selectableStudents = selectedStudents.filter((student) => persistedStatus(student) === 0)
+  const selectableStudents = selectedStudents.filter((student) => persistedStatus(student) === null)
   const randomTarget = previewRandomTargetCount.value
   const includedIds = chooseRandomStudentIds(selectableStudents, randomTarget)
   activeCheckDetail.value = previewCheckDetail.value
   activeClassKeys.value = [...selectedClassKeys.value]
   localStatusDraft.value = {}
   activeSkippedIds.value = selectedStudents
-    .filter((student) => !includedIds.has(student.id) && persistedStatus(student) === 0)
+    .filter((student) => !includedIds.has(student.id) && persistedStatus(student) === null)
     .map((student) => student.id)
   searchKeyword.value = ''
   selectionModalOpen.value = false
   checkPageOpen.value = true
-  const firstStudent = selectedStudents.find((student) => !(effectiveStatus(student) === 0 && activeSkippedIds.value.includes(student.id))) ?? selectedStudents[0] ?? null
+  const firstStudent = selectedStudents.find((student) => !(effectiveStatus(student) === null && activeSkippedIds.value.includes(student.id))) ?? selectedStudents[0] ?? null
   if (firstStudent) {
     await focusStudent(firstStudent.id, 'auto')
   }
@@ -449,7 +449,7 @@ async function handlePickStatus(status: number) {
   if (!student || statusUpdating.value || isStudentLocked(student)) {
     return
   }
-  const hadRecord = effectiveStatus(student) !== 0
+  const hadRecord = effectiveStatus(student) !== null
   localStatusDraft.value = {
     ...localStatusDraft.value,
     [student.id]: status,
@@ -483,9 +483,9 @@ async function handleSubmitCheck() {
   attendanceNotice.value = ''
   try {
     const items = activeCheckDetail.value.students
-      .filter((student) => student.status === 0 && typeof localStatusDraft.value[student.id] === 'number')
+      .filter((student) => (student.status === null || student.status === undefined) && typeof localStatusDraft.value[student.id] === 'number')
       .map((student) => ({
-        attendance_record_id: student.id,
+        student_ref_id: student.id,
         status: localStatusDraft.value[student.id],
       }))
 
@@ -730,7 +730,7 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
               :class="{
                 'is-focused': focusDetailId === student.id,
                 'is-submitted': false,
-                'is-skipped': student.status === 0 && activeSkippedIdSet.has(student.id),
+                'is-skipped': (student.status === null || student.status === undefined) && activeSkippedIdSet.has(student.id),
               }"
               type="button"
               @click="focusStudent(student.id, 'manual')"
