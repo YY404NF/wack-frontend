@@ -82,6 +82,10 @@ const totalColumnCount = computed(() => {
   return count
 })
 
+const hasFilterRow = computed(() =>
+  props.columns.some((column) => !!slots[`filter-${column.key}`]) || !!slots['filter-actions'],
+)
+
 function resolveRowKey(row: Record<string, unknown>) {
   return typeof props.rowKey === 'function' ? props.rowKey(row) : (row[props.rowKey] as string | number)
 }
@@ -173,7 +177,7 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
             <th v-if="showActions" class="actions-column">{{ actionsLabel }}</th>
           </tr>
           <tr
-            v-if="showSelection || columns.some((column) => !!slots[`filter-${column.key}`]) || showActions"
+            v-if="hasFilterRow"
             class="table-filter-row"
           >
             <th v-if="showSelection" class="table-filter-spacer" aria-hidden="true"></th>
@@ -189,7 +193,7 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
               />
             </th>
             <th
-              v-if="showActions"
+              v-if="showActions && slots['filter-actions']"
               class="table-filter-cell table-filter-actions-cell"
             >
               <div class="table-filter-actions">

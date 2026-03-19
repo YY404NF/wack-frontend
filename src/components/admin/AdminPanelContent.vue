@@ -325,6 +325,7 @@ function forwardAdminStatus(detailId: number, status: StatusCode) {
       v-else-if="activeTab === 'settings'"
       key="settings"
       :me="me"
+      :course-terms="courseTerms"
       :system-settings="systemSettings"
       :system-setting-saving="systemSettingSaving"
       :profile-form="profileForm"

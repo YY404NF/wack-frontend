@@ -128,6 +128,7 @@ export type AdminAttendanceLogsProps = {
 
 export type AdminSettingsProps = {
   me: SessionUser
+  courseTerms: MetaTermItem[]
   systemSettings: SystemSetting | null
   systemSettingSaving: boolean
   profileForm: AdminProfileForm

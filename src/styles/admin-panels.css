@@ -24,14 +24,16 @@
 
 .overview-grid {
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: 18px;
-  align-content: start;
 }
 
 .overview-card {
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
@@ -60,6 +62,7 @@
 .overview-rank-list,
 .overview-session-list {
   min-height: 0;
+  height: 100%;
   display: grid;
   gap: 12px;
   align-content: start;
@@ -332,6 +335,40 @@
   max-width: 760px;
 }
 
+.admin-settings-panel {
+  min-height: 0;
+  height: 100%;
+}
+
+.settings-two-column {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.6fr);
+  gap: 24px;
+  min-height: 0;
+  height: 100%;
+}
+
+.settings-profile-column,
+.settings-terms-column {
+  min-height: 0;
+}
+
+.settings-profile-card,
+.settings-terms-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  min-height: 0;
+}
+
+.settings-profile-card,
+.settings-terms-card {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-strong);
+}
+
 .settings-layout-grid {
   display: grid;
   grid-template-columns: minmax(320px, 560px) minmax(0, 1fr);
@@ -468,6 +505,18 @@
 .account-line span {
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.term-name-preview-input[disabled] {
+  background: rgba(92, 82, 75, 0.1);
+  border-color: rgba(92, 82, 75, 0.16);
+  color: rgba(45, 36, 31, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.form-error-text {
+  margin: -4px 0 0;
+  color: #b84f32;
 }
 
 .system-setting-row {

@@ -27,6 +27,7 @@ export const apiPaths = {
     freeTimeCalendar: buildPath(ADMIN_PREFIX, 'free-time-calendar'),
     attendanceRecordLogs: buildPath(ADMIN_PREFIX, 'attendance-record-logs'),
     systemSettings: buildPath(ADMIN_PREFIX, 'system-settings'),
+    terms: buildPath(ADMIN_PREFIX, 'terms'),
   },
   student: {
     coursesAvailable: buildPath(STUDENT_PREFIX, 'courses', 'available'),

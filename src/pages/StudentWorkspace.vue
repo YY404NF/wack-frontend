@@ -145,11 +145,28 @@ onBeforeUnmount(() => {
   <Transition name="modal-float" appear>
     <div v-if="aboutModalOpen" class="modal-backdrop" @click.self="closeAboutModal">
       <article class="modal-card modal-card-narrow about-placeholder-modal">
-        <div class="wide-modal-header about-placeholder-header">
-          <h3 class="wide-modal-header-title">关于</h3>
-          <p class="hint wide-modal-header-meta">空白浮窗，后续内容可以继续往里加。</p>
+        <div class="about-placeholder-body">
+          <h4 class="about-project-title">网络空间安全学院查课系统</h4>
+          <p class="about-project-name">wack</p>
+          <p class="about-project-description">
+            面向管理员、查课学生和学委的无纸化查课系统，统一支撑课程巡查、考勤记录与流程协同。
+          </p>
+          <a
+            class="about-github-button"
+            href="https://github.com/YY404NF/wack"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="打开 GitHub 仓库"
+          >
+            <svg class="about-github-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 2C6.477 2 2 6.589 2 12.248c0 4.526 2.865 8.366 6.839 9.72.5.096.682-.221.682-.494 0-.244-.009-.89-.014-1.747-2.782.615-3.369-1.374-3.369-1.374-.455-1.177-1.11-1.49-1.11-1.49-.908-.637.069-.624.069-.624 1.004.072 1.532 1.055 1.532 1.055.892 1.566 2.341 1.114 2.91.852.091-.662.35-1.114.636-1.37-2.221-.259-4.555-1.137-4.555-5.062 0-1.118.389-2.032 1.029-2.748-.103-.26-.446-1.303.098-2.716 0 0 .839-.275 2.75 1.05A9.32 9.32 0 0 1 12 6.836a9.3 9.3 0 0 1 2.504.348c1.909-1.325 2.746-1.05 2.746-1.05.546 1.413.203 2.456.1 2.716.64.716 1.027 1.63 1.027 2.748 0 3.935-2.338 4.8-4.566 5.054.359.318.679.946.679 1.907 0 1.377-.012 2.488-.012 2.826 0 .275.18.595.688.493C19.138 20.61 22 16.772 22 12.248 22 6.589 17.523 2 12 2Z"
+              />
+            </svg>
+            <span class="about-github-label">GitHub</span>
+          </a>
         </div>
-        <div class="about-placeholder-body"></div>
       </article>
     </div>
   </Transition>

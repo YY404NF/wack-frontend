@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { UserItem } from '../../api'
 import { roleName } from '../../composables/app/view'
 import AdminDataList from './AdminDataList.vue'
@@ -43,6 +43,10 @@ const canBulkFreezeUsers = computed(
 const canBulkUnfreezeUsers = computed(
   () => selectedUsers.value.length > 0 && selectedUsers.value.every((user) => user.id !== props.currentUserId && user.status !== 1),
 )
+const singleStatusConfirmOpen = ref(false)
+const bulkStatusConfirmOpen = ref(false)
+const pendingStatusTarget = ref<{ loginId: string; realName: string; status: number } | null>(null)
+const pendingBulkStatus = ref<number | null>(null)
 
 const userColumns = [
   { key: 'login_id', label: '登录账号', colClass: 'col-pct-13' },
@@ -74,6 +78,56 @@ function managedClassName(classId?: number | null) {
 function asUserItem(row: Record<string, unknown>) {
   return row as unknown as UserItem
 }
+
+function openSingleStatusConfirm(user: UserItem) {
+  if (user.id === props.currentUserId) {
+    return
+  }
+  pendingStatusTarget.value = {
+    loginId: user.login_id,
+    realName: user.real_name,
+    status: user.status === 1 ? 2 : 1,
+  }
+  singleStatusConfirmOpen.value = true
+}
+
+function closeSingleStatusConfirm() {
+  singleStatusConfirmOpen.value = false
+  pendingStatusTarget.value = null
+}
+
+function confirmSingleStatusChange() {
+  if (!pendingStatusTarget.value) {
+    return
+  }
+  emit('setUserStatus', pendingStatusTarget.value.loginId, pendingStatusTarget.value.status)
+  closeSingleStatusConfirm()
+}
+
+function openBulkStatusConfirm(status: number) {
+  if ((status === 2 && !canBulkFreezeUsers.value) || (status === 1 && !canBulkUnfreezeUsers.value)) {
+    return
+  }
+  pendingBulkStatus.value = status
+  bulkStatusConfirmOpen.value = true
+}
+
+function closeBulkStatusConfirm() {
+  bulkStatusConfirmOpen.value = false
+  pendingBulkStatus.value = null
+}
+
+function confirmBulkStatusChange() {
+  if (pendingBulkStatus.value === 2) {
+    emit('bulkFreezeUsers')
+  } else if (pendingBulkStatus.value === 1) {
+    emit('bulkUnfreezeUsers')
+  }
+  closeBulkStatusConfirm()
+}
+
+const singleStatusActionLabel = computed(() => (pendingStatusTarget.value?.status === 2 ? '冻结' : '解冻'))
+const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '冻结' : '解冻'))
 </script>
 
 <template>
@@ -81,6 +135,58 @@ function asUserItem(row: Record<string, unknown>) {
     <div class="section-heading section-heading-titleless">
       <button class="primary-button" type="button" @click="emit('openCreateUserModal')">创建用户</button>
     </div>
+
+    <Transition name="modal-float" appear>
+    <div v-if="singleStatusConfirmOpen" class="modal-backdrop">
+      <article class="modal-card modal-card-narrow">
+        <div class="modal-header">
+          <h3>确认{{ singleStatusActionLabel }}</h3>
+          <button class="ghost-button compact-button modal-close" type="button" @click="closeSingleStatusConfirm">关闭</button>
+        </div>
+        <p class="hint">
+          确定{{ singleStatusActionLabel }}用户“{{ pendingStatusTarget?.realName }}（{{ pendingStatusTarget?.loginId }}）”吗？
+        </p>
+        <div class="inline-actions">
+          <button class="ghost-button" type="button" @click="closeSingleStatusConfirm">取消</button>
+          <button
+            class="ghost-button"
+            :class="singleStatusActionLabel === '冻结' ? 'danger-button' : 'success-button'"
+            type="button"
+            :disabled="userStatusUpdating"
+            @click="confirmSingleStatusChange"
+          >
+            <span v-if="userStatusUpdating" class="button-spinner" aria-hidden="true"></span>
+            <span>{{ userStatusUpdating ? '处理中...' : `确认${singleStatusActionLabel}` }}</span>
+          </button>
+        </div>
+      </article>
+    </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+    <div v-if="bulkStatusConfirmOpen" class="modal-backdrop">
+      <article class="modal-card modal-card-narrow">
+        <div class="modal-header">
+          <h3>确认批量{{ bulkStatusActionLabel }}</h3>
+          <button class="ghost-button compact-button modal-close" type="button" @click="closeBulkStatusConfirm">关闭</button>
+        </div>
+        <p class="hint">确定{{ bulkStatusActionLabel }}已选中的 {{ selectedUserStudentIds.length }} 个用户吗？</p>
+        <div class="inline-actions">
+          <button class="ghost-button" type="button" @click="closeBulkStatusConfirm">取消</button>
+          <button
+            class="ghost-button"
+            :class="bulkStatusActionLabel === '冻结' ? 'danger-button' : 'success-button'"
+            type="button"
+            :disabled="userStatusUpdating"
+            @click="confirmBulkStatusChange"
+          >
+            <span v-if="userStatusUpdating" class="button-spinner" aria-hidden="true"></span>
+            <span>{{ userStatusUpdating ? '处理中...' : `确认${bulkStatusActionLabel}` }}</span>
+          </button>
+        </div>
+      </article>
+    </div>
+    </Transition>
 
     <Transition name="modal-float" appear>
     <div v-if="userModalOpen" class="modal-backdrop">
@@ -224,10 +330,10 @@ function asUserItem(row: Record<string, unknown>) {
         >
           全选
         </button>
-        <button class="ghost-button compact-button danger-button" type="button" :disabled="userStatusUpdating || !canBulkFreezeUsers" @click="emit('bulkFreezeUsers')">
+        <button class="ghost-button compact-button danger-button" type="button" :disabled="userStatusUpdating || !canBulkFreezeUsers" @click="openBulkStatusConfirm(2)">
           批量冻结
         </button>
-        <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || !canBulkUnfreezeUsers" @click="emit('bulkUnfreezeUsers')">
+        <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || !canBulkUnfreezeUsers" @click="openBulkStatusConfirm(1)">
           批量解冻
         </button>
       </template>
@@ -253,7 +359,7 @@ function asUserItem(row: Record<string, unknown>) {
             :class="Number(row.status) === 1 ? 'danger-button' : 'success-button'"
             type="button"
             :disabled="userStatusUpdating"
-            @click="emit('setUserStatus', String(row.login_id), Number(row.status) === 1 ? 2 : 1)"
+            @click="openSingleStatusConfirm(asUserItem(row))"
           >
             {{ Number(row.status) === 1 ? '冻结' : '解冻' }}
           </button>
