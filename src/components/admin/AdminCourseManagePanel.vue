@@ -17,7 +17,18 @@ import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminCourseManageProps } from './types'
 
-const props = defineProps<AdminCourseManageProps>()
+type CourseManageView = 'courses' | 'groups' | 'lessons' | 'students'
+
+const props = defineProps<AdminCourseManageProps & {
+  courseManageRouteView?: CourseManageView
+  courseManageRouteCourseId?: number | null
+  courseManageRouteGroupId?: number | null
+  courseManagePathCommand?: {
+    token: number
+    target: 'courses' | 'groups'
+    courseId?: number | null
+  } | null
+}>()
 
 const emit = defineEmits<{
   openCreateCourseModal: []
@@ -34,18 +45,47 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
+  updateCourseManageView: [view: CourseManageView]
+  updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null }]
 }>()
 
+const GROUP_BATCH_SIZE = 20
+const LESSON_BATCH_SIZE = 20
+const CANDIDATE_PAGE_SIZE = 20
 const currentTerm = getCurrentAcademicTerm()
+
+const currentView = ref<CourseManageView>('courses')
+const syncingRouteState = ref(false)
 const selectedCourseIdSet = computed(() => new Set(props.selectedCourseIds))
 const areAllCoursesSelected = computed(() => props.courses.length > 0 && props.courses.every((item) => selectedCourseIdSet.value.has(item.id)))
 const courseColumns = [
-  { key: 'term', label: '学期', colClass: 'col-pct-14' },
-  { key: 'course_name', label: '课程名称', colClass: 'col-pct-22' },
-  { key: 'teacher_name', label: '授课教师', colClass: 'col-pct-16' },
-  { key: 'class_names', label: '班级', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'course_name', label: '课程名称', colClass: 'col-pct-28' },
+  { key: 'teacher_name', label: '授课教师', colClass: 'col-pct-22' },
+  { key: 'class_names', label: '班级', colClass: 'col-pct-24', copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
   { key: 'student_count', label: '人数', colClass: 'col-pct-10' },
 ] as const
+const groupColumns = [
+  { key: 'id', label: '课程组', colClass: 'col-pct-14', copyable: false },
+  { key: 'class_names', label: '上课班级', colClass: 'col-pct-34', copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'student_count', label: '学生', colClass: 'col-pct-12' },
+  { key: 'lesson_count', label: '课次', colClass: 'col-pct-12' },
+] as const
+const lessonColumns = [
+  { key: 'week_no', label: '周次', colClass: 'col-pct-18', copyable: false },
+  { key: 'weekday', label: '星期', colClass: 'col-pct-14', copyable: false },
+  { key: 'section', label: '时间节', colClass: 'col-pct-20', copyable: false },
+  { key: 'location', label: '地点', colClass: 'col-pct-20', copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
+] as const
+const candidateClassColumns = [
+  { key: 'class_display', label: '班级', colClass: 'col-pct-68', copyable: true, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
+  { key: 'student_count', label: '人数', colClass: 'col-pct-12' },
+] as const
+const candidateStudentColumns = [
+  { key: 'student_no', label: '学号', colClass: 'col-pct-24' },
+  { key: 'student_name', label: '姓名', colClass: 'col-pct-18' },
+  { key: 'class_display', label: '所属班级', colClass: 'col-pct-38', copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
+] as const
+
 const termOptions = computed(() => {
   if (props.courseTerms.length > 0) {
     return sortTermsForSelect(props.courseTerms).map((item) => item.name)
@@ -68,6 +108,7 @@ watch(
   },
   { immediate: true },
 )
+
 const courseGroupWorkspaceCourse = ref<CourseItem | null>(null)
 const courseGroups = ref<CourseGroupItem[]>([])
 const courseGroupsLoading = ref(false)
@@ -75,93 +116,363 @@ const courseGroupActionLoading = ref(false)
 const courseGroupsError = ref('')
 const activeCourseGroupId = ref<number | null>(null)
 const activeCourseGroupDetail = ref<CourseGroupDetail | null>(null)
-const availableCourseGroupClasses = ref<AvailableCourseGroupClassItem[]>([])
-const availableCourseGroupStudents = ref<AvailableCourseGroupStudentItem[]>([])
+const visibleCourseGroupCount = ref(GROUP_BATCH_SIZE)
+const visibleLessonCount = ref(LESSON_BATCH_SIZE)
+const lessonWeekFilter = ref('')
+const sessionModalOpen = ref(false)
+const editingSessionId = ref<number | null>(null)
+const sessionHistoryHint = ref('')
+const actionToast = ref('')
+const selectedLessonIds = ref<number[]>([])
+const bulkDeleteLessonModalOpen = ref(false)
+const selectedCreateSessionWeeks = ref<number[]>([])
+const selectedCreateSessionPreset = ref<'all' | 'odd' | 'even' | null>(null)
+const deleteCourseGroupModalOpen = ref(false)
+const pendingDeleteCourseGroupId = ref<number | null>(null)
+const pendingDeleteCourseGroupName = ref('')
+const removeCourseGroupMemberModalOpen = ref(false)
+const pendingRemoveCourseGroupMember = ref<{ type: 'class' | 'student'; id: number; name: string } | null>(null)
 const courseGroupClassKeyword = ref('')
 const courseGroupStudentKeyword = ref('')
+const courseGroupClassRows = ref<Array<Record<string, unknown>>>([])
+const courseGroupStudentRows = ref<Array<Record<string, unknown>>>([])
+const courseGroupClassPage = ref(1)
+const courseGroupStudentPage = ref(1)
+const courseGroupClassHasMore = ref(false)
+const courseGroupStudentHasMore = ref(false)
+const courseGroupClassLoading = ref(false)
+const courseGroupStudentLoading = ref(false)
+const expandedCourseGroupClassKeys = ref<string[]>([])
 const courseGroupSessionForm = ref({
   weekNo: 1,
-  weekday: 1,
-  section: 1,
+  weekday: '' as number | '',
+  section: '' as number | '',
   buildingName: '',
   roomName: '',
 })
+let actionToastTimer: ReturnType<typeof setTimeout> | null = null
+const safeCourses = computed(() => props.courses.filter((item): item is CourseItem => !!item))
+const safeCourseGroups = computed(() => courseGroups.value.filter((item): item is CourseGroupItem => !!item))
+const safeVisibleLessons = computed(() => visibleCourseGroupLessons.value.filter((item): item is CourseGroupLessonItem => !!item))
+
+const showActionToast = (message: string) => {
+  if (!message) {
+    return
+  }
+  actionToast.value = message
+  if (actionToastTimer) {
+    clearTimeout(actionToastTimer)
+  }
+  actionToastTimer = setTimeout(() => {
+    if (actionToast.value === message) {
+      actionToast.value = ''
+    }
+  }, 2400)
+}
 
 const activeCourseGroup = computed(() => {
-  return courseGroups.value.find((item) => item.id === activeCourseGroupId.value) ?? null
+  return safeCourseGroups.value.find((item) => item.id === activeCourseGroupId.value) ?? null
 })
 
-const courseGroupBoundClassIdSet = computed(() => new Set(activeCourseGroupDetail.value?.course_group.class_ids ?? []))
-const courseGroupStudentIdSet = computed(() => new Set((activeCourseGroupDetail.value?.students ?? []).map((item) => item.student_id)))
-const filteredAvailableCourseGroupClasses = computed(() => {
-  const keyword = courseGroupClassKeyword.value.trim()
-  return availableCourseGroupClasses.value
-    .filter((item) => {
-      if (!keyword) {
-        return true
-      }
-      return item.class_name.includes(keyword) || item.major_name.includes(keyword) || String(item.grade).includes(keyword)
-    })
-    .slice()
-    .sort((left, right) => {
-      if (left.grade !== right.grade) {
-        return right.grade - left.grade
-      }
-      return left.class_name.localeCompare(right.class_name, 'zh-Hans-CN')
-    })
+const visibleCourseGroups = computed(() => safeCourseGroups.value.slice(0, visibleCourseGroupCount.value))
+const filteredCourseGroupLessons = computed(() => {
+  const list = activeCourseGroupDetail.value?.sessions ?? []
+  if (!lessonWeekFilter.value) {
+    return list
+  }
+  return list.filter((item) => String(item.week_no) === lessonWeekFilter.value)
 })
-const filteredAvailableCourseGroupStudents = computed(() => {
-  const keyword = courseGroupStudentKeyword.value.trim()
-  return availableCourseGroupStudents.value
-    .filter((item) => {
-      if (!keyword) {
-        return true
-      }
-      return item.student_no.includes(keyword) || item.student_name.includes(keyword) || item.class_name.includes(keyword)
-    })
-    .slice()
-    .sort((left, right) => left.student_no.localeCompare(right.student_no, 'zh-Hans-CN'))
-    .slice(0, 80)
+const visibleCourseGroupLessons = computed(() => filteredCourseGroupLessons.value.filter((item): item is CourseGroupLessonItem => !!item).slice(0, visibleLessonCount.value))
+const selectedLessonIdSet = computed(() => new Set(selectedLessonIds.value))
+const areAllVisibleLessonsSelected = computed(
+  () =>
+    safeVisibleLessons.value.length > 0 &&
+    safeVisibleLessons.value.every((item) => selectedLessonIdSet.value.has(item.id)),
+)
+const activeCourseGroupStudents = computed(() => {
+  const students = activeCourseGroupDetail.value?.students
+  return Array.isArray(students) ? students : []
 })
 const groupedCourseGroupStudents = computed(() => {
   if (!activeCourseGroupDetail.value) {
     return []
   }
-  const grouped = new Map<string, { key: string; label: string; items: CourseGroupStudentItem[] }>()
-  for (const student of activeCourseGroupDetail.value.students) {
+  const grouped = new Map<string, { key: string; label: string; items: CourseGroupStudentItem[]; classId: number | null }>()
+  for (const student of activeCourseGroupStudents.value) {
     const label = student.class_name?.trim() || '其他学生'
-    const key = student.class_id ? `class-${student.class_id}` : `other-${label}`
+    const classId = student.class_id ?? null
+    const key = classId ? `class-${classId}` : `other-${student.student_id}`
     if (!grouped.has(key)) {
-      grouped.set(key, { key, label, items: [] })
+      grouped.set(key, { key, label, items: [], classId })
     }
     grouped.get(key)?.items.push(student)
   }
-  return Array.from(grouped.values()).map((group) => ({
-    ...group,
-    items: group.items.slice().sort((left, right) => left.student_no.localeCompare(right.student_no, 'zh-Hans-CN')),
-  }))
+  return Array.from(grouped.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.slice().sort((left, right) => left.student_no.localeCompare(right.student_no, 'zh-Hans-CN')),
+    }))
+    .sort((left, right) => {
+      if (left.classId === null && right.classId !== null) {
+        return 1
+      }
+      if (left.classId !== null && right.classId === null) {
+        return -1
+      }
+      return left.label.localeCompare(right.label, 'zh-Hans-CN')
+    })
+})
+const courseGroupStudentEntries = computed(() => {
+  const classEntries = groupedCourseGroupStudents.value
+    .filter((group) => group.classId !== null)
+    .map((group) => ({
+      key: group.key,
+      kind: 'class' as const,
+      label: group.label,
+      classId: group.classId,
+      items: group.items,
+    }))
+  const otherStudentEntries = activeCourseGroupStudents.value
+    .filter((student) => student.class_id === null || student.class_id === undefined)
+    .slice()
+    .sort((left, right) => left.student_no.localeCompare(right.student_no, 'zh-Hans-CN'))
+    .map((student) => ({
+      key: `student-${student.student_id}`,
+      kind: 'student' as const,
+      student,
+    }))
+  return [...classEntries, ...otherStudentEntries]
+})
+const lessonWeekOptions = computed(() => {
+  const weeks = Array.from(new Set((activeCourseGroupDetail.value?.sessions ?? []).map((item) => item.week_no)))
+  return weeks.sort((left, right) => left - right)
+})
+const allSessionWeeks = computed(() => Array.from({ length: 16 }, (_, index) => index + 1))
+
+const parentCourseSummary = computed(() => {
+  const course = courseGroupWorkspaceCourse.value
+  if (!course) {
+    return []
+  }
+  return [
+    { label: '课程名称', value: course.course_name },
+    { label: '授课教师', value: course.teacher_name },
+    { label: '学期', value: course.term },
+    { label: '年级', value: `${course.grade}级` },
+  ]
 })
 
-async function loadCourseGroupEditorOptions(courseId: number, groupId: number) {
-  const [classes, students] = await Promise.all([
-    api.listAvailableCourseGroupClasses(courseId, groupId),
-    api.listAvailableCourseGroupStudents(courseId, groupId),
-  ])
-  availableCourseGroupClasses.value = classes
-  availableCourseGroupStudents.value = students
+const activeCourseGroupSummary = computed(() => {
+  const group = activeCourseGroup.value
+  if (!group) {
+    return []
+  }
+  return [
+    { label: '课程组', value: `课程组 ${group.id}` },
+    { label: '上课班级', value: group.class_names.length > 0 ? group.class_names.join('、') : '未绑定班级' },
+    { label: '上课学生', value: `${group.student_count} 人` },
+    { label: '课次数量', value: `${group.lesson_count} 节` },
+  ]
+})
+
+watch(
+  () => courseGroups.value.length,
+  () => {
+    visibleCourseGroupCount.value = GROUP_BATCH_SIZE
+  },
+)
+
+watch(courseGroupsError, (message) => {
+  if (message) {
+    showActionToast(message)
+  }
+})
+
+watch(sessionHistoryHint, (message) => {
+  if (message) {
+    showActionToast(message)
+  }
+})
+
+watch(
+  () => [activeCourseGroupDetail.value?.sessions.length ?? 0, lessonWeekFilter.value],
+  () => {
+    visibleLessonCount.value = LESSON_BATCH_SIZE
+    selectedLessonIds.value = []
+  },
+)
+
+watch(
+  () => activeCourseGroupId.value,
+  () => {
+    expandedCourseGroupClassKeys.value = []
+  },
+)
+
+watch(
+  () => courseGroupClassKeyword.value,
+  async () => {
+    if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
+      return
+    }
+    await resetCourseGroupClassCandidates()
+  },
+)
+
+watch(
+  () => courseGroupStudentKeyword.value,
+  async () => {
+    if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
+      return
+    }
+    await resetCourseGroupStudentCandidates()
+  },
+)
+
+watch(
+  () => [props.courseManageRouteView, props.courseManageRouteCourseId, props.courseManageRouteGroupId],
+  async ([view, routeCourseId, routeGroupId]) => {
+    const normalizedView = view as CourseManageView | undefined
+    if (!normalizedView) {
+      return
+    }
+    syncingRouteState.value = true
+    try {
+      if (normalizedView === 'courses' || !routeCourseId) {
+        if (currentView.value !== 'courses' || courseGroupWorkspaceCourse.value) {
+          closeCourseGroupWorkspace()
+        }
+        return
+      }
+      const targetCourseId = Number(routeCourseId)
+      const targetGroupId = routeGroupId ? Number(routeGroupId) : null
+      const existingCourse = courseGroupWorkspaceCourse.value?.id === targetCourseId ? courseGroupWorkspaceCourse.value : null
+      const matchedCourse = safeCourses.value.find((item) => item.id === targetCourseId) ?? null
+      const course = existingCourse ?? matchedCourse ?? await api.getCourseSummary(targetCourseId)
+      if (!course) {
+        return
+      }
+      const shouldReloadWorkspace =
+        courseGroupWorkspaceCourse.value?.id !== targetCourseId ||
+        (normalizedView === 'groups' && currentView.value === 'courses') ||
+        ((normalizedView === 'lessons' || normalizedView === 'students') && activeCourseGroupId.value !== targetGroupId)
+      if (shouldReloadWorkspace) {
+        await openCourseGroupPage(course, normalizedView, targetGroupId)
+        return
+      }
+      if (normalizedView === 'groups') {
+        closeSessionModal()
+        currentView.value = 'groups'
+        return
+      }
+      if (normalizedView === 'lessons' || normalizedView === 'students') {
+        currentView.value = normalizedView
+      }
+    } finally {
+      syncingRouteState.value = false
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  currentView,
+  (view) => {
+    emit('updateCourseManageView', view)
+  },
+)
+
+watch(
+  () => props.courseManagePathCommand?.token,
+  () => {
+    const target = props.courseManagePathCommand?.target
+    if (!target) {
+      return
+    }
+    if (target === 'courses') {
+      closeCourseGroupWorkspace()
+      return
+    }
+    if (target === 'groups' && courseGroupWorkspaceCourse.value) {
+      closeSessionModal()
+      currentView.value = 'groups'
+    }
+  },
+)
+
+function syncCourseManageRoute(view: CourseManageView, courseId: number | null = null, groupId: number | null = null) {
+  if (syncingRouteState.value) {
+    return
+  }
+  emit('updateCourseManageRoute', {
+    view,
+    courseId,
+    groupId: view === 'lessons' || view === 'students' ? groupId : null,
+  })
+}
+
+function asCourseItem(row: Record<string, unknown>) {
+  return row as unknown as CourseItem
+}
+
+function openCourseEditor(row: Record<string, unknown> | null | undefined) {
+  if (!row) {
+    return
+  }
+  emit('openEditCourseModal', asCourseItem(row))
+}
+
+function openCourseGroupsManager(row: Record<string, unknown> | null | undefined) {
+  if (!row) {
+    return
+  }
+  void openCourseGroupPage(asCourseItem(row))
+}
+
+function openCourseDelete(row: Record<string, unknown> | null | undefined) {
+  if (!row) {
+    return
+  }
+  emit('openDeleteCourseModal', asCourseItem(row))
+}
+
+function asCourseGroupItem(row: Record<string, unknown>) {
+  return row as unknown as CourseGroupItem
+}
+
+function asCourseGroupLessonRow(session: CourseGroupLessonItem) {
+  return {
+    ...session,
+    location: `${session.building_name}-${session.room_name}`,
+  }
+}
+
+function asCandidateClassRow(item: AvailableCourseGroupClassItem) {
+  return {
+    ...item,
+    class_id: item.id,
+    class_display: `${item.grade}级  ${item.major_name}  ${item.class_name}`,
+  }
+}
+
+function asCandidateStudentRow(item: AvailableCourseGroupStudentItem) {
+  return {
+    ...item,
+    student_id: item.id,
+    class_display: `${item.grade}级  ${item.major_name}  ${item.class_name}`,
+  }
 }
 
 async function loadCourseGroupDetail(courseId: number, groupId: number) {
   activeCourseGroupId.value = groupId
-  const [detail] = await Promise.all([api.getCourseGroup(courseId, groupId), loadCourseGroupEditorOptions(courseId, groupId)])
-  activeCourseGroupDetail.value = detail
+  activeCourseGroupDetail.value = await api.getCourseGroup(courseId, groupId)
 }
 
 async function refreshCourseGroups(targetGroupId = activeCourseGroupId.value) {
   if (!courseGroupWorkspaceCourse.value) {
     return
   }
-  const groups = await api.listCourseGroups(courseGroupWorkspaceCourse.value.id)
+  const groups = (await api.listCourseGroups(courseGroupWorkspaceCourse.value.id)).filter((item): item is CourseGroupItem => !!item)
   courseGroups.value = groups
   const nextGroupId = targetGroupId !== null && groups.some((item) => item.id === targetGroupId) ? targetGroupId : groups[0]?.id ?? null
   if (nextGroupId !== null) {
@@ -170,22 +481,29 @@ async function refreshCourseGroups(targetGroupId = activeCourseGroupId.value) {
   }
   activeCourseGroupId.value = null
   activeCourseGroupDetail.value = null
-  availableCourseGroupClasses.value = []
-  availableCourseGroupStudents.value = []
 }
 
-async function openCourseGroupWorkspace(item: CourseItem) {
+async function openCourseGroupPage(item: CourseItem, targetView: CourseManageView = 'groups', targetGroupId: number | null = null) {
   courseGroupsLoading.value = true
   courseGroupsError.value = ''
   courseGroupWorkspaceCourse.value = item
+  currentView.value = 'groups'
+  lessonWeekFilter.value = ''
+  if (targetView === 'groups') {
+    syncCourseManageRoute('groups', item.id, null)
+  }
   try {
-    const groups = await api.listCourseGroups(item.id)
-    courseGroups.value = groups
-    if (groups.length > 0) {
-      await loadCourseGroupDetail(item.id, groups[0].id)
-    } else {
-      activeCourseGroupId.value = null
-      activeCourseGroupDetail.value = null
+    await refreshCourseGroups(targetGroupId)
+    if (targetView === 'lessons' || targetView === 'students') {
+      currentView.value = targetView
+      if (targetView === 'students') {
+        await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
+      }
+      syncCourseManageRoute(
+        targetView,
+        courseGroupWorkspaceCourse.value?.id ?? item.id,
+        activeCourseGroupId.value,
+      )
     }
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '加载课程组失败'
@@ -195,6 +513,7 @@ async function openCourseGroupWorkspace(item: CourseItem) {
 }
 
 function closeCourseGroupWorkspace() {
+  currentView.value = 'courses'
   courseGroupWorkspaceCourse.value = null
   courseGroups.value = []
   courseGroupsLoading.value = false
@@ -202,10 +521,66 @@ function closeCourseGroupWorkspace() {
   courseGroupsError.value = ''
   activeCourseGroupId.value = null
   activeCourseGroupDetail.value = null
-  availableCourseGroupClasses.value = []
-  availableCourseGroupStudents.value = []
+  visibleCourseGroupCount.value = GROUP_BATCH_SIZE
+  visibleLessonCount.value = LESSON_BATCH_SIZE
+  lessonWeekFilter.value = ''
+  sessionModalOpen.value = false
+  editingSessionId.value = null
+  sessionHistoryHint.value = ''
+  selectedLessonIds.value = []
+  bulkDeleteLessonModalOpen.value = false
+  selectedCreateSessionWeeks.value = []
+  selectedCreateSessionPreset.value = null
+  deleteCourseGroupModalOpen.value = false
+  pendingDeleteCourseGroupId.value = null
+  pendingDeleteCourseGroupName.value = ''
+  removeCourseGroupMemberModalOpen.value = false
+  pendingRemoveCourseGroupMember.value = null
   courseGroupClassKeyword.value = ''
   courseGroupStudentKeyword.value = ''
+  courseGroupClassRows.value = []
+  courseGroupStudentRows.value = []
+  courseGroupClassPage.value = 1
+  courseGroupStudentPage.value = 1
+  courseGroupClassHasMore.value = false
+  courseGroupStudentHasMore.value = false
+  expandedCourseGroupClassKeys.value = []
+}
+
+async function openCourseGroupLessons(group: CourseGroupItem) {
+  if (!courseGroupWorkspaceCourse.value) {
+    return
+  }
+  courseGroupsLoading.value = true
+  courseGroupsError.value = ''
+  try {
+    await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
+    currentView.value = 'lessons'
+    lessonWeekFilter.value = ''
+    syncCourseManageRoute('lessons', courseGroupWorkspaceCourse.value.id, group.id)
+  } catch (error) {
+    courseGroupsError.value = error instanceof Error ? error.message : '加载课次失败'
+  } finally {
+    courseGroupsLoading.value = false
+  }
+}
+
+async function openCourseGroupStudents(group: CourseGroupItem) {
+  if (!courseGroupWorkspaceCourse.value) {
+    return
+  }
+  courseGroupsLoading.value = true
+  courseGroupsError.value = ''
+  try {
+    await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
+    currentView.value = 'students'
+    await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
+    syncCourseManageRoute('students', courseGroupWorkspaceCourse.value.id, group.id)
+  } catch (error) {
+    courseGroupsError.value = error instanceof Error ? error.message : '加载上课学生失败'
+  } finally {
+    courseGroupsLoading.value = false
+  }
 }
 
 async function createCourseGroup() {
@@ -224,15 +599,28 @@ async function createCourseGroup() {
   }
 }
 
-async function deleteCourseGroup(groupId: number) {
-  if (!courseGroupWorkspaceCourse.value || !window.confirm('确定删除这个课程组吗？')) {
+function openDeleteCourseGroupModal(group: CourseGroupItem) {
+  pendingDeleteCourseGroupId.value = group.id
+  pendingDeleteCourseGroupName.value = `课程组 ${group.id}`
+  deleteCourseGroupModalOpen.value = true
+}
+
+function closeDeleteCourseGroupModal() {
+  deleteCourseGroupModalOpen.value = false
+  pendingDeleteCourseGroupId.value = null
+  pendingDeleteCourseGroupName.value = ''
+}
+
+async function deleteCourseGroup() {
+  if (!courseGroupWorkspaceCourse.value || pendingDeleteCourseGroupId.value === null) {
     return
   }
   courseGroupActionLoading.value = true
   courseGroupsError.value = ''
   try {
-    await api.deleteCourseGroup(courseGroupWorkspaceCourse.value.id, groupId)
-    await refreshCourseGroups(activeCourseGroupId.value === groupId ? null : activeCourseGroupId.value)
+    await api.deleteCourseGroup(courseGroupWorkspaceCourse.value.id, pendingDeleteCourseGroupId.value)
+    await refreshCourseGroups(activeCourseGroupId.value === pendingDeleteCourseGroupId.value ? null : activeCourseGroupId.value)
+    closeDeleteCourseGroupModal()
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '删除课程组失败'
   } finally {
@@ -240,51 +628,160 @@ async function deleteCourseGroup(groupId: number) {
   }
 }
 
-async function selectCourseGroup(groupId: number) {
-  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === groupId) {
+function openEditSessionModal(session: CourseGroupLessonItem) {
+  editingSessionId.value = session.id
+  sessionHistoryHint.value = '若该课次已有考勤历史，后端会继续校验并阻止破坏性修改。'
+  courseGroupSessionForm.value = {
+    weekNo: session.week_no,
+    weekday: session.weekday,
+    section: session.section,
+    buildingName: session.building_name,
+    roomName: session.room_name,
+  }
+  sessionModalOpen.value = true
+}
+
+function closeSessionModal() {
+  sessionModalOpen.value = false
+  editingSessionId.value = null
+  sessionHistoryHint.value = ''
+}
+
+function toggleLessonSelection(lessonId: number) {
+  if (selectedLessonIds.value.includes(lessonId)) {
+    selectedLessonIds.value = selectedLessonIds.value.filter((item) => item !== lessonId)
     return
   }
-  courseGroupsLoading.value = true
-  courseGroupsError.value = ''
-  try {
-    await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, groupId)
-  } catch (error) {
-    courseGroupsError.value = error instanceof Error ? error.message : '加载课程组详情失败'
-  } finally {
-    courseGroupsLoading.value = false
+  selectedLessonIds.value = [...selectedLessonIds.value, lessonId]
+}
+
+function toggleLessonPageSelection() {
+  if (areAllVisibleLessonsSelected.value) {
+    const visibleIds = new Set(visibleCourseGroupLessons.value.map((item) => item.id))
+    selectedLessonIds.value = selectedLessonIds.value.filter((item) => !visibleIds.has(item))
+    return
+  }
+  selectedLessonIds.value = Array.from(
+    new Set([...selectedLessonIds.value, ...visibleCourseGroupLessons.value.map((item) => item.id)]),
+  )
+}
+
+function openBulkDeleteLessonModal() {
+  if (selectedLessonIds.value.length === 0) {
+    return
+  }
+  bulkDeleteLessonModalOpen.value = true
+}
+
+function closeBulkDeleteLessonModal() {
+  bulkDeleteLessonModalOpen.value = false
+}
+
+function resetCreateSessionForm() {
+  selectedCreateSessionWeeks.value = []
+  selectedCreateSessionPreset.value = null
+  courseGroupSessionForm.value = {
+    weekNo: 1,
+    weekday: '',
+    section: '',
+    buildingName: '',
+    roomName: '',
   }
 }
 
-async function createCourseGroupSession() {
+function selectAllSessionWeeks() {
+  if (selectedCreateSessionPreset.value === 'all') {
+    selectedCreateSessionPreset.value = null
+    selectedCreateSessionWeeks.value = []
+    return
+  }
+  selectedCreateSessionPreset.value = 'all'
+  selectedCreateSessionWeeks.value = [...allSessionWeeks.value]
+}
+
+function selectOddSessionWeeks() {
+  if (selectedCreateSessionPreset.value === 'odd') {
+    selectedCreateSessionPreset.value = null
+    selectedCreateSessionWeeks.value = []
+    return
+  }
+  selectedCreateSessionPreset.value = 'odd'
+  selectedCreateSessionWeeks.value = allSessionWeeks.value.filter((weekNo) => weekNo % 2 === 1)
+}
+
+function selectEvenSessionWeeks() {
+  if (selectedCreateSessionPreset.value === 'even') {
+    selectedCreateSessionPreset.value = null
+    selectedCreateSessionWeeks.value = []
+    return
+  }
+  selectedCreateSessionPreset.value = 'even'
+  selectedCreateSessionWeeks.value = allSessionWeeks.value.filter((weekNo) => weekNo % 2 === 0)
+}
+
+function toggleCreateSessionWeek(weekNo: number) {
+  selectedCreateSessionPreset.value = null
+  if (selectedCreateSessionWeeks.value.includes(weekNo)) {
+    selectedCreateSessionWeeks.value = selectedCreateSessionWeeks.value.filter((item) => item !== weekNo)
+    return
+  }
+  selectedCreateSessionWeeks.value = [...selectedCreateSessionWeeks.value, weekNo].sort((left, right) => left - right)
+}
+
+async function saveCourseGroupSession() {
   if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null) {
     return
   }
+  const courseId = courseGroupWorkspaceCourse.value.id
+  const groupId = activeCourseGroupId.value
   const buildingName = courseGroupSessionForm.value.buildingName.trim()
   const roomName = courseGroupSessionForm.value.roomName.trim()
+  const weekday = Number(courseGroupSessionForm.value.weekday)
+  const section = Number(courseGroupSessionForm.value.section)
   if (!buildingName || !roomName) {
     courseGroupsError.value = '请先填写完整的课次信息'
+    return
+  }
+  if (!weekday || !section) {
+    courseGroupsError.value = '请先选择星期和时间节'
+    return
+  }
+  if (editingSessionId.value === null && selectedCreateSessionWeeks.value.length === 0) {
+    courseGroupsError.value = '请至少选择一个周次'
     return
   }
   courseGroupActionLoading.value = true
   courseGroupsError.value = ''
   try {
-    await api.createCourseGroupSession(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, {
-      week_no: courseGroupSessionForm.value.weekNo,
-      weekday: courseGroupSessionForm.value.weekday,
-      section: courseGroupSessionForm.value.section,
-      building_name: buildingName,
-      room_name: roomName,
-    })
+    if (editingSessionId.value === null) {
+      await Promise.all(
+        selectedCreateSessionWeeks.value.map((weekNo) =>
+          api.createCourseGroupSession(courseId, groupId, {
+            week_no: weekNo,
+            weekday,
+            section,
+            building_name: buildingName,
+            room_name: roomName,
+          }),
+        ),
+      )
+    } else {
+      await api.updateCourseGroupSession(courseId, groupId, editingSessionId.value, {
+        week_no: courseGroupSessionForm.value.weekNo,
+        weekday,
+        section,
+        building_name: buildingName,
+        room_name: roomName,
+      })
+    }
     await refreshCourseGroups(activeCourseGroupId.value)
-    courseGroupSessionForm.value = {
-      weekNo: 1,
-      weekday: 1,
-      section: 1,
-      buildingName: '',
-      roomName: '',
+    if (editingSessionId.value === null) {
+      resetCreateSessionForm()
+    } else {
+      closeSessionModal()
     }
   } catch (error) {
-    courseGroupsError.value = error instanceof Error ? error.message : '创建课次失败'
+    courseGroupsError.value = error instanceof Error ? error.message : editingSessionId.value === null ? '创建课次失败' : '编辑课次失败'
   } finally {
     courseGroupActionLoading.value = false
   }
@@ -306,6 +803,93 @@ async function deleteCourseGroupSession(session: CourseGroupLessonItem) {
   }
 }
 
+async function bulkDeleteCourseGroupSessions() {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || selectedLessonIds.value.length === 0) {
+    return
+  }
+  courseGroupActionLoading.value = true
+  courseGroupsError.value = ''
+  try {
+    const targetIds = [...selectedLessonIds.value]
+    for (const lessonId of targetIds) {
+      await api.deleteCourseGroupSession(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, lessonId)
+    }
+    selectedLessonIds.value = []
+    closeBulkDeleteLessonModal()
+    await refreshCourseGroups(activeCourseGroupId.value)
+  } catch (error) {
+    courseGroupsError.value = error instanceof Error ? error.message : '批量删除课次失败'
+  } finally {
+    courseGroupActionLoading.value = false
+  }
+}
+
+async function resetCourseGroupClassCandidates() {
+  courseGroupClassRows.value = []
+  courseGroupClassPage.value = 1
+  courseGroupClassHasMore.value = true
+  await loadMoreCourseGroupClasses()
+}
+
+async function resetCourseGroupStudentCandidates() {
+  courseGroupStudentRows.value = []
+  courseGroupStudentPage.value = 1
+  courseGroupStudentHasMore.value = true
+  await loadMoreCourseGroupStudents()
+}
+
+async function loadMoreCourseGroupClasses() {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !courseGroupClassHasMore.value && courseGroupClassPage.value > 1 || courseGroupClassLoading.value) {
+    return
+  }
+  courseGroupClassLoading.value = true
+  try {
+    const page = await api.listAvailableCourseGroupClasses(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, {
+      keyword: courseGroupClassKeyword.value,
+      page: courseGroupClassPage.value,
+      page_size: CANDIDATE_PAGE_SIZE,
+    })
+    const incoming = (page.items ?? []).map((item) => asCandidateClassRow(item))
+    courseGroupClassRows.value = courseGroupClassPage.value === 1 ? incoming : [...courseGroupClassRows.value, ...incoming]
+    const loadedCount = courseGroupClassRows.value.length
+    courseGroupClassHasMore.value = loadedCount < (page.total ?? 0)
+    if (courseGroupClassHasMore.value) {
+      courseGroupClassPage.value += 1
+    }
+  } catch (error) {
+    courseGroupsError.value = error instanceof Error ? error.message : '加载可添加班级失败'
+    courseGroupClassHasMore.value = false
+  } finally {
+    courseGroupClassLoading.value = false
+  }
+}
+
+async function loadMoreCourseGroupStudents() {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !courseGroupStudentHasMore.value && courseGroupStudentPage.value > 1 || courseGroupStudentLoading.value) {
+    return
+  }
+  courseGroupStudentLoading.value = true
+  try {
+    const page = await api.listAvailableCourseGroupStudents(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, {
+      keyword: courseGroupStudentKeyword.value,
+      page: courseGroupStudentPage.value,
+      page_size: CANDIDATE_PAGE_SIZE,
+    })
+    const incoming = (page.items ?? []).map((item) => asCandidateStudentRow(item))
+    courseGroupStudentRows.value = courseGroupStudentPage.value === 1 ? incoming : [...courseGroupStudentRows.value, ...incoming]
+    const loadedCount = courseGroupStudentRows.value.length
+    courseGroupStudentHasMore.value = loadedCount < (page.total ?? 0)
+    if (courseGroupStudentHasMore.value) {
+      courseGroupStudentPage.value += 1
+    }
+  } catch (error) {
+    courseGroupsError.value = error instanceof Error ? error.message : '加载可添加学生失败'
+    courseGroupStudentHasMore.value = false
+  } finally {
+    courseGroupStudentLoading.value = false
+  }
+}
+
 async function addCourseGroupClass(classId: number) {
   if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null) {
     return
@@ -315,6 +899,7 @@ async function addCourseGroupClass(classId: number) {
   try {
     await api.addCourseGroupClasses(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, [classId])
     await refreshCourseGroups(activeCourseGroupId.value)
+    await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '添加班级失败'
   } finally {
@@ -323,7 +908,7 @@ async function addCourseGroupClass(classId: number) {
 }
 
 async function removeCourseGroupClass(classId: number) {
-  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !window.confirm('确定将这个班级从课程组中移除吗？')) {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null) {
     return
   }
   courseGroupActionLoading.value = true
@@ -331,11 +916,21 @@ async function removeCourseGroupClass(classId: number) {
   try {
     await api.removeCourseGroupClass(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, classId)
     await refreshCourseGroups(activeCourseGroupId.value)
+    await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '移除班级失败'
   } finally {
     courseGroupActionLoading.value = false
   }
+}
+
+function openRemoveCourseGroupClassModal(classId: number, className: string) {
+  pendingRemoveCourseGroupMember.value = {
+    type: 'class',
+    id: classId,
+    name: className,
+  }
+  removeCourseGroupMemberModalOpen.value = true
 }
 
 async function addCourseGroupStudent(studentId: number) {
@@ -347,6 +942,7 @@ async function addCourseGroupStudent(studentId: number) {
   try {
     await api.addCourseGroupStudents(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, [studentId])
     await refreshCourseGroups(activeCourseGroupId.value)
+    await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '添加学生失败'
   } finally {
@@ -355,7 +951,7 @@ async function addCourseGroupStudent(studentId: number) {
 }
 
 async function removeCourseGroupStudent(studentId: number) {
-  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !window.confirm('确定将这个学生从课程组中移除吗？')) {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null) {
     return
   }
   courseGroupActionLoading.value = true
@@ -363,6 +959,7 @@ async function removeCourseGroupStudent(studentId: number) {
   try {
     await api.removeCourseGroupStudent(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, studentId)
     await refreshCourseGroups(activeCourseGroupId.value)
+    await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '移除学生失败'
   } finally {
@@ -370,394 +967,650 @@ async function removeCourseGroupStudent(studentId: number) {
   }
 }
 
-function asCourseItem(row: Record<string, unknown>) {
-  return row as unknown as CourseItem
+function openRemoveCourseGroupStudentModal(studentId: number, studentName: string) {
+  pendingRemoveCourseGroupMember.value = {
+    type: 'student',
+    id: studentId,
+    name: studentName,
+  }
+  removeCourseGroupMemberModalOpen.value = true
 }
 
+function closeRemoveCourseGroupMemberModal() {
+  removeCourseGroupMemberModalOpen.value = false
+  pendingRemoveCourseGroupMember.value = null
+}
+
+async function confirmRemoveCourseGroupMember() {
+  if (!pendingRemoveCourseGroupMember.value) {
+    return
+  }
+  const target = pendingRemoveCourseGroupMember.value
+  if (target.type === 'class') {
+    await removeCourseGroupClass(target.id)
+  } else {
+    await removeCourseGroupStudent(target.id)
+  }
+  if (!courseGroupsError.value) {
+    closeRemoveCourseGroupMemberModal()
+  }
+}
+
+function loadMoreCourseGroups() {
+  visibleCourseGroupCount.value += GROUP_BATCH_SIZE
+}
+
+function loadMoreCourseGroupLessons() {
+  visibleLessonCount.value += LESSON_BATCH_SIZE
+}
+
+function isCourseGroupClassExpanded(key: string) {
+  return expandedCourseGroupClassKeys.value.includes(key)
+}
+
+function toggleCourseGroupClassExpanded(key: string) {
+  if (expandedCourseGroupClassKeys.value.includes(key)) {
+    expandedCourseGroupClassKeys.value = expandedCourseGroupClassKeys.value.filter((item) => item !== key)
+    return
+  }
+  expandedCourseGroupClassKeys.value = [...expandedCourseGroupClassKeys.value, key]
+}
 </script>
 
 <template>
-  <section class="workspace-card user-manage-panel">
-    <div class="section-heading section-heading-titleless">
-      <div class="inline-actions">
-        <button class="primary-button" type="button" @click="emit('openCreateCourseModal')">创建课程</button>
-      </div>
-    </div>
-
+  <section class="workspace-card user-manage-panel course-manage-panel">
     <Transition name="modal-float" appear>
-    <div v-if="courseModalOpen" class="modal-backdrop modal-backdrop-contained">
-      <article class="modal-card modal-card-narrow">
-        <div class="wide-modal-header">
-          <div class="wide-modal-header-top">
-            <h3 class="wide-modal-header-title">{{ isEditingCourse ? '编辑课程' : '创建课程' }}</h3>
-            <div class="wide-modal-header-actions">
-              <button class="ghost-button compact-button" type="button" @click="emit('closeCourseModal')">关闭</button>
+      <div v-if="courseModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="wide-modal-header">
+            <div class="wide-modal-header-top">
+              <h3 class="wide-modal-header-title">{{ isEditingCourse ? '编辑课程' : '创建课程' }}</h3>
+              <div class="wide-modal-header-actions">
+                <button class="ghost-button compact-button" type="button" @click="emit('closeCourseModal')">关闭</button>
+              </div>
             </div>
           </div>
-          <p class="hint wide-modal-header-meta">这里只维护课程基础信息。课次、班级和上课学生请在课程组工作区中继续管理。</p>
-        </div>
 
-        <div>
-          <aside class="split-modal-side">
-            <div class="course-section-heading">
-              <h4>基本信息</h4>
-            </div>
-            <form class="form-grid single-column-form" @submit.prevent="emit('saveCourse')">
-              <label class="field">
-                <span>学期</span>
-                <select v-model="courseForm.termId">
-                  <option value="">请选择学期</option>
-                  <option v-for="item in courseTerms" :key="item.id" :value="item.id">{{ item.name }}</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>年级</span>
-                <input v-model.number="courseForm.grade" type="number" min="2000" max="2999" />
-              </label>
-              <label class="field">
-                <span>课程名称</span>
-                <input v-model="courseForm.courseName" />
-              </label>
-              <label class="field">
-                <span>授课教师</span>
-                <input v-model="courseForm.teacherName" />
-              </label>
-            </form>
-            <p class="hint">保存后可在课程列表中打开“课程组”工作区，继续维护课次、班级和上课学生。</p>
-
-            <div class="class-student-footer">
-              <button class="primary-button narrow-button" type="button" :disabled="courseSaving || courseLoading" @click="emit('saveCourse')">
-                <span v-if="courseSaving || courseLoading" class="button-spinner" aria-hidden="true"></span>
-                <span>{{ courseSaving ? '保存中...' : '保存' }}</span>
-              </button>
-            </div>
-          </aside>
-        </div>
-      </article>
-    </div>
+          <div>
+            <aside class="split-modal-side">
+              <div class="course-section-heading">
+                <h4>基本信息</h4>
+              </div>
+              <form class="form-grid single-column-form" @submit.prevent="emit('saveCourse')">
+                <label class="field">
+                  <span>学期</span>
+                  <select v-model="courseForm.termId">
+                    <option v-for="item in courseTerms" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>年级</span>
+                  <input v-model.number="courseForm.grade" type="number" min="2000" max="2999" />
+                </label>
+                <label class="field">
+                  <span>课程名称</span>
+                  <input v-model="courseForm.courseName" />
+                </label>
+                <label class="field">
+                  <span>授课教师</span>
+                  <input v-model="courseForm.teacherName" />
+                </label>
+              </form>
+              <div class="class-student-footer">
+                <button class="primary-button narrow-button" type="button" :disabled="courseSaving || courseLoading" @click="emit('saveCourse')">
+                  <span v-if="courseSaving || courseLoading" class="button-spinner" aria-hidden="true"></span>
+                  <span>{{ courseSaving ? '保存中...' : '保存' }}</span>
+                </button>
+              </div>
+            </aside>
+          </div>
+        </article>
+      </div>
     </Transition>
 
     <Transition name="modal-float" appear>
-    <div v-if="deleteCourseModalOpen" class="modal-backdrop">
-      <article class="modal-card modal-card-narrow">
-        <div class="modal-header">
-          <h3>确认删除</h3>
-          <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeDeleteCourseModal')">关闭</button>
-        </div>
-        <p class="hint">删除后无法恢复。确定删除课程“{{ deletingCourseName }}”吗？</p>
-        <div class="inline-actions">
-          <button class="ghost-button" type="button" @click="emit('closeDeleteCourseModal')">取消</button>
-          <button class="ghost-button danger-button" type="button" :disabled="courseDeleting" @click="emit('deleteCourse')">
-            <span v-if="courseDeleting" class="button-spinner" aria-hidden="true"></span>
-            <span>{{ courseDeleting ? '删除中...' : '确认删除' }}</span>
-          </button>
-        </div>
-      </article>
-    </div>
+      <div v-if="deleteCourseModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认删除</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeDeleteCourseModal')">关闭</button>
+          </div>
+          <p class="hint">删除后无法恢复。确定删除课程“{{ deletingCourseName }}”吗？</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="emit('closeDeleteCourseModal')">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseDeleting" @click="emit('deleteCourse')">
+              <span v-if="courseDeleting" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseDeleting ? '删除中...' : '确认删除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
     </Transition>
 
     <Transition name="modal-float" appear>
-    <div v-if="bulkDeleteCourseModalOpen" class="modal-backdrop">
-      <article class="modal-card modal-card-narrow">
-        <div class="modal-header">
-          <h3>确认批量删除</h3>
-          <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeBulkDeleteCourseModal')">关闭</button>
-        </div>
-        <p class="hint">删除后无法恢复。确定删除已选中的 {{ selectedCourseCount }} 门课程吗？</p>
-        <div class="inline-actions">
-          <button class="ghost-button" type="button" @click="emit('closeBulkDeleteCourseModal')">取消</button>
-          <button class="ghost-button danger-button" type="button" :disabled="courseDeleting" @click="emit('bulkDeleteCourses')">
-            <span v-if="courseDeleting" class="button-spinner" aria-hidden="true"></span>
-            <span>{{ courseDeleting ? '删除中...' : '确认删除' }}</span>
-          </button>
-        </div>
-      </article>
-    </div>
+      <div v-if="bulkDeleteCourseModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认批量删除</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeBulkDeleteCourseModal')">关闭</button>
+          </div>
+          <p class="hint">删除后无法恢复。确定删除已选中的 {{ selectedCourseCount }} 门课程吗？</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="emit('closeBulkDeleteCourseModal')">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseDeleting" @click="emit('bulkDeleteCourses')">
+              <span v-if="courseDeleting" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseDeleting ? '删除中...' : '确认删除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
     </Transition>
 
-    <AdminDataList
-      :rows="courses as unknown as Array<Record<string, unknown>>"
-      :columns="courseColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
-      row-key="id"
-      table-class="course-manage-table"
-      empty-text="暂无符合条件的课程"
-      :show-selection="true"
-      :selected-row-keys="selectedCourseIds"
-      :show-actions="true"
-      action-col-class="col-pct-18"
-      :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions }"
-      @update-page="emit('updateCoursePage', $event)"
-      @update-page-size="emit('updateCoursePageSize', $event)"
-      @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
-    >
-      <template #filter-term>
-        <select v-model="courseFilters.term" aria-label="按学期筛选课程">
-          <option v-for="term in termOptions" :key="term" :value="term">{{ term }}</option>
-        </select>
-      </template>
-      <template #filter-course_name>
-        <input v-model="courseFilters.courseName" aria-label="按课程名称筛选课程" />
-      </template>
-      <template #filter-teacher_name>
-        <input v-model="courseFilters.teacherName" aria-label="按授课教师筛选课程" />
-      </template>
-      <template #filter-class_names>
-        <select v-model="courseFilters.classId" aria-label="按班级筛选课程">
-          <option value="">全部</option>
-          <option v-for="item in allClasses" :key="item.id" :value="String(item.id)">{{ item.class_name }}</option>
-        </select>
-      </template>
-      <template #filter-actions>
-        <button
-          class="ghost-button compact-button"
-          :class="{ selected: areAllCoursesSelected }"
-          type="button"
-          @click="emit('toggleCoursePageSelection')"
+    <Transition name="modal-float" appear>
+      <div v-if="deleteCourseGroupModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认删除课程组</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeDeleteCourseGroupModal">关闭</button>
+          </div>
+          <p class="hint">
+            确定删除“{{ pendingDeleteCourseGroupName }}”吗？如果该课程组下已有考勤历史，将改为逻辑删除。
+          </p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeDeleteCourseGroupModal">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="deleteCourseGroup">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '删除中...' : '确认删除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="removeCourseGroupMemberModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认移除</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeRemoveCourseGroupMemberModal">关闭</button>
+          </div>
+          <p class="hint">
+            确定移除“{{ pendingRemoveCourseGroupMember?.name }}”吗？
+          </p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeRemoveCourseGroupMemberModal">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="confirmRemoveCourseGroupMember">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '处理中...' : '确认移除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="sessionModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>{{ editingSessionId === null ? '创建课次' : '编辑课次' }}</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeSessionModal">关闭</button>
+          </div>
+          <form class="form-grid single-column-form" @submit.prevent="saveCourseGroupSession">
+            <label class="field">
+              <span>周次</span>
+              <select v-model.number="courseGroupSessionForm.weekNo">
+                <option v-for="weekNo in 16" :key="weekNo" :value="weekNo">第 {{ weekNo }} 周</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>星期</span>
+              <select v-model.number="courseGroupSessionForm.weekday">
+                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>时间节</span>
+              <select v-model.number="courseGroupSessionForm.section">
+                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>教学楼</span>
+              <input v-model="courseGroupSessionForm.buildingName" />
+            </label>
+            <label class="field">
+              <span>教室</span>
+              <input v-model="courseGroupSessionForm.roomName" />
+            </label>
+            <button class="primary-button" type="submit" :disabled="courseGroupActionLoading">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '处理中...' : '保存' }}</span>
+            </button>
+          </form>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="bulkDeleteLessonModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认批量删除课次</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeBulkDeleteLessonModal">关闭</button>
+          </div>
+          <p class="hint">确定删除已选中的 {{ selectedLessonIds.length }} 个课次吗？</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeBulkDeleteLessonModal">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="bulkDeleteCourseGroupSessions">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '删除中...' : '确认删除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <div v-if="currentView === 'courses'" class="course-manage-page">
+      <div class="section-heading section-heading-titleless course-page-toolbar">
+        <div class="inline-actions">
+          <button class="primary-button" type="button" @click="emit('openCreateCourseModal')">创建课程</button>
+        </div>
+      </div>
+
+      <AdminDataList
+        :rows="courses as unknown as Array<Record<string, unknown>>"
+        :columns="courseColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+        row-key="id"
+        table-class="course-manage-table"
+        empty-text="暂无符合条件的课程"
+        :show-selection="true"
+        :selected-row-keys="selectedCourseIds"
+        :show-actions="true"
+        action-col-class="col-pct-16"
+        :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions, totalItems: courseTotalItems }"
+        :selected-items="selectedCourseIds.length"
+        @update-page="emit('updateCoursePage', $event)"
+        @update-page-size="emit('updateCoursePageSize', $event)"
+        @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
+      >
+        <template #filter-course_name>
+          <input v-model="courseFilters.courseName" aria-label="按课程名称筛选课程" />
+        </template>
+        <template #filter-teacher_name>
+          <input v-model="courseFilters.teacherName" aria-label="按授课教师筛选课程" />
+        </template>
+        <template #filter-class_names>
+          <input v-model="courseFilters.classId" aria-label="按班级筛选课程" />
+        </template>
+        <template #filter-actions>
+          <button class="ghost-button compact-button" :class="{ selected: areAllCoursesSelected }" type="button" @click="emit('toggleCoursePageSelection')">
+            全选
+          </button>
+          <button class="ghost-button compact-button danger-button" type="button" :disabled="courseDeleting || selectedCourseIds.length === 0" @click="emit('openBulkDeleteCourseModal')">
+            批量删除
+          </button>
+        </template>
+        <template #footer-trailing>
+          <label class="course-manage-term-filter">
+            <span class="visually-hidden">学期</span>
+            <select v-model="courseFilters.term" aria-label="按学期筛选课程">
+              <option v-for="term in termOptions" :key="term" :value="term">{{ term }}</option>
+            </select>
+          </label>
+        </template>
+        <template #cell-class_names="{ value }">
+          {{ Array.isArray(value) ? value.join('、') : '' }}
+        </template>
+        <template #actions="{ row }">
+          <div class="inline-actions user-actions">
+          <button class="ghost-button compact-button" type="button" :disabled="courseLoading || !row" @click="openCourseEditor(row as Record<string, unknown> | null)">编辑</button>
+            <button class="ghost-button compact-button" type="button" :disabled="courseLoading || !row" @click="openCourseGroupsManager(row as Record<string, unknown> | null)">课程组管理</button>
+            <button class="ghost-button compact-button danger-button" type="button" :disabled="!row" @click="openCourseDelete(row as Record<string, unknown> | null)">删除</button>
+          </div>
+        </template>
+      </AdminDataList>
+    </div>
+
+    <div v-else-if="currentView === 'groups'" class="course-subpage-grid">
+      <aside class="workspace-card course-context-card">
+        <div class="settings-profile-summary-list">
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课程</strong>
+            </div>
+            <div class="settings-profile-summary-list">
+              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace-card course-subpage-main">
+        <div class="section-heading">
+          <strong>课程组列表</strong>
+          <div class="inline-actions">
+            <button class="primary-button" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroup">创建课程组</button>
+          </div>
+        </div>
+
+        <p v-if="courseGroupsLoading" class="hint">正在加载课程组数据...</p>
+        <AdminDataList
+          v-else
+          :rows="visibleCourseGroups as unknown as Array<Record<string, unknown>>"
+          :columns="groupColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          row-key="id"
+          table-class="course-group-table"
+          empty-text="当前课程还没有课程组"
+          :show-actions="true"
+          action-col-class="col-pct-28"
+          :lazy-load="{ hasMore: visibleCourseGroups.length < courseGroups.length, loading: false, buttonText: '滚动到底部继续加载课程组' }"
+          @load-more="loadMoreCourseGroups"
         >
-          全选
-        </button>
-        <button class="ghost-button compact-button danger-button" type="button" :disabled="courseDeleting || selectedCourseIds.length === 0" @click="emit('openBulkDeleteCourseModal')">
-          批量删除
-        </button>
-      </template>
-      <template #cell-class_names="{ value }">
-        {{ Array.isArray(value) ? value.join('、') : '' }}
-      </template>
-      <template #actions="{ row }">
-        <div class="inline-actions user-actions">
-          <button class="ghost-button compact-button" type="button" :disabled="courseLoading" @click="emit('openEditCourseModal', asCourseItem(row))">编辑信息</button>
-          <button class="ghost-button compact-button" type="button" :disabled="courseLoading" @click="openCourseGroupWorkspace(asCourseItem(row))">课程组</button>
-          <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteCourseModal', asCourseItem(row))">删除</button>
-        </div>
-      </template>
-    </AdminDataList>
-
-    <section v-if="courseGroupWorkspaceCourse" class="workspace-card user-manage-panel course-group-workspace">
-      <div class="section-heading">
-        <div>
-          <h2>课程组管理</h2>
-          <p class="hint">{{ courseGroupWorkspaceCourse.course_name }} / {{ courseGroupWorkspaceCourse.teacher_name }}</p>
-        </div>
-        <div class="inline-actions">
-          <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroup">
-            {{ courseGroupActionLoading ? '处理中...' : '创建课程组' }}
-          </button>
-          <button class="ghost-button compact-button" type="button" @click="closeCourseGroupWorkspace">关闭</button>
-        </div>
-      </div>
-
-      <p v-if="courseGroupsError" class="hint">{{ courseGroupsError }}</p>
-      <p v-else-if="courseGroupsLoading" class="hint">正在加载课程组数据...</p>
-
-      <div v-else class="course-group-workspace-grid">
-        <aside class="course-group-sidebar">
-          <div class="course-group-sidebar-header">
-            <h3>课程组列表</h3>
-            <span class="pill">{{ courseGroups.length }} 组</span>
-          </div>
-          <div class="course-group-list">
-            <article
-              v-for="group in courseGroups"
-              :key="group.id"
-              class="course-group-card"
-              :class="{ selected: activeCourseGroupId === group.id }"
-            >
-              <button class="course-group-card-main" type="button" @click="selectCourseGroup(group.id)">
-                <strong>课程组 {{ group.id }}</strong>
-                <span class="hint">{{ group.class_names.length > 0 ? group.class_names.join('、') : '未绑定班级' }}</span>
-                <span class="hint">学生 {{ group.student_count }} 人 / 课次 {{ group.lesson_count }} 节</span>
-              </button>
-              <button class="ghost-button compact-button danger-button course-group-card-delete" type="button" @click="deleteCourseGroup(group.id)">删除</button>
-            </article>
-            <p v-if="courseGroups.length === 0" class="hint">当前课程还没有课程组。</p>
-          </div>
-        </aside>
-
-        <div class="course-group-detail">
-          <template v-if="activeCourseGroup && activeCourseGroupDetail">
-            <div class="course-group-detail-header">
-              <div>
-                <h3>课程组 {{ activeCourseGroup.id }}</h3>
-                <p class="hint">班级：{{ activeCourseGroup.class_names.length > 0 ? activeCourseGroup.class_names.join('、') : '未绑定班级' }}</p>
-              </div>
-              <div class="inline-actions">
-                <span class="pill">学生 {{ activeCourseGroup.student_count }}</span>
-                <span class="pill">课次 {{ activeCourseGroup.lesson_count }}</span>
-              </div>
-            </div>
-
-            <div class="course-group-detail-sections">
-              <section class="workspace-card course-group-detail-card">
-                <div class="section-heading">
-                  <h4>课次管理</h4>
-                </div>
-                <div class="course-group-session-form">
-                  <select v-model.number="courseGroupSessionForm.weekNo">
-                    <option v-for="weekNo in 16" :key="weekNo" :value="weekNo">第 {{ weekNo }} 周</option>
-                  </select>
-                  <select v-model.number="courseGroupSessionForm.weekday">
-                    <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
-                  </select>
-                  <select v-model.number="courseGroupSessionForm.section">
-                    <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
-                  </select>
-                  <input v-model="courseGroupSessionForm.buildingName" placeholder="教学楼" />
-                  <input v-model="courseGroupSessionForm.roomName" placeholder="教室" />
-                  <button class="primary-button narrow-button" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroupSession">新增课次</button>
-                </div>
-                <div class="table-wrap">
-                  <table class="data-table compact-table">
-                    <thead>
-                      <tr>
-                        <th>周次</th>
-                        <th>星期</th>
-                        <th>时间</th>
-                        <th>地点</th>
-                        <th class="actions-column">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="session in activeCourseGroupDetail.sessions" :key="session.id">
-                        <td>第 {{ session.week_no }} 周</td>
-                        <td>{{ weekdayLabels[session.weekday] }}</td>
-                        <td>{{ sectionLabels[session.section] }}</td>
-                        <td>{{ session.building_name }}-{{ session.room_name }}</td>
-                        <td class="actions-column">
-                          <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="deleteCourseGroupSession(session)">删除</button>
-                        </td>
-                      </tr>
-                      <tr v-if="activeCourseGroupDetail.sessions.length === 0">
-                        <td colspan="5" class="empty-cell">当前课程组还没有课次。</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-
-              <section class="workspace-card course-group-detail-card">
-                <div class="section-heading">
-                  <h4>上课学生</h4>
-                </div>
-                <div class="course-group-student-groups">
-                  <article v-for="group in groupedCourseGroupStudents" :key="group.key" class="course-group-student-block">
-                    <div class="course-group-student-block-header">
-                      <div class="course-group-student-block-title">
-                        <strong>{{ group.label }}</strong>
-                        <span class="pill">{{ group.items.length }} 人</span>
-                      </div>
-                      <button
-                        v-if="group.items[0]?.class_id"
-                        class="ghost-button compact-button danger-button"
-                        type="button"
-                        :disabled="courseGroupActionLoading"
-                        @click="removeCourseGroupClass(group.items[0].class_id)"
-                      >
-                        移除班级
-                      </button>
-                    </div>
-                    <div class="course-group-student-list">
-                      <div v-for="student in group.items" :key="student.id" class="course-group-student-row">
-                        <div class="course-group-student-row-main">
-                          <span class="course-student-member-id">{{ student.student_no }}</span>
-                          <span class="course-student-member-name">{{ student.student_name }}</span>
-                        </div>
-                        <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="removeCourseGroupStudent(student.student_id)">
-                          移除
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                  <p v-if="groupedCourseGroupStudents.length === 0" class="hint">当前课程组还没有上课学生。</p>
-                </div>
-
-                <div class="course-group-editor-grid">
-                  <section class="course-group-editor-block">
-                    <div class="course-group-student-block-header">
-                      <strong>添加班级</strong>
-                      <span class="hint">绑定后自动纳入班级学生</span>
-                    </div>
-                    <input v-model="courseGroupClassKeyword" placeholder="搜索班级 / 专业 / 年级" />
-                    <div class="table-wrap course-group-editor-table-wrap">
-                      <table class="data-table compact-table">
-                        <thead>
-                          <tr>
-                            <th>班级</th>
-                            <th>人数</th>
-                            <th class="actions-column">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="item in filteredAvailableCourseGroupClasses" :key="item.id">
-                            <td>{{ item.grade }}级 {{ item.major_name }} {{ item.class_name }}</td>
-                            <td>{{ item.student_count }}</td>
-                            <td class="actions-column">
-                              <button
-                                class="ghost-button compact-button"
-                                type="button"
-                                :disabled="courseGroupActionLoading || courseGroupBoundClassIdSet.has(item.id)"
-                                @click="addCourseGroupClass(item.id)"
-                              >
-                                {{ courseGroupBoundClassIdSet.has(item.id) ? '已绑定' : '添加' }}
-                              </button>
-                            </td>
-                          </tr>
-                          <tr v-if="filteredAvailableCourseGroupClasses.length === 0">
-                            <td colspan="3" class="empty-cell">没有可添加的班级。</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-
-                  <section class="course-group-editor-block">
-                    <div class="course-group-student-block-header">
-                      <strong>添加学生</strong>
-                      <span class="hint">可补充未按班级绑定的个别学生</span>
-                    </div>
-                    <input v-model="courseGroupStudentKeyword" placeholder="搜索学号 / 姓名 / 班级" />
-                    <div class="table-wrap course-group-editor-table-wrap">
-                      <table class="data-table compact-table">
-                        <thead>
-                          <tr>
-                            <th>学号</th>
-                            <th>姓名</th>
-                            <th>班级</th>
-                            <th class="actions-column">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="item in filteredAvailableCourseGroupStudents" :key="item.id">
-                            <td class="course-student-member-id">{{ item.student_no }}</td>
-                            <td class="course-student-member-name">{{ item.student_name }}</td>
-                            <td>{{ item.class_name }}</td>
-                            <td class="actions-column">
-                              <button
-                                class="ghost-button compact-button"
-                                type="button"
-                                :disabled="courseGroupActionLoading || courseGroupStudentIdSet.has(item.id)"
-                                @click="addCourseGroupStudent(item.id)"
-                              >
-                                {{ courseGroupStudentIdSet.has(item.id) ? '已添加' : '添加' }}
-                              </button>
-                            </td>
-                          </tr>
-                          <tr v-if="filteredAvailableCourseGroupStudents.length === 0">
-                            <td colspan="4" class="empty-cell">没有可添加的学生。</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                </div>
-              </section>
-            </div>
+          <template #cell-id="{ value }">课程组 {{ value }}</template>
+          <template #cell-class_names="{ value }">
+            {{ Array.isArray(value) && value.length > 0 ? value.join('、') : '未绑定班级' }}
           </template>
+        <template #actions="{ row }">
+          <div class="inline-actions user-actions">
+            <button class="ghost-button compact-button" type="button" @click="openCourseGroupLessons(asCourseGroupItem(row))">课次管理</button>
+            <button class="ghost-button compact-button" type="button" @click="openCourseGroupStudents(asCourseGroupItem(row))">上课学生管理</button>
+            <button class="ghost-button compact-button danger-button" type="button" @click="openDeleteCourseGroupModal(asCourseGroupItem(row))">删除</button>
+          </div>
+        </template>
+      </AdminDataList>
+      </section>
+    </div>
 
-          <div v-else class="empty-state-card">
-            <p class="hint">请先创建课程组，或从左侧选择一个课程组查看详情。</p>
+    <div v-else-if="currentView === 'lessons'" class="course-subpage-grid">
+      <aside class="workspace-card course-context-card">
+        <div class="settings-profile-summary-list">
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课程组</strong>
+            </div>
+            <div class="settings-profile-summary-list">
+              <div v-for="item in activeCourseGroupSummary" :key="item.label" class="settings-profile-summary-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课程</strong>
+            </div>
+            <div class="settings-profile-summary-list">
+              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </aside>
+
+      <section class="workspace-card course-subpage-main course-lessons-main">
+        <div class="course-lesson-list-card">
+          <div class="section-heading">
+            <strong>课次列表</strong>
+          </div>
+
+          <p v-if="courseGroupsLoading" class="hint">正在加载课次数据...</p>
+          <AdminDataList
+            v-else
+            :rows="visibleCourseGroupLessons.map(asCourseGroupLessonRow)"
+            :columns="lessonColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+            row-key="id"
+            table-class="course-group-table"
+            empty-text="当前课程组还没有课次"
+            :show-selection="true"
+            :selected-row-keys="selectedLessonIds"
+            :show-actions="true"
+            action-col-class="col-pct-28"
+            :selected-items="selectedLessonIds.length"
+            :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
+            @toggle-row-selection="toggleLessonSelection(Number($event))"
+            @toggle-page-selection="toggleLessonPageSelection"
+            @load-more="loadMoreCourseGroupLessons"
+          >
+            <template #filter-week_no>
+              <select v-model="lessonWeekFilter" aria-label="按周次筛选课次">
+                <option value="">全部周次</option>
+                <option v-for="weekNo in lessonWeekOptions" :key="weekNo" :value="String(weekNo)">第 {{ weekNo }} 周</option>
+              </select>
+            </template>
+            <template #filter-actions>
+              <button class="ghost-button compact-button" :class="{ selected: areAllVisibleLessonsSelected }" type="button" @click="toggleLessonPageSelection">
+                全选
+              </button>
+              <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading || selectedLessonIds.length === 0" @click="openBulkDeleteLessonModal">
+                批量删除
+              </button>
+            </template>
+            <template #cell-week_no="{ value }">第 {{ value }} 周</template>
+            <template #cell-weekday="{ value }">{{ weekdayLabels[Number(value)] }}</template>
+            <template #cell-section="{ value }">{{ sectionLabels[Number(value)] }}</template>
+            <template #actions="{ row }">
+              <div class="inline-actions user-actions">
+                <button class="ghost-button compact-button" type="button" @click="openEditSessionModal(row as unknown as CourseGroupLessonItem)">编辑课次</button>
+                <button class="ghost-button compact-button danger-button" type="button" @click="deleteCourseGroupSession(row as unknown as CourseGroupLessonItem)">删除</button>
+              </div>
+            </template>
+          </AdminDataList>
+        </div>
+
+        <div class="course-lesson-create-card">
+          <div class="section-heading">
+            <strong>创建课次</strong>
+          </div>
+          <div class="course-lesson-create-form">
+            <label class="field">
+              <span>星期</span>
+              <select v-model.number="courseGroupSessionForm.weekday">
+                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>时间节</span>
+              <select v-model.number="courseGroupSessionForm.section">
+                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>教学楼</span>
+              <input v-model="courseGroupSessionForm.buildingName" />
+            </label>
+            <label class="field">
+              <span>教室</span>
+              <input v-model="courseGroupSessionForm.roomName" />
+            </label>
+          </div>
+          <div class="course-lesson-week-picker">
+            <div class="inline-actions">
+              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'all' }" type="button" @click="selectAllSessionWeeks">全周</button>
+              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'odd' }" type="button" @click="selectOddSessionWeeks">单周</button>
+              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'even' }" type="button" @click="selectEvenSessionWeeks">双周</button>
+            </div>
+            <div class="course-lesson-week-grid">
+              <button
+                v-for="weekNo in allSessionWeeks"
+                :key="weekNo"
+                class="ghost-button compact-button"
+                :class="{ selected: selectedCreateSessionWeeks.includes(weekNo) }"
+                type="button"
+                @click="toggleCreateSessionWeek(weekNo)"
+              >
+                {{ weekNo }}
+              </button>
+            </div>
+          </div>
+          <div class="inline-actions">
+            <button class="primary-button" type="button" :disabled="courseGroupActionLoading" @click="saveCourseGroupSession">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '添加中...' : '添加课次' }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-else class="course-student-manage-layout">
+      <aside class="workspace-card course-context-card">
+        <div class="settings-profile-summary-list">
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课程组</strong>
+            </div>
+            <div class="settings-profile-summary-list">
+              <div v-for="item in activeCourseGroupSummary" :key="item.label" class="settings-profile-summary-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课程</strong>
+            </div>
+            <div class="settings-profile-summary-list">
+              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="course-student-main-column">
+        <section class="workspace-card course-group-current-students-card">
+          <div class="section-heading">
+            <div>
+              <strong>上课学生列表</strong>
+            </div>
+          </div>
+
+          <div class="course-group-student-groups">
+            <article
+              v-for="entry in courseGroupStudentEntries"
+              :key="entry.key"
+              class="course-group-student-block"
+              :class="{ 'course-group-student-block-expanded': entry.kind === 'class' && isCourseGroupClassExpanded(entry.key) }"
+            >
+              <template v-if="entry.kind === 'class'">
+                <div class="course-group-student-block-header">
+                  <button class="course-group-student-summary" type="button" @click="toggleCourseGroupClassExpanded(entry.key)">
+                    <span class="course-group-student-caret" :class="{ 'course-group-student-caret-expanded': isCourseGroupClassExpanded(entry.key) }" aria-hidden="true">▸</span>
+                    <div class="course-group-student-block-title">
+                      <strong>{{ entry.label }}</strong>
+                      <span class="pill">{{ entry.items.length }} 人</span>
+                      <span class="hint">{{ isCourseGroupClassExpanded(entry.key) ? '收起学生' : '展开学生' }}</span>
+                    </div>
+                  </button>
+                  <button
+                    v-if="entry.classId"
+                    class="ghost-button compact-button danger-button"
+                    type="button"
+                    :disabled="courseGroupActionLoading"
+                    @click="openRemoveCourseGroupClassModal(entry.classId, entry.label)"
+                  >
+                    移除班级
+                  </button>
+                </div>
+                <div v-if="isCourseGroupClassExpanded(entry.key)" class="course-group-student-list">
+                  <div v-for="student in entry.items" :key="student.id" class="course-group-student-row">
+                    <div class="course-group-student-row-main">
+                      <span class="course-student-member-id">{{ student.student_no }}</span>
+                      <span class="course-student-member-name">{{ student.student_name }}</span>
+                    </div>
+                    <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="openRemoveCourseGroupStudentModal(student.student_id, student.student_name)">
+                      移除
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else>
+                <div class="course-group-student-row course-group-student-row-standalone">
+                  <div class="course-group-student-row-main">
+                    <div class="course-group-student-standalone-meta">
+                      <span class="course-student-member-name">{{ entry.student.student_name }}</span>
+                      <span class="course-student-member-id">{{ entry.student.student_no }}</span>
+                    </div>
+                    <span class="pill">其他学生</span>
+                  </div>
+                  <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="openRemoveCourseGroupStudentModal(entry.student.student_id, entry.student.student_name)">
+                    移除
+                  </button>
+                </div>
+              </template>
+            </article>
+            <p v-if="courseGroupStudentEntries.length === 0" class="hint">当前课程组还没有上课学生。</p>
+          </div>
+        </section>
+
+        <section class="workspace-card course-group-candidates-card">
+          <div class="course-group-editor-grid">
+            <section class="course-group-editor-block">
+              <div class="section-heading section-heading-titleless">
+                <strong>班级列表</strong>
+              </div>
+              <AdminDataList
+                :rows="courseGroupClassRows"
+                :columns="candidateClassColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+                row-key="id"
+                table-class="course-group-candidate-table"
+                empty-text="没有可添加的班级"
+                :show-actions="true"
+                action-col-class="col-pct-20"
+                :lazy-load="{ hasMore: courseGroupClassHasMore, loading: courseGroupClassLoading, buttonText: '滚动到底部继续加载班级' }"
+                @load-more="loadMoreCourseGroupClasses"
+              >
+                <template #filter-class_display>
+                  <input v-model="courseGroupClassKeyword" placeholder="搜索班级 / 专业 / 年级" />
+                </template>
+                <template #actions="{ row }">
+                  <div class="inline-actions user-actions">
+                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupClass(Number(row.class_id ?? row.id))">添加</button>
+                  </div>
+                </template>
+              </AdminDataList>
+            </section>
+
+            <section class="course-group-editor-block">
+              <div class="section-heading section-heading-titleless">
+                <strong>学生列表</strong>
+              </div>
+              <AdminDataList
+                :rows="courseGroupStudentRows"
+                :columns="candidateStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+                row-key="id"
+                table-class="course-group-candidate-table"
+                empty-text="没有可添加的学生"
+                :show-actions="true"
+                action-col-class="col-pct-20"
+                :lazy-load="{ hasMore: courseGroupStudentHasMore, loading: courseGroupStudentLoading, buttonText: '滚动到底部继续加载学生' }"
+                @load-more="loadMoreCourseGroupStudents"
+              >
+                <template #filter-student_no>
+                  <input v-model="courseGroupStudentKeyword" placeholder="搜索学号 / 姓名 / 班级" />
+                </template>
+                <template #actions="{ row }">
+                  <div class="inline-actions user-actions">
+                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupStudent(Number(row.student_id ?? row.id))">添加</button>
+                  </div>
+                </template>
+              </AdminDataList>
+            </section>
+          </div>
+        </section>
+      </section>
+    </div>
+    <Teleport to="body">
+      <div v-if="actionToast" class="toast-banner admin-data-list-copy-toast">{{ actionToast }}</div>
+    </Teleport>
   </section>
 </template>

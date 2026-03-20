@@ -31,9 +31,6 @@ const emit = defineEmits<{
   bulkDeleteClasses: []
 }>()
 
-const gradeOptions = computed(() =>
-  Array.from(new Set(props.classes.map((item) => item.grade))).sort((left, right) => right - left),
-)
 const majorOptions = computed(() =>
   Array.from(new Set(props.classes.map((item) => item.major_name))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
 )
@@ -395,16 +392,14 @@ function downloadSampleCsv() {
       :selected-row-keys="selectedClassIds"
       :show-actions="true"
       action-col-class="col-pct-20"
-      :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions }"
+      :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
+      :selected-items="selectedClassIds.length"
       @update-page="emit('updateClassPage', $event)"
       @update-page-size="emit('updateClassPageSize', $event)"
       @toggle-row-selection="emit('toggleClassSelection', Number($event))"
     >
       <template #filter-grade>
-        <select v-model="classFilters.grade" aria-label="按年级筛选班级">
-          <option value="">全部</option>
-          <option v-for="grade in gradeOptions" :key="grade" :value="String(grade)">{{ grade }}</option>
-        </select>
+        <input v-model="classFilters.grade" aria-label="按年级筛选班级" />
       </template>
       <template #filter-major_name>
         <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
@@ -430,8 +425,8 @@ function downloadSampleCsv() {
       </template>
       <template #actions="{ row }">
         <div class="inline-actions user-actions">
-          <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', asClassItem(row))">编辑信息</button>
-          <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', asClassItem(row))">编辑学生</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', asClassItem(row))">编辑</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', asClassItem(row))">学生管理</button>
           <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', asClassItem(row))">删除</button>
         </div>
       </template>

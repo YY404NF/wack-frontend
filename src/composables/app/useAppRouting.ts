@@ -60,12 +60,16 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
 
   async function writeTabToLocation(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
     if (deps.me.value?.role === 1 && (adminTabKeys as readonly string[]).includes(tab)) {
-      await deps.router[mode]({ name: 'admin', params: { tab } })
+      await deps.router[mode]({ name: 'admin', params: { tab }, query: deps.route.query })
       return
     }
 
     if ((deps.me.value?.role === 2 || deps.me.value?.role === 3) && (studentTabKeys as readonly string[]).includes(tab)) {
-      await deps.router[mode]({ name: 'student', params: { tab: tabToStudentSegment[tab as keyof typeof tabToStudentSegment] } })
+      await deps.router[mode]({
+        name: 'student',
+        params: { tab: tabToStudentSegment[tab as keyof typeof tabToStudentSegment] },
+        query: deps.route.query,
+      })
     }
   }
 

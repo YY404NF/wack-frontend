@@ -14,7 +14,16 @@ const AdminStudentManagePanel = defineAsyncComponent(() => import('./AdminStuden
 const AdminUserManagePanel = defineAsyncComponent(() => import('./AdminUserManagePanel.vue'))
 const AdminSettingsPanel = defineAsyncComponent(() => import('./AdminSettingsPanel.vue'))
 
-defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
+defineProps<AdminWorkspaceProps & {
+  activeTab: AppTab
+  courseManageRouteCourseId?: number | null
+  courseManageRouteGroupId?: number | null
+  courseManagePathCommand?: {
+    token: number
+    target: 'courses' | 'groups'
+    courseId?: number | null
+  } | null
+}>()
 
 const emit = defineEmits<{
   openCreateClassModal: []
@@ -97,6 +106,8 @@ const emit = defineEmits<{
   updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
+  updateCourseManageView: [view: 'courses' | 'groups' | 'lessons' | 'students']
+  updateCourseManageRoute: [payload: { view: 'courses' | 'groups' | 'lessons' | 'students'; courseId?: number | null; groupId?: number | null }]
 }>()
 
 function forwardUserStatus(studentId: string, status: number) {
@@ -136,6 +147,7 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       :attendance-logs-page="attendanceLogsPage"
       :attendance-logs-page-size="attendanceLogsPageSize"
       :attendance-logs-total-pages="attendanceLogsTotalPages"
+      :attendance-logs-total-items="attendanceLogsTotalItems"
       :attendance-logs-page-options="attendanceLogsPageOptions"
       :status-name="statusName"
       @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
@@ -171,10 +183,15 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       :course-page="coursePage"
       :course-page-size="coursePageSize"
       :course-total-pages="courseTotalPages"
+      :course-total-items="courseTotalItems"
       :course-page-options="coursePageOptions"
       :selected-course-ids="selectedCourseIds"
       :selected-course-count="selectedCourseCount"
       :deleting-course-name="deletingCourseName"
+      :course-manage-route-view="courseManageRouteView"
+      :course-manage-route-course-id="courseManageRouteCourseId"
+      :course-manage-route-group-id="courseManageRouteGroupId"
+      :course-manage-path-command="courseManagePathCommand"
       @open-create-course-modal="emit('openCreateCourseModal')"
       @open-edit-course-modal="emit('openEditCourseModal', $event)"
       @close-course-modal="emit('closeCourseModal')"
@@ -189,6 +206,8 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       @toggle-course-selection="emit('toggleCourseSelection', $event)"
       @toggle-course-page-selection="emit('toggleCoursePageSelection')"
       @bulk-delete-courses="emit('bulkDeleteCourses')"
+      @update-course-manage-view="emit('updateCourseManageView', $event)"
+      @update-course-manage-route="emit('updateCourseManageRoute', $event)"
     />
 
     <AdminClassManagePanel
@@ -216,6 +235,7 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       :class-page="classPage"
       :class-page-size="classPageSize"
       :class-total-pages="classTotalPages"
+      :class-total-items="classTotalItems"
       :class-page-options="classPageOptions"
       :selected-class-ids="selectedClassIds"
       :selected-class-count="selectedClassCount"
@@ -259,6 +279,7 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       :student-page="studentPage"
       :student-page-size="studentPageSize"
       :student-total-pages="studentTotalPages"
+      :student-total-items="studentTotalItems"
       :student-page-options="studentPageOptions"
       :selected-student-ids="selectedStudentIds"
       :selected-student-count="selectedStudentCount"
@@ -295,6 +316,7 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       :user-page="userPage"
       :user-page-size="userPageSize"
       :user-total-pages="userTotalPages"
+      :user-total-items="userTotalItems"
       :user-page-options="userPageOptions"
       :selected-user-student-ids="selectedUserStudentIds"
       :user-password-modal-open="userPasswordModalOpen"

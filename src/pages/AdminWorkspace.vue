@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { HomeFilled } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import type { AppTab, StatusCode } from '../constants'
 import { adminNavItems } from '../constants'
@@ -12,6 +13,8 @@ import type { AdminWorkspaceProps } from '../components/admin/types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 
 const props = defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
+const router = useRouter()
+const route = useRoute()
 
 const emit = defineEmits<{
   'update:activeTab': [value: AppTab]
@@ -104,10 +107,134 @@ function forwardUserStatus(studentId: string, status: number) {
 
 const aboutCaptchaOpen = ref(false)
 const aboutModalOpen = ref(false)
+const courseManageView = ref<'courses' | 'groups' | 'lessons' | 'students'>('courses')
+const courseManageRouteCourseId = ref<number | null>(null)
+const courseManageRouteGroupId = ref<number | null>(null)
+const courseManagePathCommand = ref<{ token: number; target: 'courses' | 'groups'; courseId?: number | null } | null>(null)
 
 const activeTabLabel = computed(() => {
   return adminNavItems.find((item) => item.key === props.activeTab)?.label ?? '当前页面'
 })
+
+const pathSegments = computed(() => {
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: 'courses' | 'groups' }> = [
+    { key: 'root', label: activeTabLabel.value, clickable: props.activeTab === 'course-manage' && courseManageView.value !== 'courses', target: 'courses' },
+  ]
+  if (props.activeTab !== 'course-manage') {
+    return segments
+  }
+  if (courseManageView.value === 'groups') {
+    segments.push({ key: 'groups', label: '课程组管理', clickable: false })
+    return segments
+  }
+  if (courseManageView.value === 'lessons') {
+    segments.push({ key: 'groups', label: '课程组管理', clickable: true, target: 'groups' })
+    segments.push({ key: 'lessons', label: '课次管理', clickable: false })
+    return segments
+  }
+  if (courseManageView.value === 'students') {
+    segments.push({ key: 'groups', label: '课程组管理', clickable: true, target: 'groups' })
+    segments.push({ key: 'students', label: '上课学生管理', clickable: false })
+    return segments
+  }
+  return segments
+})
+
+watch(
+  () => props.activeTab,
+  (tab) => {
+    if (tab !== 'course-manage') {
+      courseManageView.value = 'courses'
+      courseManageRouteCourseId.value = null
+      courseManageRouteGroupId.value = null
+      courseManagePathCommand.value = null
+      const { courseView, courseId, groupId, ...restQuery } = route.query
+      if (courseView !== undefined || courseId !== undefined || groupId !== undefined) {
+        void router.replace({
+          name: 'admin',
+          params: { tab },
+          query: restQuery,
+        })
+      }
+    }
+  },
+)
+
+watch(
+  () => [props.activeTab, route.query.courseView, route.query.courseId, route.query.groupId] as const,
+  ([tab, viewValue, courseIdValue, groupIdValue]) => {
+    if (tab !== 'course-manage') {
+      return
+    }
+    const next = typeof viewValue === 'string' && ['courses', 'groups', 'lessons', 'students'].includes(viewValue) ? viewValue as 'courses' | 'groups' | 'lessons' | 'students' : 'courses'
+    courseManageRouteCourseId.value = typeof courseIdValue === 'string' && /^\d+$/.test(courseIdValue) ? Number(courseIdValue) : null
+    courseManageRouteGroupId.value = typeof groupIdValue === 'string' && /^\d+$/.test(groupIdValue) ? Number(groupIdValue) : null
+    if (next !== courseManageView.value) {
+      courseManageView.value = next
+      if (next === 'courses' || next === 'groups') {
+        courseManagePathCommand.value = {
+          token: Date.now(),
+          target: next,
+          courseId: courseManageRouteCourseId.value,
+        }
+      }
+    }
+  },
+  { immediate: true },
+)
+
+async function syncCourseManageViewToQuery(
+  payload: { view: 'courses' | 'groups' | 'lessons' | 'students'; courseId?: number | null; groupId?: number | null },
+  mode: 'push' | 'replace' = 'push',
+) {
+  const nextQuery = { ...route.query }
+  if (payload.view === 'courses') {
+    delete nextQuery.courseView
+    delete nextQuery.courseId
+    delete nextQuery.groupId
+  } else {
+    nextQuery.courseView = payload.view
+    if (payload.courseId) {
+      nextQuery.courseId = String(payload.courseId)
+    } else {
+      delete nextQuery.courseId
+    }
+    if (payload.groupId) {
+      nextQuery.groupId = String(payload.groupId)
+    } else {
+      delete nextQuery.groupId
+    }
+  }
+  await router[mode]({ query: nextQuery })
+}
+
+function handleCourseManageViewChange(view: 'courses' | 'groups' | 'lessons' | 'students') {
+  courseManageView.value = view
+}
+
+function handleCourseManageRouteChange(payload: { view: 'courses' | 'groups' | 'lessons' | 'students'; courseId?: number | null; groupId?: number | null }) {
+  courseManageView.value = payload.view
+  courseManageRouteCourseId.value = payload.courseId ?? null
+  courseManageRouteGroupId.value = payload.groupId ?? null
+  void syncCourseManageViewToQuery(payload)
+}
+
+function handlePathSegmentClick(target?: 'courses' | 'groups') {
+  if (!target || props.activeTab !== 'course-manage') {
+    return
+  }
+  courseManagePathCommand.value = {
+    token: Date.now(),
+    target,
+    courseId: courseManageRouteCourseId.value,
+  }
+  courseManageView.value = target
+  void syncCourseManageViewToQuery({
+    view: target,
+    courseId: target === 'groups' ? courseManageRouteCourseId.value : null,
+    groupId: null,
+  })
+}
 
 function openAboutEntry() {
   aboutCaptchaOpen.value = true
@@ -155,8 +282,18 @@ function closeAboutModal() {
           <span class="admin-path-home" aria-hidden="true">
             <HomeFilled class="admin-path-home-icon" />
           </span>
-          <span class="admin-path-separator" aria-hidden="true">/</span>
-          <span class="admin-path-current">{{ activeTabLabel }}</span>
+          <template v-for="segment in pathSegments" :key="segment.key">
+            <span class="admin-path-separator" aria-hidden="true">/</span>
+            <button
+              v-if="segment.clickable"
+              class="admin-path-link"
+              type="button"
+              @click="handlePathSegmentClick(segment.target)"
+            >
+              {{ segment.label }}
+            </button>
+            <span v-else class="admin-path-current">{{ segment.label }}</span>
+          </template>
         </header>
 
         <div v-if="pageError || toast" class="notice-stack">
@@ -166,6 +303,10 @@ function closeAboutModal() {
 
         <AdminPanelContent
           v-bind="$props"
+          :course-manage-route-view="courseManageView"
+          :course-manage-route-course-id="courseManageRouteCourseId"
+          :course-manage-route-group-id="courseManageRouteGroupId"
+          :course-manage-path-command="courseManagePathCommand"
           @open-create-course-modal="emit('openCreateCourseModal')"
           @open-edit-course-modal="emit('openEditCourseModal', $event)"
           @close-course-modal="emit('closeCourseModal')"
@@ -239,6 +380,8 @@ function closeAboutModal() {
           @create-user="emit('createUser')"
           @set-user-status="forwardUserStatus"
           @update-system-settings="emit('updateSystemSettings', $event)"
+          @update-course-manage-view="handleCourseManageViewChange"
+          @update-course-manage-route="handleCourseManageRouteChange"
           @open-profile-modal="emit('openProfileModal')"
           @close-profile-modal="emit('closeProfileModal')"
           @update-profile="emit('updateProfile')"

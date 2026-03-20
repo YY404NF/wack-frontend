@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useSlots } from 'vue'
+import { computed, onBeforeUnmount, ref, useSlots, watch } from 'vue'
 
 type ListColumn = {
   key: string
@@ -16,6 +16,7 @@ type PaginationConfig = {
   pageSize: number
   totalPages: number
   pageOptions: number[]
+  totalItems?: number
 }
 
 type LazyLoadConfig = {
@@ -39,6 +40,9 @@ const props = withDefaults(defineProps<{
   actionsLabel?: string
   pagination?: PaginationConfig | null
   lazyLoad?: LazyLoadConfig | null
+  totalItems?: number | null
+  currentItems?: number | null
+  selectedItems?: number | null
 }>(), {
   emptyText: '暂无数据',
   showSelection: false,
@@ -48,6 +52,9 @@ const props = withDefaults(defineProps<{
   actionsLabel: '操作',
   pagination: null,
   lazyLoad: null,
+  totalItems: null,
+  currentItems: null,
+  selectedItems: null,
 })
 
 const emit = defineEmits<{
@@ -61,6 +68,7 @@ const emit = defineEmits<{
 const slots = useSlots()
 const copyToast = ref('')
 const loadingMore = ref(false)
+const jumpPageInput = ref('')
 let copyToastTimer: number | null = null
 let lazyLoadTimer: number | null = null
 
@@ -87,6 +95,57 @@ const totalColumnCount = computed(() => {
 const hasFilterRow = computed(() =>
   props.columns.some((column) => !!slots[`filter-${column.key}`]) || !!slots['filter-actions'],
 )
+const resolvedSelectedCount = computed(() => props.selectedItems ?? props.selectedRowKeys.length)
+const resolvedCurrentCount = computed(() => props.currentItems ?? props.rows.length)
+const resolvedTotalCount = computed(() => props.pagination?.totalItems ?? props.totalItems ?? props.rows.length)
+const showSummaryStats = computed(() => props.rows.length > 0)
+const pageTokens = computed(() => {
+  if (!props.pagination) {
+    return []
+  }
+  const total = props.pagination.totalPages
+  const current = props.pagination.page
+  const appendEllipsis = (tokens: Array<{ type: 'page' | 'ellipsis'; value: number }>, count: number) => {
+    for (let index = 0; index < Math.min(3, Math.max(1, count)); index += 1) {
+      tokens.push({ type: 'ellipsis', value: index })
+    }
+  }
+  const pushRange = (tokens: Array<{ type: 'page' | 'ellipsis'; value: number }>, start: number, end: number) => {
+    for (let page = start; page <= end; page += 1) {
+      tokens.push({ type: 'page', value: page })
+    }
+  }
+  if (total <= 9) {
+    return Array.from({ length: total }, (_, index) => ({ type: 'page' as const, value: index + 1 }))
+  }
+  const tokens: Array<{ type: 'page' | 'ellipsis'; value: number }> = []
+  if (current <= 5) {
+    pushRange(tokens, 1, 6)
+    appendEllipsis(tokens, total - 9)
+    pushRange(tokens, total - 2, total)
+    return tokens
+  }
+  if (current >= total - 4) {
+    pushRange(tokens, 1, 3)
+    appendEllipsis(tokens, total - 9)
+    pushRange(tokens, total - 5, total)
+    return tokens
+  }
+  pushRange(tokens, 1, 3)
+  appendEllipsis(tokens, current - 5)
+  pushRange(tokens, current - 1, current + 1)
+  appendEllipsis(tokens, total - current - 4)
+  pushRange(tokens, total - 2, total)
+  return tokens
+})
+
+watch(
+  () => props.pagination?.page,
+  (page) => {
+    jumpPageInput.value = page ? String(page) : ''
+  },
+  { immediate: true },
+)
 
 function resolveRowKey(row: Record<string, unknown>) {
   return typeof props.rowKey === 'function' ? props.rowKey(row) : (row[props.rowKey] as string | number)
@@ -94,6 +153,22 @@ function resolveRowKey(row: Record<string, unknown>) {
 
 function onPageSizeChange(event: Event) {
   emit('updatePageSize', Number((event.target as HTMLSelectElement).value))
+}
+
+function commitJumpPage() {
+  if (!props.pagination) {
+    return
+  }
+  const parsed = Number(jumpPageInput.value.trim())
+  if (!Number.isFinite(parsed)) {
+    jumpPageInput.value = String(props.pagination.page)
+    return
+  }
+  const nextPage = Math.min(props.pagination.totalPages, Math.max(1, Math.trunc(parsed)))
+  jumpPageInput.value = String(nextPage)
+  if (nextPage !== props.pagination.page) {
+    emit('updatePage', nextPage)
+  }
 }
 
 function normalizeCopyValue(value: unknown) {
@@ -179,6 +254,24 @@ function handleTableScroll(event: Event) {
   }
 }
 
+function handleRootKeydown(event: KeyboardEvent) {
+  if (!props.pagination) {
+    return
+  }
+  const target = event.target
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    return
+  }
+  if (event.key === 'ArrowLeft' && props.pagination.page > 1) {
+    event.preventDefault()
+    emit('updatePage', props.pagination.page - 1)
+  }
+  if (event.key === 'ArrowRight' && props.pagination.page < props.pagination.totalPages) {
+    event.preventDefault()
+    emit('updatePage', props.pagination.page + 1)
+  }
+}
+
 onBeforeUnmount(() => {
   if (copyToastTimer !== null) {
     window.clearTimeout(copyToastTimer)
@@ -190,7 +283,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-data-list">
+  <div
+    class="admin-data-list"
+    :class="{ 'admin-data-list-with-pagination': !!pagination }"
+    tabindex="0"
+    @keydown="handleRootKeydown"
+  >
     <Teleport to="body">
       <div v-if="copyToast" class="toast-banner admin-data-list-copy-toast">{{ copyToast }}</div>
     </Teleport>
@@ -232,10 +330,11 @@ onBeforeUnmount(() => {
               />
             </th>
             <th
-              v-if="showActions && slots['filter-actions']"
-              class="table-filter-cell table-filter-actions-cell"
+              v-if="showActions"
+              :class="slots['filter-actions'] ? 'table-filter-cell table-filter-actions-cell' : 'table-filter-spacer table-filter-actions-cell'"
+              :aria-hidden="slots['filter-actions'] ? undefined : 'true'"
             >
-              <div class="table-filter-actions">
+              <div v-if="slots['filter-actions']" class="table-filter-actions">
                 <slot
                   name="filter-actions"
                   :are-all-rows-selected="areAllRowsSelected"
@@ -278,7 +377,7 @@ onBeforeUnmount(() => {
             </slot>
           </td>
             <td v-if="showActions" class="actions-column">
-              <slot name="actions" :row="row" />
+              <slot v-if="row" name="actions" :row="row" />
             </td>
           </tr>
           <tr v-if="rows.length === 0">
@@ -286,40 +385,63 @@ onBeforeUnmount(() => {
               <slot name="empty">{{ emptyText }}</slot>
             </td>
           </tr>
+          <tr v-else-if="lazyLoad && (lazyLoad.loading || !lazyLoad.hasMore)">
+            <td :colspan="totalColumnCount" class="empty-cell">
+              {{ lazyLoad.loading ? '加载中...' : '已加载全部内容' }}
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="pagination" class="pagination-bar">
-      <div class="pagination-pages">
-        <button
-          v-for="page in pagination.totalPages"
-          :key="page"
-          class="ghost-button compact-button pagination-button"
-          :class="{ selected: pagination.page === page }"
-          type="button"
-          @click="emit('updatePage', page)"
-        >
-          {{ page }}
-        </button>
+    <div class="data-list-summary-bar">
+      <div class="data-list-summary-left">
+        <span v-if="resolvedSelectedCount > 0" class="hint">已选中 {{ resolvedSelectedCount }} 项</span>
       </div>
-      <div class="pagination-size">
-        <select :value="pagination.pageSize" @change="onPageSizeChange">
-          <option v-for="size in pagination.pageOptions" :key="size" :value="size">{{ size }}</option>
-        </select>
+      <div v-if="showSummaryStats" class="data-list-summary-right hint">
+        本页 {{ resolvedCurrentCount }} 项
+        <span class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
+        总计 {{ resolvedTotalCount }} 项
       </div>
     </div>
 
-    <div v-else-if="lazyLoad" class="pagination-bar pagination-bar-lazy">
-      <div class="hint">
-        {{
-          lazyLoad.loading
-            ? '加载中...'
-            : lazyLoad.hasMore
-              ? lazyLoad.buttonText ?? '滚动到底部继续加载'
-              : '已加载全部内容'
-        }}
+    <div v-if="pagination" class="pagination-bar">
+      <div class="pagination-pages">
+        <template v-for="(token, index) in pageTokens" :key="`${token.type}-${token.value}-${index}`">
+          <button
+            v-if="token.type === 'page'"
+            class="ghost-button compact-button pagination-button"
+            :class="{ selected: pagination.page === token.value }"
+            type="button"
+            @click="emit('updatePage', token.value)"
+          >
+            {{ token.value }}
+          </button>
+          <span v-else class="pagination-ellipsis" aria-hidden="true">·</span>
+        </template>
+      </div>
+      <div class="pagination-controls">
+        <label class="pagination-jump">
+          <span>跳转到</span>
+          <input
+            v-model="jumpPageInput"
+            inputmode="numeric"
+            @blur="commitJumpPage"
+            @keydown.enter.prevent="commitJumpPage"
+          />
+          <span>页</span>
+        </label>
+        <label class="pagination-size">
+          <span>每页</span>
+          <select :value="pagination.pageSize" @change="onPageSizeChange">
+            <option v-for="size in pagination.pageOptions" :key="size" :value="size">{{ size }}</option>
+          </select>
+        </label>
+        <div v-if="slots['footer-trailing']" class="pagination-trailing">
+          <slot name="footer-trailing" />
+        </div>
       </div>
     </div>
+
   </div>
 </template>

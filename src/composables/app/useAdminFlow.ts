@@ -145,18 +145,23 @@ export type AdminFlowDeps = {
   userPage: Ref<number>
   userPageSize: Ref<number>
   userTotalPages: Ref<number>
+  userTotalItems: Ref<number>
   coursePage: Ref<number>
   coursePageSize: Ref<number>
   courseTotalPages: Ref<number>
+  courseTotalItems: Ref<number>
   classPage: Ref<number>
   classPageSize: Ref<number>
   classTotalPages: Ref<number>
+  classTotalItems: Ref<number>
   studentPage: Ref<number>
   studentPageSize: Ref<number>
   studentTotalPages: Ref<number>
+  studentTotalItems: Ref<number>
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
   attendanceLogsTotalPages: Ref<number>
+  attendanceLogsTotalItems: Ref<number>
   showAdminToast: (message: string) => void
   closeUserModal: () => void
   closeUserPasswordModal: () => void
@@ -170,19 +175,49 @@ export type AdminFlowDeps = {
 }
 
 export function useAdminFlow(deps: AdminFlowDeps) {
+  const requestTokens = {
+    overview: 0,
+    attendance: 0,
+    attendanceLogs: 0,
+    courseCalendar: 0,
+    courseManage: 0,
+    classManage: 0,
+    studentManage: 0,
+    userManage: 0,
+    settings: 0,
+  }
+
+  function nextRequestToken(key: keyof typeof requestTokens) {
+    requestTokens[key] += 1
+    return requestTokens[key]
+  }
+
+  function isLatestRequest(key: keyof typeof requestTokens, token: number) {
+    return requestTokens[key] === token
+  }
+
   async function loadOverviewData() {
+    const requestToken = nextRequestToken('overview')
     const [terms, summary, resultPage] = await Promise.all([api.listMetaTerms(), api.adminAttendanceDashboard(), api.adminAttendanceResults()])
+    if (!isLatestRequest('overview', requestToken)) {
+      return
+    }
     deps.courseTerms.value = terms
     deps.dashboard.value = summary
     deps.attendanceResults.value = resultPage.items ?? []
   }
 
   async function loadAttendanceData() {
+    const requestToken = nextRequestToken('attendance')
     const resultPage = await api.adminAttendanceResults()
+    if (!isLatestRequest('attendance', requestToken)) {
+      return
+    }
     deps.attendanceResults.value = resultPage.items ?? []
   }
 
   async function loadAttendanceLogsData() {
+    const requestToken = nextRequestToken('attendanceLogs')
     const attendanceLogPageResult = await api.listAttendanceRecordLogs({
       page: deps.attendanceLogsPage.value,
       page_size: deps.attendanceLogsPageSize.value,
@@ -192,21 +227,32 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       new_status: deps.attendanceLogFilters.newStatus,
       operated_date: deps.attendanceLogFilters.operatedDate,
     })
+    if (!isLatestRequest('attendanceLogs', requestToken)) {
+      return
+    }
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
     deps.attendanceLogRows.value = attendanceLogPageResult.items ?? []
+    deps.attendanceLogsTotalItems.value = attendanceLogPageResult.total ?? 0
     deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))
   }
 
   async function loadCourseCalendarData() {
+    const requestToken = nextRequestToken('courseCalendar')
     const [terms, settings] = await Promise.all([
       api.listMetaTerms(),
       api.getSystemSettings(),
     ])
+    if (!isLatestRequest('courseCalendar', requestToken)) {
+      return
+    }
     const targetTerm = deps.courseCalendarTerm.value.trim() || selectDefaultTermName(terms) || ''
     const [calendar, freeTimeList] = await Promise.all([
       api.adminCourseCalendar(targetTerm),
       api.adminFreeTimeCalendar(targetTerm),
     ])
+    if (!isLatestRequest('courseCalendar', requestToken)) {
+      return
+    }
     deps.courseTerms.value = terms
     deps.courseCalendarTerm.value = targetTerm
     deps.courseCalendar.value = calendar ?? []
@@ -215,6 +261,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   }
 
   async function loadCourseManageData() {
+    const requestToken = nextRequestToken('courseManage')
     const [coursePageResult, terms, classes] = await Promise.all([
       api.listCourses({
         page: deps.coursePage.value,
@@ -227,13 +274,18 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       api.listMetaTerms(),
       api.listClassOptions(),
     ])
+    if (!isLatestRequest('courseManage', requestToken)) {
+      return
+    }
     deps.courseRows.value = coursePageResult.items ?? []
     deps.courseTerms.value = terms
     deps.classes.value = classes as unknown as ClassItem[]
+    deps.courseTotalItems.value = coursePageResult.total ?? 0
     deps.courseTotalPages.value = Math.max(1, Math.ceil((coursePageResult.total ?? 0) / deps.coursePageSize.value))
   }
 
   async function loadClassManageData() {
+    const requestToken = nextRequestToken('classManage')
     const [classPageResult, students] = await Promise.all([
       api.listClasses({
         page: deps.classPage.value,
@@ -244,12 +296,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       }),
       api.listStudentOptions({ binding: 'unbound' }),
     ])
+    if (!isLatestRequest('classManage', requestToken)) {
+      return
+    }
     deps.classRows.value = classPageResult.items ?? []
     deps.students.value = students as unknown as StudentItem[]
+    deps.classTotalItems.value = classPageResult.total ?? 0
     deps.classTotalPages.value = Math.max(1, Math.ceil((classPageResult.total ?? 0) / deps.classPageSize.value))
   }
 
   async function loadStudentManageData() {
+    const requestToken = nextRequestToken('studentManage')
     const [studentPageResult, classes] = await Promise.all([
       api.listStudents({
         page: deps.studentPage.value,
@@ -260,12 +317,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       }),
       api.listClassOptions(),
     ])
+    if (!isLatestRequest('studentManage', requestToken)) {
+      return
+    }
     deps.studentRows.value = studentPageResult.items ?? []
     deps.classes.value = classes as unknown as ClassItem[]
+    deps.studentTotalItems.value = studentPageResult.total ?? 0
     deps.studentTotalPages.value = Math.max(1, Math.ceil((studentPageResult.total ?? 0) / deps.studentPageSize.value))
   }
 
   async function loadUserManageData() {
+    const requestToken = nextRequestToken('userManage')
     const [userPageResult, classes, terms] = await Promise.all([
       api.listUsers({
         page: deps.userPage.value,
@@ -279,14 +341,22 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       api.listClassOptions(),
       api.listMetaTerms(),
     ])
+    if (!isLatestRequest('userManage', requestToken)) {
+      return
+    }
     deps.userRows.value = userPageResult.items ?? []
     deps.classes.value = classes as unknown as ClassItem[]
     deps.courseTerms.value = terms
+    deps.userTotalItems.value = userPageResult.total ?? 0
     deps.userTotalPages.value = Math.max(1, Math.ceil((userPageResult.total ?? 0) / deps.userPageSize.value))
   }
 
   async function loadSettingsData() {
+    const requestToken = nextRequestToken('settings')
     const terms = await api.listMetaTerms()
+    if (!isLatestRequest('settings', requestToken)) {
+      return
+    }
     deps.courseTerms.value = terms
   }
 

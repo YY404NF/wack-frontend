@@ -101,18 +101,23 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const userPage = ref(1)
   const userPageSize = ref(10)
   const userTotalPages = ref(1)
+  const userTotalItems = ref(0)
   const coursePage = ref(1)
   const coursePageSize = ref(10)
   const courseTotalPages = ref(1)
+  const courseTotalItems = ref(0)
   const classPage = ref(1)
   const classPageSize = ref(10)
   const classTotalPages = ref(1)
+  const classTotalItems = ref(0)
   const studentPage = ref(1)
   const studentPageSize = ref(10)
   const studentTotalPages = ref(1)
+  const studentTotalItems = ref(0)
   const attendanceLogsPage = ref(1)
   const attendanceLogsPageSize = ref(10)
   const attendanceLogsTotalPages = ref(1)
+  const attendanceLogsTotalItems = ref(0)
 
   const userSaving = ref(false)
   const passwordResetting = ref(false)
@@ -146,6 +151,10 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const userFreeTimeDraft = ref<Record<string, number[]>>({})
   const deletingCourseId = ref<number | null>(null)
   const deletingCourseName = ref('')
+  const courseManageRouteView = ref<'courses' | 'groups' | 'lessons' | 'students'>('courses')
+  const courseManageRouteCourseId = ref<number | null>(null)
+  const courseManageRouteGroupId = ref<number | null>(null)
+  const courseManagePathCommand = ref<{ token: number; target: 'courses' | 'groups'; courseId?: number | null } | null>(null)
   const deletingClassId = ref<number | null>(null)
   const deletingClassName = ref('')
   const deletingStudentId = ref<number | null>(null)
@@ -622,6 +631,10 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userFreeTimeDraft,
           deletingCourseId,
           deletingCourseName,
+          courseManageRouteView,
+          courseManageRouteCourseId,
+          courseManageRouteGroupId,
+          courseManagePathCommand,
           deletingClassId,
           deletingClassName,
           deletingStudentId,
@@ -652,18 +665,23 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userPage,
           userPageSize,
           userTotalPages,
+          userTotalItems,
           coursePage,
           coursePageSize,
           courseTotalPages,
+          courseTotalItems,
           classPage,
           classPageSize,
           classTotalPages,
+          classTotalItems,
           studentPage,
           studentPageSize,
           studentTotalPages,
+          studentTotalItems,
           attendanceLogsPage,
           attendanceLogsPageSize,
           attendanceLogsTotalPages,
+          attendanceLogsTotalItems,
           selectedCourseIds,
           selectedClassIds,
           selectedStudentIds,
@@ -758,6 +776,15 @@ export function useAdminState(deps: UseAdminStateDeps) {
     users.value = []
     classes.value = []
     students.value = []
+    courseManageRouteView.value = 'courses'
+    courseManageRouteCourseId.value = null
+    courseManageRouteGroupId.value = null
+    courseManagePathCommand.value = null
+    userTotalItems.value = 0
+    courseTotalItems.value = 0
+    studentTotalItems.value = 0
+    attendanceLogsTotalItems.value = 0
+    classTotalItems.value = 0
     userRows.value = []
     classRows.value = []
     studentRows.value = []

@@ -38,6 +38,7 @@ const sessionLoading = ref(false)
 const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
 const sessionTotalPages = ref(1)
+const sessionTotalItems = ref(0)
 
 const detailKeyword = ref('')
 const detailStatus = ref('')
@@ -48,10 +49,14 @@ const detailLoading = ref(false)
 const detailError = ref('')
 const detailRecords = ref<AttendanceRecordStudentItem[]>([])
 const detailTotalPages = ref(1)
+const detailTotalItems = ref(0)
 const selectedRecordLogs = ref<AttendanceRecordLogItem[]>([])
 const selectedRecordLogName = ref('')
 const logsLoading = ref(false)
 const logsError = ref('')
+let sessionRequestToken = 0
+let detailRequestToken = 0
+let logsRequestToken = 0
 
 const attendanceSessionColumns = [
   { key: 'course_name', label: '课程', colClass: 'col-pct-18' },
@@ -113,6 +118,8 @@ function closeSessionDetail() {
 }
 
 async function loadSessionRows() {
+  sessionRequestToken += 1
+  const requestToken = sessionRequestToken
   sessionLoading.value = true
   sessionError.value = ''
   try {
@@ -123,13 +130,22 @@ async function loadSessionRows() {
       week_no: sessionWeekNo.value,
       status: sessionStatus.value,
     })
+    if (requestToken !== sessionRequestToken) {
+      return
+    }
     sessionRows.value = (result.items ?? []) as unknown as AttendanceSessionSummary[]
+    sessionTotalItems.value = result.total ?? 0
     sessionTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / sessionPageSize.value))
   } catch (error) {
+    if (requestToken !== sessionRequestToken) {
+      return
+    }
     sessionRows.value = []
     sessionError.value = error instanceof Error ? error.message : '加载考勤记录失败'
   } finally {
-    sessionLoading.value = false
+    if (requestToken === sessionRequestToken) {
+      sessionLoading.value = false
+    }
   }
 }
 
@@ -137,6 +153,8 @@ async function loadDetailRecords() {
   if (!activeSession.value) {
     return
   }
+  detailRequestToken += 1
+  const requestToken = detailRequestToken
   detailLoading.value = true
   detailError.value = ''
   try {
@@ -146,13 +164,22 @@ async function loadDetailRecords() {
       keyword: detailKeyword.value,
       status: detailStatus.value,
     })
+    if (requestToken !== detailRequestToken) {
+      return
+    }
     detailRecords.value = result.items ?? []
+    detailTotalItems.value = result.total ?? 0
     detailTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / detailPageSize.value))
   } catch (error) {
+    if (requestToken !== detailRequestToken) {
+      return
+    }
     detailRecords.value = []
     detailError.value = error instanceof Error ? error.message : '加载考勤明细失败'
   } finally {
-    detailLoading.value = false
+    if (requestToken === detailRequestToken) {
+      detailLoading.value = false
+    }
   }
 }
 
@@ -163,16 +190,27 @@ async function openRecordLogs(item: AttendanceRecordStudentItem) {
     logsError.value = ''
     return
   }
+  logsRequestToken += 1
+  const requestToken = logsRequestToken
   logsLoading.value = true
   logsError.value = ''
   selectedRecordLogName.value = `${item.real_name}（${item.student_id}）`
   try {
-    selectedRecordLogs.value = await api.adminAttendanceRecordLogs(item.attendance_record_id)
+    const result = await api.adminAttendanceRecordLogs(item.attendance_record_id)
+    if (requestToken !== logsRequestToken) {
+      return
+    }
+    selectedRecordLogs.value = result
   } catch (error) {
+    if (requestToken !== logsRequestToken) {
+      return
+    }
     selectedRecordLogs.value = []
     logsError.value = error instanceof Error ? error.message : '加载修改记录失败'
   } finally {
-    logsLoading.value = false
+    if (requestToken === logsRequestToken) {
+      logsLoading.value = false
+    }
   }
 }
 
@@ -211,7 +249,7 @@ watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
         empty-text="暂无符合条件的考勤明细"
         :show-actions="true"
         action-col-class="col-pct-12"
-        :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS }"
+        :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
         @update-page="detailPage = $event"
         @update-page-size="detailPageSize = $event"
       >
@@ -312,7 +350,7 @@ watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
         empty-text="暂无符合条件的考勤记录"
         :show-actions="true"
         action-col-class="col-pct-14"
-        :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS }"
+        :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: sessionTotalItems }"
         @update-page="sessionPage = $event"
         @update-page-size="sessionPageSize = $event"
       >

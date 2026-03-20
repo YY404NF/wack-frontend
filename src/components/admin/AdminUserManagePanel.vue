@@ -294,7 +294,8 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
       :selected-row-keys="selectedUserStudentIds"
       :is-row-selectable="(row) => Number(row.id) !== currentUserId"
       :show-actions="true"
-      :pagination="{ page: userPage, pageSize: userPageSize, totalPages: userTotalPages, pageOptions: userPageOptions }"
+      :pagination="{ page: userPage, pageSize: userPageSize, totalPages: userTotalPages, pageOptions: userPageOptions, totalItems: userTotalItems }"
+      :selected-items="selectedUserStudentIds.length"
       @update-page="emit('updateUserPage', $event)"
       @update-page-size="emit('updateUserPageSize', $event)"
       @toggle-row-selection="emit('toggleUserSelection', String($event))"
@@ -353,8 +354,8 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
       </template>
       <template #actions="{ row }">
         <div v-if="Number(row.id) !== currentUserId" class="inline-actions user-actions">
-          <button v-if="Number(row.role) === 2" class="ghost-button compact-button" type="button" @click="emit('openUserFreeTimeModal', asUserItem(row))">编辑空闲时间</button>
-          <button class="ghost-button compact-button" type="button" @click="emit('openEditUserModal', asUserItem(row))">编辑信息</button>
+          <button v-if="Number(row.role) === 2" class="ghost-button compact-button" type="button" @click="emit('openUserFreeTimeModal', asUserItem(row))">空闲时间</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openEditUserModal', asUserItem(row))">编辑</button>
           <button class="ghost-button compact-button" type="button" @click="emit('openUserPasswordModal', asUserItem(row))">更改密码</button>
           <button
             class="ghost-button compact-button"

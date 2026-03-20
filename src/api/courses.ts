@@ -5,10 +5,24 @@ import type {
   AvailableCourseGroupStudentItem,
   CourseCalendarItem,
   CourseGroupDetail,
+  CourseGroupLessonItem,
   CourseGroupItem,
+  CourseGroupStudentItem,
   CourseItem,
   PageResult,
 } from './types'
+
+function asArray<T>(value: T[] | null | undefined) {
+  return Array.isArray(value) ? value : []
+}
+
+function normalizeCourseGroupDetail(detail: CourseGroupDetail | null | undefined): CourseGroupDetail {
+  return {
+    course_group: (detail?.course_group ?? {}) as CourseGroupDetail['course_group'],
+    students: asArray(detail?.students as CourseGroupStudentItem[] | null | undefined),
+    sessions: asArray(detail?.sessions as CourseGroupLessonItem[] | null | undefined),
+  }
+}
 
 export const coursesApi = {
   listCourses(query: { page?: number; page_size?: number; term?: string; course_name?: string; teacher_name?: string; class_id?: number | '' } = {}) {
@@ -27,11 +41,14 @@ export const coursesApi = {
   listCourseGroups(courseId: number) {
     return request<CourseGroupItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups`).then((items) => items ?? [])
   },
+  getCourseSummary(courseId: number) {
+    return request<CourseItem>(`${apiPaths.admin.courses}/${courseId}/summary`)
+  },
   getCourseGroup(courseId: number, groupId: number) {
-    return request<CourseGroupDetail>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}`)
+    return request<CourseGroupDetail>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}`).then((detail) => normalizeCourseGroupDetail(detail))
   },
   listCourseGroupSessions(courseId: number, groupId: number) {
-    return request<CourseGroupDetail['sessions'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions`).then((items) => items ?? [])
+    return request<CourseGroupDetail['sessions'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/sessions`).then((items) => asArray(items))
   },
   createCourseGroupSession(
     courseId: number,
@@ -72,15 +89,20 @@ export const coursesApi = {
     })
   },
   listCourseGroupStudents(courseId: number, groupId: number) {
-    return request<CourseGroupDetail['students'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`).then((items) => items ?? [])
+    return request<CourseGroupDetail['students'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`).then((items) => asArray(items))
   },
-  listAvailableCourseGroupClasses(courseId: number, groupId: number, keyword = '') {
+  listAvailableCourseGroupClasses(courseId: number, groupId: number, query: { keyword?: string; page?: number; page_size?: number } = {}) {
     const params = new URLSearchParams()
-    if (keyword.trim()) {
-      params.set('keyword', keyword.trim())
+    params.set('page', String(query.page ?? 1))
+    params.set('page_size', String(query.page_size ?? 20))
+    if (query.keyword?.trim()) {
+      params.set('keyword', query.keyword.trim())
     }
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    return request<AvailableCourseGroupClassItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-classes${suffix}`).then((items) => items ?? [])
+    return request<PageResult<AvailableCourseGroupClassItem>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-classes${suffix}`).then((page) => ({
+      ...page,
+      items: asArray(page.items),
+    }))
   },
   addCourseGroupClasses(courseId: number, groupId: number, classIds: number[]) {
     return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/classes`, {
@@ -93,13 +115,18 @@ export const coursesApi = {
       method: 'DELETE',
     })
   },
-  listAvailableCourseGroupStudents(courseId: number, groupId: number, keyword = '') {
+  listAvailableCourseGroupStudents(courseId: number, groupId: number, query: { keyword?: string; page?: number; page_size?: number } = {}) {
     const params = new URLSearchParams()
-    if (keyword.trim()) {
-      params.set('keyword', keyword.trim())
+    params.set('page', String(query.page ?? 1))
+    params.set('page_size', String(query.page_size ?? 20))
+    if (query.keyword?.trim()) {
+      params.set('keyword', query.keyword.trim())
     }
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    return request<AvailableCourseGroupStudentItem[] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-students${suffix}`).then((items) => items ?? [])
+    return request<PageResult<AvailableCourseGroupStudentItem>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-students${suffix}`).then((page) => ({
+      ...page,
+      items: asArray(page.items),
+    }))
   },
   addCourseGroupStudents(courseId: number, groupId: number, studentIds: number[]) {
     return request<Record<string, never>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`, {

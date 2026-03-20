@@ -31,7 +31,7 @@ function formatDateTime(value: string) {
       :columns="attendanceLogColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
       row-key="id"
       empty-text="暂无考勤日志"
-      :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions }"
+      :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions, totalItems: attendanceLogsTotalItems }"
       @update-page="emit('updateAttendanceLogsPage', $event)"
       @update-page-size="emit('updateAttendanceLogsPageSize', $event)"
     >

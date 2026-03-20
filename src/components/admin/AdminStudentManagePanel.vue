@@ -229,7 +229,8 @@ function asStudentItem(row: Record<string, unknown>) {
       :selected-row-keys="selectedStudentIds"
       :show-actions="true"
       action-col-class="col-pct-20"
-      :pagination="{ page: studentPage, pageSize: studentPageSize, totalPages: studentTotalPages, pageOptions: studentPageOptions }"
+      :pagination="{ page: studentPage, pageSize: studentPageSize, totalPages: studentTotalPages, pageOptions: studentPageOptions, totalItems: studentTotalItems }"
+      :selected-items="selectedStudentIds.length"
       @update-page="emit('updateStudentPage', $event)"
       @update-page-size="emit('updateStudentPageSize', $event)"
       @toggle-row-selection="emit('toggleStudentSelection', Number($event))"
@@ -265,7 +266,7 @@ function asStudentItem(row: Record<string, unknown>) {
       </template>
       <template #actions="{ row }">
         <div class="inline-actions user-actions">
-          <button class="ghost-button compact-button" type="button" @click="emit('openEditStudentModal', asStudentItem(row))">编辑学生信息</button>
+          <button class="ghost-button compact-button" type="button" @click="emit('openEditStudentModal', asStudentItem(row))">编辑</button>
           <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteStudentModal', asStudentItem(row))">删除</button>
         </div>
       </template>

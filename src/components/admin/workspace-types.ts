@@ -58,6 +58,7 @@ export type AdminWorkspaceProps = {
   userPage: number
   userPageSize: number
   userTotalPages: number
+  userTotalItems: number
   userPageOptions: number[]
   selectedUserStudentIds: string[]
   userPasswordModalOpen: boolean
@@ -83,10 +84,19 @@ export type AdminWorkspaceProps = {
   coursePage: number
   coursePageSize: number
   courseTotalPages: number
+  courseTotalItems: number
   coursePageOptions: number[]
   selectedCourseIds: number[]
   selectedCourseCount: number
   deletingCourseName: string
+  courseManageRouteView?: 'courses' | 'groups' | 'lessons' | 'students'
+  courseManageRouteCourseId?: number | null
+  courseManageRouteGroupId?: number | null
+  courseManagePathCommand?: {
+    token: number
+    target: 'courses' | 'groups'
+    courseId?: number | null
+  } | null
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -107,6 +117,7 @@ export type AdminWorkspaceProps = {
   classPage: number
   classPageSize: number
   classTotalPages: number
+  classTotalItems: number
   classPageOptions: number[]
   selectedClassIds: number[]
   selectedClassCount: number
@@ -122,6 +133,7 @@ export type AdminWorkspaceProps = {
   studentPage: number
   studentPageSize: number
   studentTotalPages: number
+  studentTotalItems: number
   studentPageOptions: number[]
   selectedStudentIds: number[]
   selectedStudentCount: number
@@ -130,6 +142,7 @@ export type AdminWorkspaceProps = {
   attendanceLogsPage: number
   attendanceLogsPageSize: number
   attendanceLogsTotalPages: number
+  attendanceLogsTotalItems: number
   attendanceLogsPageOptions: number[]
   profileForm: AdminProfileForm
   profileModalOpen: boolean

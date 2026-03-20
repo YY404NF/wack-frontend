@@ -51,6 +51,7 @@ export type AdminWorkspacePropsDeps = {
   userPage: Ref<number>
   userPageSize: Ref<number>
   userTotalPages: Ref<number> | ComputedRef<number>
+  userTotalItems: Ref<number>
   selectedUserStudentIds: Ref<string[]>
   userPasswordModalOpen: Ref<boolean>
   userPasswordForm: AdminUserPasswordForm
@@ -75,8 +76,13 @@ export type AdminWorkspacePropsDeps = {
   coursePage: Ref<number>
   coursePageSize: Ref<number>
   courseTotalPages: Ref<number> | ComputedRef<number>
+  courseTotalItems: Ref<number>
   selectedCourseIds: Ref<number[]>
   deletingCourseName: Ref<string>
+  courseManageRouteView: Ref<'courses' | 'groups' | 'lessons' | 'students'>
+  courseManageRouteCourseId: Ref<number | null>
+  courseManageRouteGroupId: Ref<number | null>
+  courseManagePathCommand: Ref<{ token: number; target: 'courses' | 'groups'; courseId?: number | null } | null>
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -98,6 +104,7 @@ export type AdminWorkspacePropsDeps = {
   classPage: Ref<number>
   classPageSize: Ref<number>
   classTotalPages: Ref<number> | ComputedRef<number>
+  classTotalItems: Ref<number>
   selectedClassIds: Ref<number[]>
   deletingClassName: Ref<string>
   studentModalOpen: Ref<boolean>
@@ -109,12 +116,14 @@ export type AdminWorkspacePropsDeps = {
   studentPage: Ref<number>
   studentPageSize: Ref<number>
   studentTotalPages: Ref<number> | ComputedRef<number>
+  studentTotalItems: Ref<number>
   selectedStudentIds: Ref<number[]>
   deletingStudentName: Ref<string>
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
   attendanceLogsTotalPages: Ref<number> | ComputedRef<number>
+  attendanceLogsTotalItems: Ref<number>
   profileForm: AdminProfileForm
   profileModalOpen: Ref<boolean>
   profileSaving: Ref<boolean>
@@ -154,6 +163,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     userPage: deps.userPage.value,
     userPageSize: deps.userPageSize.value,
     userTotalPages: deps.userTotalPages.value,
+    userTotalItems: deps.userTotalItems.value,
     userPageOptions: USER_PAGE_OPTIONS,
     selectedUserStudentIds: deps.selectedUserStudentIds.value,
     userPasswordModalOpen: deps.userPasswordModalOpen.value,
@@ -179,10 +189,15 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     coursePage: deps.coursePage.value,
     coursePageSize: deps.coursePageSize.value,
     courseTotalPages: deps.courseTotalPages.value,
+    courseTotalItems: deps.courseTotalItems.value,
     coursePageOptions: USER_PAGE_OPTIONS,
     selectedCourseIds: deps.selectedCourseIds.value,
     selectedCourseCount: deps.selectedCourseIds.value.length,
     deletingCourseName: deps.deletingCourseName.value,
+    courseManageRouteView: deps.courseManageRouteView.value,
+    courseManageRouteCourseId: deps.courseManageRouteCourseId.value,
+    courseManageRouteGroupId: deps.courseManageRouteGroupId.value,
+    courseManagePathCommand: deps.courseManagePathCommand.value,
     classForm: deps.classForm,
     classFilters: deps.classFilters,
     classStudentForm: deps.classStudentForm,
@@ -202,6 +217,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     classPage: deps.classPage.value,
     classPageSize: deps.classPageSize.value,
     classTotalPages: deps.classTotalPages.value,
+    classTotalItems: deps.classTotalItems.value,
     classPageOptions: USER_PAGE_OPTIONS,
     selectedClassIds: deps.selectedClassIds.value,
     selectedClassCount: deps.selectedClassIds.value.length,
@@ -217,6 +233,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     studentPage: deps.studentPage.value,
     studentPageSize: deps.studentPageSize.value,
     studentTotalPages: deps.studentTotalPages.value,
+    studentTotalItems: deps.studentTotalItems.value,
     studentPageOptions: USER_PAGE_OPTIONS,
     selectedStudentIds: deps.selectedStudentIds.value,
     selectedStudentCount: deps.selectedStudentIds.value.length,
@@ -225,6 +242,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     attendanceLogsPage: deps.attendanceLogsPage.value,
     attendanceLogsPageSize: deps.attendanceLogsPageSize.value,
     attendanceLogsTotalPages: deps.attendanceLogsTotalPages.value,
+    attendanceLogsTotalItems: deps.attendanceLogsTotalItems.value,
     attendanceLogsPageOptions: USER_PAGE_OPTIONS,
     profileForm: deps.profileForm,
     profileModalOpen: deps.profileModalOpen.value,

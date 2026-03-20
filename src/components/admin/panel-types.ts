@@ -59,6 +59,7 @@ export type AdminCourseManageProps = {
   coursePage: number
   coursePageSize: number
   courseTotalPages: number
+  courseTotalItems: number
   coursePageOptions: number[]
   selectedCourseIds: number[]
   selectedCourseCount: number
@@ -95,6 +96,7 @@ export type AdminClassManageProps = {
   classPage: number
   classPageSize: number
   classTotalPages: number
+  classTotalItems: number
   classPageOptions: number[]
   selectedClassIds: number[]
   selectedClassCount: number
@@ -115,6 +117,7 @@ export type AdminStudentManageProps = {
   studentPage: number
   studentPageSize: number
   studentTotalPages: number
+  studentTotalItems: number
   studentPageOptions: number[]
   selectedStudentIds: number[]
   selectedStudentCount: number
@@ -132,6 +135,7 @@ export type AdminAttendanceLogsProps = {
   attendanceLogsPage: number
   attendanceLogsPageSize: number
   attendanceLogsTotalPages: number
+  attendanceLogsTotalItems: number
   attendanceLogsPageOptions: number[]
   statusName: AdminStatusName
 }
@@ -163,6 +167,7 @@ export type AdminUserManageProps = {
   userPage: number
   userPageSize: number
   userTotalPages: number
+  userTotalItems: number
   userPageOptions: number[]
   selectedUserStudentIds: string[]
   userPasswordModalOpen: boolean

@@ -190,6 +190,8 @@ function loadMoreTerms() {
             action-col-class="col-pct-20"
             table-class="user-manage-table"
             :lazy-load="{ hasMore: hasMoreTerms, loading: false, buttonText: '滚动到底部继续加载学期' }"
+            :current-items="visibleTerms.length"
+            :total-items="localTerms.length"
             @load-more="loadMoreTerms"
           >
             <template #actions="{ row }">

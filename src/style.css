@@ -11,3 +11,9 @@
 :where(a, button, input, select, textarea, label, summary, [role='button']) {
   -webkit-tap-highlight-color: transparent;
 }
+
+:where(a, button, select, summary, [role='button']):focus,
+:where(a, button, select, summary, [role='button']):focus-visible {
+  outline: none;
+  box-shadow: none;
+}
