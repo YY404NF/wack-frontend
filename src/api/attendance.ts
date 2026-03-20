@@ -108,7 +108,11 @@ export const attendanceApi = {
     return request<SubmitAttendanceStatusesResult>(`${apiPaths.student.attendanceSessions}/${sessionId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ items }),
-    })
+    }).then((result) => ({
+      ...result,
+      accepted_items: Array.isArray(result.accepted_items) ? result.accepted_items : [],
+      ignored_items: Array.isArray(result.ignored_items) ? result.ignored_items : [],
+    }))
   },
   completeAttendanceSession(sessionId: number) {
     return request<Record<string, never>>(`${apiPaths.student.attendanceSessions}/${sessionId}/complete`, {

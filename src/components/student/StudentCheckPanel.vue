@@ -17,6 +17,8 @@ const loadingCourseGroupLessonId = ref<number | null>(null)
 const checkPageOpen = ref(false)
 const statusUpdating = ref(false)
 const checkSubmitting = ref(false)
+const submitConfirmOpen = ref(false)
+const abandonConfirmOpen = ref(false)
 const previewCourseGroupLessonId = ref<number | null>(null)
 const previewCheckDetail = ref<AttendanceSessionDetail | null>(null)
 const selectedClassKeys = ref<string[]>([])
@@ -29,12 +31,20 @@ const focusDetailId = ref<number | null>(null)
 const focusMode = ref<'auto' | 'manual'>('auto')
 const searchKeyword = ref('')
 const studentRowRefs = new Map<number, HTMLElement>()
+const studentListRef = ref<HTMLElement | null>(null)
 
 const attendanceStatusOptions = [
   { value: 1, label: '迟到', className: 'late' },
   { value: 2, label: '缺勤', className: 'absent' },
   { value: 3, label: '请假', className: 'leave' },
   { value: 0, label: '签到', className: 'present' },
+] as const
+
+const attendanceActionLayout = [
+  { value: 1, label: '迟到', className: 'late', layoutClass: 'student-attendance-action-late' },
+  { value: 2, label: '缺勤', className: 'absent', layoutClass: 'student-attendance-action-absent' },
+  { value: 0, label: '签到', className: 'present', layoutClass: 'student-attendance-action-present' },
+  { value: 3, label: '请假', className: 'leave', layoutClass: 'student-attendance-action-leave' },
 ] as const
 
 type AttendanceLocalDraft = {
@@ -50,6 +60,21 @@ function sessionSummary(weekNo: number, weekday: number, section: number) {
 
 function attendanceDraftKey(courseGroupLessonId: number) {
   return `${ATTENDANCE_DRAFT_PREFIX}:${courseGroupLessonId}`
+}
+
+function attendanceDraftLessonIds() {
+  const lessonIds: number[] = []
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index)
+    if (!key?.startsWith(`${ATTENDANCE_DRAFT_PREFIX}:`)) {
+      continue
+    }
+    const rawId = key.slice(`${ATTENDANCE_DRAFT_PREFIX}:`.length)
+    if (/^\d+$/.test(rawId)) {
+      lessonIds.push(Number(rawId))
+    }
+  }
+  return lessonIds
 }
 
 function loadAttendanceDraft(courseGroupLessonId: number) {
@@ -74,12 +99,38 @@ function clearAttendanceDraft(courseGroupLessonId: number) {
   localStorage.removeItem(attendanceDraftKey(courseGroupLessonId))
 }
 
+function clearExpiredAttendanceDrafts() {
+  const availableCourseMap = new Map(props.availableCourses.map((course) => [course.course_group_lesson_id, course]))
+  for (const lessonId of attendanceDraftLessonIds()) {
+    const course = availableCourseMap.get(lessonId)
+    if (!course || !course.can_enter) {
+      clearAttendanceDraft(lessonId)
+      continue
+    }
+    const deadlineTime = new Date(course.enter_deadline.replace(' ', 'T')).getTime()
+    if (!Number.isFinite(deadlineTime) || deadlineTime <= Date.now()) {
+      clearAttendanceDraft(lessonId)
+    }
+  }
+}
+
 function classKey(group: Pick<AttendanceClassGroupItem, 'class_id'>) {
   return typeof group.class_id === 'number' ? `class:${group.class_id}` : 'other'
 }
 
 function studentClassKey(student: Pick<AttendanceRecordStudentItem, 'class_id'>) {
   return typeof student.class_id === 'number' ? `class:${student.class_id}` : 'other'
+}
+
+function sortClassGroups<T extends { class_id: number | null; class_name: string }>(groups: T[]) {
+  return [...groups].sort((left, right) => {
+    const leftIsOther = left.class_id === null
+    const rightIsOther = right.class_id === null
+    if (leftIsOther !== rightIsOther) {
+      return leftIsOther ? 1 : -1
+    }
+    return left.class_name.localeCompare(right.class_name, 'zh-Hans-CN')
+  })
 }
 
 function persistedStatus(student: AttendanceRecordStudentItem) {
@@ -109,7 +160,7 @@ function buildClassGroupsFromStudents(students: AttendanceRecordStudentItem[], b
       student_count: 1,
     })
   }
-  if (baseGroups.length === 0) return [...counts.values()]
+  if (baseGroups.length === 0) return sortClassGroups([...counts.values()])
   const result = baseGroups.map((group) => {
     const matched = counts.get(classKey(group))
     return {
@@ -126,7 +177,7 @@ function buildClassGroupsFromStudents(students: AttendanceRecordStudentItem[], b
       student_count: group.student_count,
     })
   }
-  return result
+  return sortClassGroups(result)
 }
 
 const previewClassGroups = computed(() => {
@@ -145,6 +196,9 @@ const previewRecordedCount = computed(() => {
 })
 
 const previewRandomTargetCount = computed(() => Math.round(previewSelectableCount.value * randomPercent.value / 100))
+const randomRangeStyle = computed(() => ({
+  '--student-random-range-progress': `${randomPercent.value}%`,
+}))
 const activeSkippedIdSet = computed(() => new Set(activeSkippedIds.value))
 const activeStudentsInScope = computed(() => {
   if (!activeCheckDetail.value) return []
@@ -172,12 +226,39 @@ const groupedVisibleStudents = computed(() => {
 })
 const orderedVisibleStudents = computed(() => groupedVisibleStudents.value.flatMap((group) => group.students))
 const focusedStudent = computed(() => orderedVisibleStudents.value.find((student) => student.id === focusDetailId.value) ?? null)
+const submitPayload = computed(() => {
+  if (!activeCheckDetail.value) {
+    return []
+  }
+  return activeCheckDetail.value.students
+    .filter((student) => activeClassKeys.value.includes(studentClassKey(student)))
+    .filter((student) => !activeSkippedIdSet.value.has(student.id))
+    .flatMap((student) => {
+      const status = localStatusDraft.value[student.id]
+      return typeof status === 'number'
+        ? [{ student_ref_id: student.id, status }]
+        : []
+    })
+})
+
+function nextFocusableStudent(fromId?: number | null) {
+  const students = orderedVisibleStudents.value.filter((student) => !activeSkippedIdSet.value.has(student.id) && !isStudentLocked(student))
+  if (students.length === 0) {
+    return null
+  }
+  if (fromId === null || fromId === undefined) {
+    return students[0]
+  }
+  const index = students.findIndex((student) => student.id === fromId)
+  return students[index + 1] ?? students[0] ?? null
+}
 
 function openCourseSelection(courseGroupLessonId: number) {
   return props.availableCourses.find((course) => course.course_group_lesson_id === courseGroupLessonId) ?? null
 }
 
 async function handleOpenAttendance(courseGroupLessonId: number) {
+  clearExpiredAttendanceDrafts()
   const course = openCourseSelection(courseGroupLessonId)
   if (!course || loadingCourseGroupLessonId.value !== null) return
   attendanceNotice.value = ''
@@ -231,8 +312,9 @@ async function tryRestoreAttendanceDraft(detail: AttendanceSessionDetail) {
   previewCourseGroupLessonId.value = null
   checkPageOpen.value = true
   await nextTick()
-  if (orderedVisibleStudents.value[0]) {
-    await focusStudent(orderedVisibleStudents.value[0].id, 'auto')
+  const firstStudent = nextFocusableStudent()
+  if (firstStudent) {
+    await focusStudent(firstStudent.id, 'auto')
   }
   return true
 }
@@ -249,8 +331,9 @@ async function startAttendanceCheck() {
   previewCourseGroupLessonId.value = null
   checkPageOpen.value = true
   await nextTick()
-  if (orderedVisibleStudents.value[0]) {
-    await focusStudent(orderedVisibleStudents.value[0].id, 'auto')
+  const firstStudent = nextFocusableStudent()
+  if (firstStudent) {
+    await focusStudent(firstStudent.id, 'auto')
   }
 }
 
@@ -275,15 +358,26 @@ async function focusStudent(studentId: number, mode: 'auto' | 'manual') {
   focusDetailId.value = studentId
   focusMode.value = mode
   await nextTick()
-  studentRowRefs.get(studentId)?.scrollIntoView({ behavior: mode === 'manual' ? 'smooth' : 'auto', block: 'nearest' })
+  const container = studentListRef.value
+  const target = studentRowRefs.get(studentId)
+  if (!container || !target) {
+    return
+  }
+  const containerRect = container.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const targetCenter = container.scrollTop + (targetRect.top - containerRect.top) + targetRect.height / 2
+  const centeredTop = targetCenter - container.clientHeight / 2
+  const maxTop = Math.max(container.scrollHeight - container.clientHeight, 0)
+  container.scrollTo({
+    top: Math.min(Math.max(centeredTop, 0), maxTop),
+    behavior: mode === 'manual' ? 'smooth' : 'auto',
+  })
 }
 
 async function moveFocusToNextStudent(currentId: number) {
-  const students = orderedVisibleStudents.value.filter((student) => !activeSkippedIdSet.value.has(student.id) && !isStudentLocked(student))
-  const index = students.findIndex((student) => student.id === currentId)
-  const nextStudent = students[index + 1] ?? students[0] ?? null
+  const nextStudent = nextFocusableStudent(currentId)
   if (nextStudent) {
-    await focusStudent(nextStudent.id, 'auto')
+    await focusStudent(nextStudent.id, 'manual')
   }
 }
 
@@ -303,20 +397,11 @@ async function handlePickStatus(status: number) {
 
 async function handleSubmitCheck() {
   if (!activeCheckDetail.value) return
+  submitConfirmOpen.value = false
   checkSubmitting.value = true
   attendanceNotice.value = ''
   try {
-    const payload = activeCheckDetail.value.students
-      .filter((student) => activeClassKeys.value.includes(studentClassKey(student)))
-      .filter((student) => !activeSkippedIdSet.value.has(student.id))
-      .flatMap((student) => {
-        const status = localStatusDraft.value[student.id]
-        return typeof status === 'number'
-          ? [{ student_ref_id: student.id, status }]
-          : []
-      })
-
-    await api.submitAttendanceStatuses(activeCheckDetail.value.course_group_lesson.id, payload)
+    await api.submitAttendanceStatuses(activeCheckDetail.value.course_group_lesson.id, submitPayload.value)
     await api.completeAttendanceSession(activeCheckDetail.value.course_group_lesson.id)
     clearAttendanceDraft(activeCheckDetail.value.course_group_lesson.id)
     checkPageOpen.value = false
@@ -333,8 +418,31 @@ async function handleSubmitCheck() {
   }
 }
 
-async function handleBackFromCheck() {
+function openSubmitConfirm() {
+  if (!activeCheckDetail.value || checkSubmitting.value) {
+    return
+  }
+  submitConfirmOpen.value = true
+}
+
+function closeSubmitConfirm() {
+  submitConfirmOpen.value = false
+}
+
+function openAbandonConfirm() {
+  if (!activeCheckDetail.value || checkSubmitting.value) {
+    return
+  }
+  abandonConfirmOpen.value = true
+}
+
+function closeAbandonConfirm() {
+  abandonConfirmOpen.value = false
+}
+
+async function handleAbandonCheck() {
   if (!activeCheckDetail.value) return
+  abandonConfirmOpen.value = false
   clearAttendanceDraft(activeCheckDetail.value.course_group_lesson.id)
   try {
     await api.abandonAttendanceSession(activeCheckDetail.value.course_group_lesson.id)
@@ -349,10 +457,14 @@ async function handleBackFromCheck() {
 
 watch(orderedVisibleStudents, (students) => {
   if (!checkPageOpen.value || students.length === 0) return
-  const currentStillVisible = students.some((student) => student.id === focusDetailId.value)
-  if (currentStillVisible) return
-  const firstStudent = students[0]
-  void focusStudent(firstStudent.id, 'auto')
+  const currentStudent = students.find((student) => student.id === focusDetailId.value) ?? null
+  if (currentStudent && !activeSkippedIdSet.value.has(currentStudent.id) && !isStudentLocked(currentStudent)) {
+    return
+  }
+  const firstStudent = nextFocusableStudent()
+  if (firstStudent) {
+    void focusStudent(firstStudent.id, 'auto')
+  }
 })
 
 watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, checkPageOpen], ([detail, classKeys, skippedIds, statuses, isOpen]) => {
@@ -401,7 +513,6 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
             <div class="student-attendance-modal-meta">
               <h3>{{ previewCheckDetail.course.course_name }}</h3>
               <p>{{ previewCheckDetail.course.teacher_name }}</p>
-              <p>第{{ previewCheckDetail.course_group_lesson.session_no }}次课</p>
               <p>{{ sessionSummary(previewCheckDetail.course_group_lesson.week_no, previewCheckDetail.course_group_lesson.weekday, previewCheckDetail.course_group_lesson.section) }}</p>
             </div>
             <button class="ghost-button compact-button" type="button" @click="closeSelectionModal">关闭</button>
@@ -424,9 +535,9 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
           <label class="student-random-range">
             <span class="student-random-range-head">
               <span>随机查课</span>
-              <strong>{{ previewRandomTargetCount }}人 / {{ randomPercent }}%</strong>
+              <strong class="student-random-range-value">{{ previewRandomTargetCount }}人 / {{ randomPercent }}%</strong>
             </span>
-            <input v-model="randomPercent" type="range" min="0" max="100" />
+            <input v-model="randomPercent" type="range" min="0" max="100" :style="randomRangeStyle" />
           </label>
 
           <button class="primary-button student-selection-start" type="button" :disabled="previewSelectableCount === 0" @click="startAttendanceCheck">
@@ -444,15 +555,15 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
               <h3>{{ activeCheckDetail.course.course_name }}</h3>
               <p>{{ slotLabel(activeCheckDetail.course_group_lesson.weekday, activeCheckDetail.course_group_lesson.section) }}</p>
             </div>
-            <button class="ghost-button compact-button" type="button" @click="handleBackFromCheck">返回</button>
+            <button class="ghost-button compact-button" type="button" @click="openAbandonConfirm">放弃</button>
           </header>
 
           <label class="student-search-box">
             <Search class="student-search-icon" aria-hidden="true" />
-            <input v-model="searchKeyword" type="search" placeholder="搜索学号或姓名" />
+            <input v-model="searchKeyword" type="search" />
           </label>
 
-          <div class="student-attendance-list">
+          <div ref="studentListRef" class="student-attendance-list">
             <div v-for="group in groupedVisibleStudents" :key="group.key" class="student-attendance-group">
               <div class="student-attendance-group-header">{{ group.className }}</div>
               <button
@@ -469,8 +580,8 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
                 @click="focusStudent(student.id, 'manual')"
               >
                 <div class="student-attendance-row-main">
-                  <small>{{ student.student_id }}</small>
-                  <strong>{{ student.real_name }}</strong>
+                  <span class="student-attendance-student-id">{{ student.student_id }}</span>
+                  <strong class="student-attendance-student-name">{{ student.real_name }}</strong>
                 </div>
                 <span v-if="statusLabel(student)" class="student-attendance-status" :class="`is-${statusClassName(student)}`">
                   {{ statusLabel(student) }}
@@ -484,10 +595,10 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
 
           <div class="student-attendance-actions">
             <button
-              v-for="item in attendanceStatusOptions"
+              v-for="item in attendanceActionLayout"
               :key="item.value"
               class="student-attendance-action-button"
-              :class="`is-${item.className}`"
+              :class="[item.layoutClass, `is-${item.className}`]"
               type="button"
               :disabled="!focusedStudent || statusUpdating || isStudentLocked(focusedStudent)"
               @click="handlePickStatus(item.value)"
@@ -496,11 +607,45 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
             </button>
           </div>
 
-          <button class="student-submit-check-button" type="button" :disabled="checkSubmitting" @click="handleSubmitCheck">
+          <button class="primary-button student-submit-check-button" type="button" :disabled="checkSubmitting" @click="openSubmitConfirm">
             {{ checkSubmitting ? '提交中...' : '提交查课结果' }}
           </button>
         </div>
       </section>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="submitConfirmOpen" class="modal-backdrop" @click.self="closeSubmitConfirm">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认提交</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeSubmitConfirm">关闭</button>
+          </div>
+          <p class="hint">确定提交本次查课结果吗？已提交的学生结果不会被覆盖，未设置状态或已跳过的学生不会包含在提交中。</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeSubmitConfirm">取消</button>
+            <button class="primary-button" type="button" :disabled="checkSubmitting" @click="handleSubmitCheck">
+              {{ checkSubmitting ? '提交中...' : '确认提交' }}
+            </button>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="abandonConfirmOpen" class="modal-backdrop" @click.self="closeAbandonConfirm">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认放弃</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeAbandonConfirm">关闭</button>
+          </div>
+          <p class="hint">放弃后将清除本次未提交草稿，已提交结果不会回滚。确定放弃本次查课吗？</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeAbandonConfirm">取消</button>
+            <button class="ghost-button danger-button" type="button" @click="handleAbandonCheck">确认放弃</button>
+          </div>
+        </article>
+      </div>
     </Transition>
   </section>
 </template>

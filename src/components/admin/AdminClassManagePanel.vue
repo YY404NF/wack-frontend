@@ -42,6 +42,10 @@ const classColumns = [
   { key: 'class_name', label: '班级名称', colClass: 'col-pct-24' },
   { key: 'student_count', label: '人数', colClass: 'col-pct-18' },
 ] as const
+const classStudentColumns = [
+  { key: 'student_id', label: '学号', colClass: 'col-pct-30' },
+  { key: 'real_name', label: '姓名', colClass: 'col-pct-30' },
+] as const
 const CLASS_STUDENT_BATCH_SIZE = 20
 const visibleClassStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
 const visibleUnboundStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
@@ -82,6 +86,15 @@ const filteredClassStudents = computed(() => {
 })
 const visibleClassStudents = computed(() => filteredClassStudents.value.slice(0, visibleClassStudentCount.value))
 const visibleUnboundStudents = computed(() => filteredUnboundStudents.value.slice(0, visibleUnboundStudentCount.value))
+const activeClassStudentSummary = computed(() => {
+  if (!props.classStudentTargetName) {
+    return []
+  }
+  return [
+    { label: '班级名称', value: props.classStudentTargetName },
+    { label: '人数', value: `${props.classStudents.length} 人` },
+  ]
+})
 
 watch(
   () => [
@@ -116,26 +129,6 @@ function loadMoreClassStudents() {
 
 function loadMoreUnboundStudents() {
   visibleUnboundStudentCount.value += CLASS_STUDENT_BATCH_SIZE
-}
-
-function handleClassStudentScroll(event: Event) {
-  const target = event.currentTarget
-  if (!(target instanceof HTMLElement)) {
-    return
-  }
-  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 24) {
-    loadMoreClassStudents()
-  }
-}
-
-function handleUnboundStudentScroll(event: Event) {
-  const target = event.currentTarget
-  if (!(target instanceof HTMLElement)) {
-    return
-  }
-  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 24) {
-    loadMoreUnboundStudents()
-  }
 }
 
 function addStudentToClass(student: StudentItem) {
@@ -184,7 +177,7 @@ function downloadSampleCsv() {
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading section-heading-titleless">
+    <div v-if="!classStudentModalOpen" class="section-heading section-heading-titleless">
       <div class="inline-actions">
         <button class="primary-button" type="button" @click="emit('openCreateClassModal')">创建班级</button>
       </div>
@@ -215,132 +208,6 @@ function downloadSampleCsv() {
             <span>{{ classSaving ? '保存中...' : '保存' }}</span>
           </button>
         </form>
-      </article>
-    </div>
-    </Transition>
-
-    <Transition name="modal-float" appear>
-    <div v-if="classStudentModalOpen" class="modal-backdrop modal-backdrop-contained">
-      <article class="modal-card modal-card-wide class-student-modal">
-        <div class="wide-modal-header class-student-modal-header">
-          <div class="wide-modal-header-top">
-            <h3 class="wide-modal-header-title">编辑学生</h3>
-            <div class="wide-modal-header-actions">
-                <button class="ghost-button compact-button" type="button" @click="openImportModal">导入</button>
-                <button class="ghost-button compact-button" type="button" @click="emit('closeClassStudentModal')">关闭</button>
-            </div>
-          </div>
-          <p class="hint wide-modal-header-meta class-student-target-line">目标班级：{{ classStudentTargetName }}</p>
-        </div>
-        <div class="split-modal-layout">
-          <div class="split-modal-main">
-            <div class="section-heading modal-section-heading">
-              <h4>班级学生</h4>
-            </div>
-
-            <div class="table-wrap class-student-table-wrap" @scroll="handleClassStudentScroll">
-              <table class="data-table compact-table class-student-manage-table">
-                <colgroup>
-                  <col class="class-student-col-id" />
-                  <col class="class-student-col-name" />
-                  <col class="class-student-col-action" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>学号</th>
-                    <th>姓名</th>
-                    <th class="actions-column">操作</th>
-                  </tr>
-                  <tr class="table-filter-row">
-                    <th class="table-filter-cell">
-                      <input v-model="classStudentFilters.studentId" aria-label="按学号筛选班级学生" />
-                    </th>
-                    <th class="table-filter-cell">
-                      <input v-model="classStudentFilters.realName" aria-label="按姓名筛选班级学生" />
-                    </th>
-                    <th class="table-filter-spacer" aria-hidden="true"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="student in visibleClassStudents" :key="student.id">
-                    <td>{{ student.student_id }}</td>
-                    <td>{{ student.real_name }}</td>
-                    <td class="actions-column">
-                      <div class="inline-actions user-actions">
-                        <button class="ghost-button compact-button danger-button" type="button" :disabled="classStudentSaving" @click="emit('deleteClassStudent', student.id)">移除</button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr v-if="visibleClassStudents.length === 0">
-                    <td colspan="3" class="empty-cell">暂无班级学生</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <aside class="split-modal-side">
-            <div class="section-heading modal-section-heading">
-              <h4>未绑定学生</h4>
-            </div>
-
-            <div class="table-wrap class-student-table-wrap" @scroll="handleUnboundStudentScroll">
-              <table class="data-table compact-table class-student-manage-table">
-                <colgroup>
-                  <col class="class-student-col-id" />
-                  <col class="class-student-col-name" />
-                  <col class="class-student-col-action" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>学号</th>
-                    <th>姓名</th>
-                    <th class="actions-column">操作</th>
-                  </tr>
-                  <tr class="table-filter-row">
-                    <th class="table-filter-cell">
-                      <input v-model="classStudentFilters.studentId" aria-label="按学号筛选未绑定学生" />
-                    </th>
-                    <th class="table-filter-cell">
-                      <input v-model="classStudentFilters.realName" aria-label="按姓名筛选未绑定学生" />
-                    </th>
-                    <th class="table-filter-spacer" aria-hidden="true"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="student in visibleUnboundStudents" :key="student.id">
-                    <td>{{ student.student_id }}</td>
-                    <td>{{ student.real_name }}</td>
-                    <td class="actions-column">
-                      <div class="inline-actions user-actions">
-                        <button class="ghost-button compact-button success-button" type="button" :disabled="classStudentSaving" @click="addStudentToClass(student)">添加</button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr v-if="visibleUnboundStudents.length === 0">
-                    <td colspan="3" class="empty-cell">暂无未绑定学生</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="class-student-footer">
-              <button class="ghost-button narrow-button" type="button" @click="emit('closeClassStudentModal')">关闭</button>
-            </div>
-          </aside>
-        </div>
-        <AdminFileImportModal
-          :open="importModalOpen"
-          title="导入学生"
-          accept=".csv,text/csv"
-          :selected-file-name="selectedImportFileName"
-          :import-disabled="importActionDisabled"
-          :importing="classStudentImporting"
-          @close="closeImportModal"
-          @download-sample="downloadSampleCsv"
-          @select-file="handleImportFileSelect"
-          @submit="submitImport"
-        />
       </article>
     </div>
     </Transition>
@@ -383,53 +250,151 @@ function downloadSampleCsv() {
     </div>
     </Transition>
 
-    <AdminDataList
-      :rows="classes as unknown as Array<Record<string, unknown>>"
-      :columns="classColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
-      row-key="id"
-      empty-text="暂无符合条件的班级"
-      :show-selection="true"
-      :selected-row-keys="selectedClassIds"
-      :show-actions="true"
-      action-col-class="col-pct-20"
-      :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
-      :selected-items="selectedClassIds.length"
-      @update-page="emit('updateClassPage', $event)"
-      @update-page-size="emit('updateClassPageSize', $event)"
-      @toggle-row-selection="emit('toggleClassSelection', Number($event))"
-    >
-      <template #filter-grade>
-        <input v-model="classFilters.grade" aria-label="按年级筛选班级" />
-      </template>
-      <template #filter-major_name>
-        <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
-          <option value="">全部</option>
-          <option v-for="major in majorOptions" :key="major" :value="major">{{ major }}</option>
-        </select>
-      </template>
-      <template #filter-class_name>
-        <input v-model="classFilters.className" aria-label="按班级名称筛选班级" />
-      </template>
-      <template #filter-actions>
-        <button
-          class="ghost-button compact-button"
-          :class="{ selected: areAllClassesSelected }"
-          type="button"
-          @click="emit('toggleClassPageSelection')"
+    <Transition name="subpage-fade" mode="out-in" appear>
+      <div v-if="!classStudentModalOpen" key="class-list">
+        <AdminDataList
+          :rows="classes as unknown as Array<Record<string, unknown>>"
+          :columns="classColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          row-key="id"
+          empty-text="暂无符合条件的班级"
+          :show-selection="true"
+          :selected-row-keys="selectedClassIds"
+          :show-actions="true"
+          action-col-class="col-pct-20"
+          :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
+          :selected-items="selectedClassIds.length"
+          @update-page="emit('updateClassPage', $event)"
+          @update-page-size="emit('updateClassPageSize', $event)"
+          @toggle-row-selection="emit('toggleClassSelection', Number($event))"
         >
-          全选
-        </button>
-        <button class="ghost-button compact-button danger-button" type="button" :disabled="classDeleting || selectedClassIds.length === 0" @click="emit('openBulkDeleteClassModal')">
-          批量删除
-        </button>
-      </template>
-      <template #actions="{ row }">
-        <div class="inline-actions user-actions">
-          <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', asClassItem(row))">编辑</button>
-          <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', asClassItem(row))">学生管理</button>
-          <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', asClassItem(row))">删除</button>
-        </div>
-      </template>
-    </AdminDataList>
+          <template #filter-grade>
+            <input v-model="classFilters.grade" aria-label="按年级筛选班级" />
+          </template>
+          <template #filter-major_name>
+            <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
+              <option value="">全部</option>
+              <option v-for="major in majorOptions" :key="major" :value="major">{{ major }}</option>
+            </select>
+          </template>
+          <template #filter-class_name>
+            <input v-model="classFilters.className" aria-label="按班级名称筛选班级" />
+          </template>
+          <template #filter-actions>
+            <button
+              class="ghost-button compact-button"
+              :class="{ selected: areAllClassesSelected }"
+              type="button"
+              @click="emit('toggleClassPageSelection')"
+            >
+              全选
+            </button>
+            <button class="ghost-button compact-button danger-button" type="button" :disabled="classDeleting || selectedClassIds.length === 0" @click="emit('openBulkDeleteClassModal')">
+              批量删除
+            </button>
+          </template>
+          <template #actions="{ row }">
+            <div class="inline-actions user-actions">
+              <button class="ghost-button compact-button" type="button" @click="emit('openEditClassModal', asClassItem(row))">编辑</button>
+              <button class="ghost-button compact-button" type="button" @click="emit('openClassStudentModal', asClassItem(row))">学生管理</button>
+              <button class="ghost-button compact-button danger-button" type="button" @click="emit('openDeleteClassModal', asClassItem(row))">删除</button>
+            </div>
+          </template>
+        </AdminDataList>
+      </div>
+
+      <div v-else key="class-students" class="class-student-subpage-grid">
+        <aside class="workspace-card class-student-context-card">
+          <div class="settings-profile-summary-list">
+            <div class="workspace-card nested-context-card">
+              <div class="section-heading section-heading-compact">
+                <strong>班级</strong>
+              </div>
+              <div class="settings-profile-summary-list">
+                <div v-for="item in activeClassStudentSummary" :key="item.label" class="settings-profile-summary-item">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="class-student-subpage-main">
+          <section class="workspace-card class-student-list-card">
+            <div class="section-heading">
+              <strong>班级学生列表</strong>
+              <div class="inline-actions">
+                <button class="ghost-button compact-button" type="button" @click="openImportModal">导入</button>
+              </div>
+            </div>
+            <AdminDataList
+              :rows="visibleClassStudents as unknown as Array<Record<string, unknown>>"
+              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+              row-key="id"
+              table-class="class-student-manage-table"
+              empty-text="暂无班级学生"
+              :show-actions="true"
+              action-col-class="col-pct-20"
+              :lazy-load="{ hasMore: visibleClassStudents.length < filteredClassStudents.length, loading: false, buttonText: '滚动到底部继续加载班级学生' }"
+              @load-more="loadMoreClassStudents"
+            >
+              <template #filter-student_id>
+                <input v-model="classStudentFilters.studentId" aria-label="按学号筛选班级学生" />
+              </template>
+              <template #filter-real_name>
+                <input v-model="classStudentFilters.realName" aria-label="按姓名筛选班级学生" />
+              </template>
+              <template #actions="{ row }">
+                <div class="inline-actions user-actions">
+                  <button class="ghost-button compact-button danger-button" type="button" :disabled="classStudentSaving" @click="emit('deleteClassStudent', Number(row.id))">移除</button>
+                </div>
+              </template>
+            </AdminDataList>
+          </section>
+
+          <section class="workspace-card class-student-list-card">
+            <div class="section-heading">
+              <strong>未绑定学生列表</strong>
+            </div>
+            <AdminDataList
+              :rows="visibleUnboundStudents as unknown as Array<Record<string, unknown>>"
+              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+              row-key="id"
+              table-class="class-student-manage-table"
+              empty-text="暂无未绑定学生"
+              :show-actions="true"
+              action-col-class="col-pct-20"
+              :lazy-load="{ hasMore: visibleUnboundStudents.length < filteredUnboundStudents.length, loading: false, buttonText: '滚动到底部继续加载未绑定学生' }"
+              @load-more="loadMoreUnboundStudents"
+            >
+              <template #filter-student_id>
+                <input v-model="classStudentFilters.studentId" aria-label="按学号筛选未绑定学生" />
+              </template>
+              <template #filter-real_name>
+                <input v-model="classStudentFilters.realName" aria-label="按姓名筛选未绑定学生" />
+              </template>
+              <template #actions="{ row }">
+                <div class="inline-actions user-actions">
+                  <button class="ghost-button compact-button" type="button" :disabled="classStudentSaving" @click="addStudentToClass(row as unknown as StudentItem)">添加</button>
+                </div>
+              </template>
+            </AdminDataList>
+          </section>
+        </section>
+
+        <AdminFileImportModal
+          :open="importModalOpen"
+          title="导入学生"
+          accept=".csv,text/csv"
+          :selected-file-name="selectedImportFileName"
+          :import-disabled="importActionDisabled"
+          :importing="classStudentImporting"
+          @close="closeImportModal"
+          @download-sample="downloadSampleCsv"
+          @select-file="handleImportFileSelect"
+          @submit="submitImport"
+        />
+      </div>
+    </Transition>
   </section>
 </template>

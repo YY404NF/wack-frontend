@@ -357,6 +357,8 @@ export interface AttendanceSessionDetail {
 }
 
 export interface SubmitAttendanceStatusesResult {
+  accepted_items: number[]
+  ignored_items: number[]
   applied_count: number
   ignored_count: number
 }

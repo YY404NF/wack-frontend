@@ -1210,7 +1210,8 @@ function toggleCourseGroupClassExpanded(key: string) {
       </div>
     </Transition>
 
-    <div v-if="currentView === 'courses'" class="course-manage-page">
+    <Transition name="subpage-fade" mode="out-in" appear>
+    <div v-if="currentView === 'courses'" key="courses" class="course-manage-page">
       <div class="section-heading section-heading-titleless course-page-toolbar">
         <div class="inline-actions">
           <button class="primary-button" type="button" @click="emit('openCreateCourseModal')">创建课程</button>
@@ -1271,7 +1272,7 @@ function toggleCourseGroupClassExpanded(key: string) {
       </AdminDataList>
     </div>
 
-    <div v-else-if="currentView === 'groups'" class="course-subpage-grid">
+    <div v-else-if="currentView === 'groups'" key="groups" class="course-subpage-grid">
       <aside class="workspace-card course-context-card">
         <div class="settings-profile-summary-list">
           <div class="workspace-card nested-context-card">
@@ -1324,7 +1325,7 @@ function toggleCourseGroupClassExpanded(key: string) {
       </section>
     </div>
 
-    <div v-else-if="currentView === 'lessons'" class="course-subpage-grid">
+    <div v-else-if="currentView === 'lessons'" key="lessons" class="course-subpage-grid">
       <aside class="workspace-card course-context-card">
         <div class="settings-profile-summary-list">
           <div class="workspace-card nested-context-card">
@@ -1457,7 +1458,7 @@ function toggleCourseGroupClassExpanded(key: string) {
       </section>
     </div>
 
-    <div v-else class="course-student-manage-layout">
+    <div v-else key="students" class="course-student-manage-layout">
       <aside class="workspace-card course-context-card">
         <div class="settings-profile-summary-list">
           <div class="workspace-card nested-context-card">
@@ -1609,6 +1610,7 @@ function toggleCourseGroupClassExpanded(key: string) {
         </section>
       </section>
     </div>
+    </Transition>
     <Teleport to="body">
       <div v-if="actionToast" class="toast-banner admin-data-list-copy-toast">{{ actionToast }}</div>
     </Teleport>

@@ -117,9 +117,22 @@ const activeTabLabel = computed(() => {
 })
 
 const pathSegments = computed(() => {
-  const segments: Array<{ key: string; label: string; clickable: boolean; target?: 'courses' | 'groups' }> = [
-    { key: 'root', label: activeTabLabel.value, clickable: props.activeTab === 'course-manage' && courseManageView.value !== 'courses', target: 'courses' },
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: 'courses' | 'groups' | 'class-manage-root' }> = [
+    {
+      key: 'root',
+      label: activeTabLabel.value,
+      clickable:
+        (props.activeTab === 'course-manage' && courseManageView.value !== 'courses') ||
+        (props.activeTab === 'class-manage' && props.classStudentModalOpen),
+      target: props.activeTab === 'class-manage' ? 'class-manage-root' : 'courses',
+    },
   ]
+  if (props.activeTab === 'class-manage') {
+    if (props.classStudentModalOpen) {
+      segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
+    }
+    return segments
+  }
   if (props.activeTab !== 'course-manage') {
     return segments
   }
@@ -219,8 +232,17 @@ function handleCourseManageRouteChange(payload: { view: 'courses' | 'groups' | '
   void syncCourseManageViewToQuery(payload)
 }
 
-function handlePathSegmentClick(target?: 'courses' | 'groups') {
-  if (!target || props.activeTab !== 'course-manage') {
+function handlePathSegmentClick(target?: 'courses' | 'groups' | 'class-manage-root') {
+  if (!target) {
+    return
+  }
+  if (target === 'class-manage-root') {
+    if (props.activeTab === 'class-manage' && props.classStudentModalOpen) {
+      emit('closeClassStudentModal')
+    }
+    return
+  }
+  if (props.activeTab !== 'course-manage') {
     return
   }
   courseManagePathCommand.value = {

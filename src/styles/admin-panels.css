@@ -575,6 +575,12 @@
   height: 100%;
 }
 
+.user-manage-panel > .class-student-subpage-grid {
+  grid-row: 1 / span 3;
+  min-height: 0;
+  height: 100%;
+}
+
 .modal-section-heading {
   margin-bottom: 16px;
 }
@@ -1597,6 +1603,19 @@
   gap: 16px;
 }
 
+.subpage-fade-enter-active,
+.subpage-fade-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.subpage-fade-enter-from,
+.subpage-fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
 .course-subpage-grid {
   min-height: 0;
   height: 100%;
@@ -1614,6 +1633,14 @@
   gap: 18px;
 }
 
+.class-student-subpage-grid {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+}
+
 .course-student-main-column {
   min-height: 0;
   height: 100%;
@@ -1622,25 +1649,38 @@
   gap: 18px;
 }
 
+.class-student-subpage-main {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
 .course-context-card,
+.class-student-context-card,
 .course-subpage-main,
 .course-group-current-students-card,
 .course-group-candidates-card,
+.class-student-list-card,
 .course-student-main-column {
   min-height: 0;
   height: 100%;
 }
 
 .course-context-card,
+.class-student-context-card,
 .course-subpage-main,
 .course-group-current-students-card,
-.course-group-candidates-card {
+.course-group-candidates-card,
+.class-student-list-card {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
 }
 
-.course-context-card {
+.course-context-card,
+.class-student-context-card {
   padding: 18px;
   border-radius: 22px;
   border: 1px solid rgba(160, 119, 84, 0.16);
@@ -1668,7 +1708,8 @@
   padding-bottom: 8px;
 }
 
-.course-context-card > .settings-profile-summary-list {
+.course-context-card > .settings-profile-summary-list,
+.class-student-context-card > .settings-profile-summary-list {
   display: grid;
   gap: 16px;
   min-height: 0;
@@ -1729,9 +1770,24 @@
   height: 100%;
 }
 
+.class-student-subpage-grid > .class-student-context-card,
+.class-student-subpage-grid > .class-student-subpage-main {
+  min-height: 0;
+  height: 100%;
+}
+
 .course-subpage-grid > .course-subpage-main > .admin-data-list {
   min-height: 0;
   height: 100%;
+}
+
+.class-student-list-card > .admin-data-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.class-student-list-card {
+  overflow: hidden;
 }
 
 .course-lesson-create-card,
@@ -1941,11 +1997,13 @@
   .user-free-time-week-row,
   .course-group-editor-grid,
   .course-subpage-grid,
+  .class-student-subpage-grid,
   .course-student-manage-layout {
     grid-template-columns: 1fr;
   }
 
   .course-student-manage-layout,
+  .class-student-subpage-main,
   .course-student-main-column {
     grid-template-rows: auto minmax(0, 1fr);
   }

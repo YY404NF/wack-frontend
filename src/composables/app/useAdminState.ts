@@ -404,7 +404,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
 
   async function openClassStudentModal(item: ClassItem) {
     classStudentTargetClassId.value = item.id
-    classStudentTargetName.value = `${item.grade}级 ${item.major_name} ${item.class_name}`
+    classStudentTargetName.value = item.class_name
     resetClassStudentForm()
     resetEditingClassStudentForm()
     Object.assign(classStudentFilters, createClassStudentFilters())

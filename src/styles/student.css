@@ -732,7 +732,13 @@
   margin: 0;
 }
 
+.student-random-range-value {
+  color: rgba(61, 46, 38, 0.84);
+  font-weight: 600;
+}
+
 .student-random-range input {
+  --student-random-range-progress: 100%;
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -748,7 +754,13 @@
 .student-random-range input::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(167, 131, 69, 0.95);
+  background: linear-gradient(
+    90deg,
+    rgba(200, 97, 53, 0.96) 0%,
+    rgba(200, 97, 53, 0.96) var(--student-random-range-progress),
+    rgba(162, 144, 125, 0.55) var(--student-random-range-progress),
+    rgba(162, 144, 125, 0.55) 100%
+  );
 }
 
 .student-random-range input::-webkit-slider-thumb {
@@ -766,7 +778,13 @@
 .student-random-range input::-moz-range-track {
   height: 8px;
   border-radius: 999px;
-  background: rgba(167, 131, 69, 0.95);
+  background: linear-gradient(
+    90deg,
+    rgba(200, 97, 53, 0.96) 0%,
+    rgba(200, 97, 53, 0.96) var(--student-random-range-progress),
+    rgba(162, 144, 125, 0.55) var(--student-random-range-progress),
+    rgba(162, 144, 125, 0.55) 100%
+  );
 }
 
 .student-random-range input::-moz-range-thumb {
@@ -785,6 +803,7 @@
 
 .student-attendance-check-shell {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 14px;
   padding: 16px;
   border-radius: 30px;
@@ -808,7 +827,8 @@
 
 .student-attendance-screen .student-attendance-check-shell {
   width: min(100%, 440px);
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
   border-radius: 40px;
 }
 
@@ -832,7 +852,8 @@
 
 .student-search-box input {
   width: 100%;
-  padding: 14px 16px 14px 42px;
+  min-height: 46px;
+  padding: 10px 14px 10px 42px;
   border-radius: 999px;
   border: 2px solid rgba(52, 36, 28, 0.16);
   background: rgba(255, 255, 255, 0.72);
@@ -844,15 +865,17 @@
   width: 18px;
   height: 18px;
   color: rgba(92, 69, 57, 0.62);
+  pointer-events: none;
 }
 
 .student-attendance-list {
-  height: 420px;
-  min-height: 420px;
+  height: auto;
+  min-height: 0;
   overflow-y: auto;
   border-radius: 24px;
   border: 1px solid rgba(52, 36, 28, 0.18);
   background: rgba(248, 245, 241, 0.85);
+  box-sizing: border-box;
 }
 
 .student-attendance-empty-state {
@@ -872,10 +895,11 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 10px 14px;
+  padding: 5px 14px 6px;
   background: #cbc4bc;
   border-bottom: 1px solid rgba(52, 36, 28, 0.28);
   font-weight: 700;
+  line-height: 1.15;
   text-align: center;
 }
 
@@ -885,26 +909,37 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  padding: 12px 14px;
+  min-height: 56px;
+  padding: 8px 14px;
   border: 0;
   border-bottom: 1px solid rgba(52, 36, 28, 0.18);
   background: transparent;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .student-attendance-row-main {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(92px, auto) minmax(0, auto);
+  align-items: center;
+  justify-content: start;
+  gap: 10px;
 }
 
-.student-attendance-row-main small,
-.student-attendance-row-main strong {
+.student-attendance-student-id,
+.student-attendance-student-name {
   margin: 0;
 }
 
-.student-attendance-row-main strong {
-  font-size: 1.8rem;
-  line-height: 1;
+.student-attendance-student-id {
+  font-size: 0.86rem;
+  color: rgba(70, 52, 43, 0.76);
+  font-variant-numeric: tabular-nums;
+}
+
+.student-attendance-student-name {
+  font-size: 1.08rem;
+  line-height: 1.1;
 }
 
 .student-attendance-row.is-focused {
@@ -917,11 +952,16 @@
 }
 
 .student-attendance-status {
-  min-width: 72px;
-  padding: 10px 12px;
+  min-height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
   font-weight: 700;
   text-align: center;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .student-attendance-status.is-present {
@@ -956,16 +996,43 @@
 
 .student-attendance-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    'late present'
+    'absent present'
+    'leave present';
   gap: 12px;
 }
 
 .student-attendance-action-button {
-  min-height: 58px;
+  min-height: 0;
+  width: 100%;
   border-radius: 22px;
   border: 3px solid transparent;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 800;
+  padding: 0 12px;
+}
+
+.student-attendance-action-late {
+  grid-area: late;
+  min-height: 50px;
+}
+
+.student-attendance-action-absent {
+  grid-area: absent;
+  min-height: 50px;
+}
+
+.student-attendance-action-leave {
+  grid-area: leave;
+  min-height: 50px;
+}
+
+.student-attendance-action-present {
+  grid-area: present;
+  min-height: 100%;
 }
 
 .student-attendance-action-button.is-present {
@@ -993,13 +1060,7 @@
 }
 
 .student-submit-check-button {
-  min-height: 62px;
-  border: 0;
-  border-radius: 999px;
-  background: #8e8c8d;
-  color: #fff;
-  font-size: 1.2rem;
-  font-weight: 800;
+  width: 100%;
 }
 
 @media (max-width: 760px) {
@@ -1106,5 +1167,23 @@
 
 .student-free-time-grid-scroll {
   margin-inline: -2px;
-}
+  }
+
+  .student-attendance-screen {
+    padding: 12px;
+  }
+
+  .student-attendance-screen .student-attendance-check-shell {
+    width: 100%;
+    border-radius: 28px;
+  }
+
+  .student-attendance-actions {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 10px;
+  }
+
+  .student-attendance-action-button {
+    font-size: 1rem;
+  }
 }
