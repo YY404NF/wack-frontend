@@ -631,16 +631,22 @@
 
 .pagination-jump {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
+  width: auto;
   color: var(--muted);
   white-space: nowrap;
 }
 
 .pagination-jump input {
+  flex: 0 0 56px;
   width: 56px;
-  min-width: 0;
+  min-width: 56px;
+  max-width: 56px;
   min-height: 40px;
+  padding-left: 8px;
+  padding-right: 8px;
   text-align: center;
 }
 
