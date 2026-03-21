@@ -32,6 +32,15 @@ function formatDateTime(value: string) {
       row-key="id"
       empty-text="暂无考勤日志"
       :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions, totalItems: attendanceLogsTotalItems }"
+      :all-items="attendanceLogsAllItems"
+      :active-filter-keys="[
+        ...(attendanceLogFilters.operatedDate ? ['operated_at'] : []),
+        ...(attendanceLogFilters.studentId.trim() ? ['student_id'] : []),
+        ...(attendanceLogFilters.operatorStudentId.trim() ? ['operator_login_id'] : []),
+        ...(attendanceLogFilters.newStatus ? ['new_status'] : []),
+        ...(attendanceLogFilters.operationType.trim() ? ['operation_type'] : []),
+      ]"
+      :has-search-condition="!!(attendanceLogFilters.operatedDate || attendanceLogFilters.studentId.trim() || attendanceLogFilters.operatorStudentId.trim() || attendanceLogFilters.newStatus || attendanceLogFilters.operationType.trim())"
       @update-page="emit('updateAttendanceLogsPage', $event)"
       @update-page-size="emit('updateAttendanceLogsPageSize', $event)"
     >

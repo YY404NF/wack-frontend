@@ -39,6 +39,7 @@ const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
 const sessionTotalPages = ref(1)
 const sessionTotalItems = ref(0)
+const sessionAllItems = ref(0)
 
 const detailKeyword = ref('')
 const detailStatus = ref('')
@@ -50,6 +51,7 @@ const detailError = ref('')
 const detailRecords = ref<AttendanceRecordStudentItem[]>([])
 const detailTotalPages = ref(1)
 const detailTotalItems = ref(0)
+const detailAllItems = ref(0)
 const selectedRecordLogs = ref<AttendanceRecordLogItem[]>([])
 const selectedRecordLogName = ref('')
 const logsLoading = ref(false)
@@ -123,18 +125,22 @@ async function loadSessionRows() {
   sessionLoading.value = true
   sessionError.value = ''
   try {
-    const result = await api.adminAttendanceSessions({
-      page: sessionPage.value,
-      page_size: sessionPageSize.value,
-      keyword: sessionKeyword.value,
-      week_no: sessionWeekNo.value,
-      status: sessionStatus.value,
-    })
+    const [result, allResult] = await Promise.all([
+      api.adminAttendanceSessions({
+        page: sessionPage.value,
+        page_size: sessionPageSize.value,
+        keyword: sessionKeyword.value,
+        week_no: sessionWeekNo.value,
+        status: sessionStatus.value,
+      }),
+      api.adminAttendanceSessions({ page: 1, page_size: 1 }),
+    ])
     if (requestToken !== sessionRequestToken) {
       return
     }
     sessionRows.value = (result.items ?? []) as unknown as AttendanceSessionSummary[]
     sessionTotalItems.value = result.total ?? 0
+    sessionAllItems.value = allResult.total ?? 0
     sessionTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / sessionPageSize.value))
   } catch (error) {
     if (requestToken !== sessionRequestToken) {
@@ -158,17 +164,24 @@ async function loadDetailRecords() {
   detailLoading.value = true
   detailError.value = ''
   try {
-    const result = await api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
-      page: detailPage.value,
-      page_size: detailPageSize.value,
-      keyword: detailKeyword.value,
-      status: detailStatus.value,
-    })
+    const [result, allResult] = await Promise.all([
+      api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
+        page: detailPage.value,
+        page_size: detailPageSize.value,
+        keyword: detailKeyword.value,
+        status: detailStatus.value,
+      }),
+      api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
+        page: 1,
+        page_size: 1,
+      }),
+    ])
     if (requestToken !== detailRequestToken) {
       return
     }
     detailRecords.value = result.items ?? []
     detailTotalItems.value = result.total ?? 0
+    detailAllItems.value = allResult.total ?? 0
     detailTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / detailPageSize.value))
   } catch (error) {
     if (requestToken !== detailRequestToken) {
@@ -250,6 +263,12 @@ watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
         :show-actions="true"
         action-col-class="col-pct-12"
         :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
+        :all-items="detailAllItems"
+        :active-filter-keys="[
+          ...(detailKeyword.trim() ? ['student'] : []),
+          ...(detailStatus ? ['status'] : []),
+        ]"
+        :has-search-condition="!!(detailKeyword.trim() || detailStatus)"
         @update-page="detailPage = $event"
         @update-page-size="detailPageSize = $event"
       >
@@ -351,6 +370,13 @@ watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
         :show-actions="true"
         action-col-class="col-pct-14"
         :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: sessionTotalItems }"
+        :all-items="sessionAllItems"
+        :active-filter-keys="[
+          ...(sessionKeyword.trim() ? ['course_name'] : []),
+          ...(String(sessionWeekNo ?? '').trim() ? ['week_no'] : []),
+          ...(sessionStatus ? ['summary'] : []),
+        ]"
+        :has-search-condition="!!(sessionKeyword.trim() || String(sessionWeekNo ?? '').trim() || sessionStatus)"
         @update-page="sessionPage = $event"
         @update-page-size="sessionPageSize = $event"
       >

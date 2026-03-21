@@ -262,7 +262,14 @@ function downloadSampleCsv() {
           :show-actions="true"
           action-col-class="col-pct-20"
           :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
+          :all-items="classAllItems"
           :selected-items="selectedClassIds.length"
+          :active-filter-keys="[
+            ...(String(classFilters.grade ?? '').trim() ? ['grade'] : []),
+            ...(classFilters.majorName ? ['major_name'] : []),
+            ...(classFilters.className.trim() ? ['class_name'] : []),
+          ]"
+          :has-search-condition="!!(String(classFilters.grade ?? '').trim() || classFilters.majorName || classFilters.className.trim())"
           @update-page="emit('updateClassPage', $event)"
           @update-page-size="emit('updateClassPageSize', $event)"
           @toggle-row-selection="emit('toggleClassSelection', Number($event))"
@@ -336,6 +343,14 @@ function downloadSampleCsv() {
               :show-actions="true"
               action-col-class="col-pct-20"
               :lazy-load="{ hasMore: visibleClassStudents.length < filteredClassStudents.length, loading: false, buttonText: '滚动到底部继续加载班级学生' }"
+              :current-items="visibleClassStudents.length"
+              :total-items="filteredClassStudents.length"
+              :all-items="classStudents.length"
+              :active-filter-keys="[
+                ...(classStudentFilters.studentId.trim() ? ['student_id'] : []),
+                ...(classStudentFilters.realName.trim() ? ['real_name'] : []),
+              ]"
+              :has-search-condition="!!(classStudentFilters.studentId.trim() || classStudentFilters.realName.trim())"
               @load-more="loadMoreClassStudents"
             >
               <template #filter-student_id>
@@ -365,6 +380,14 @@ function downloadSampleCsv() {
               :show-actions="true"
               action-col-class="col-pct-20"
               :lazy-load="{ hasMore: visibleUnboundStudents.length < filteredUnboundStudents.length, loading: false, buttonText: '滚动到底部继续加载未绑定学生' }"
+              :current-items="visibleUnboundStudents.length"
+              :total-items="filteredUnboundStudents.length"
+              :all-items="students.filter((item) => item.class_id === null || item.class_id === undefined).length"
+              :active-filter-keys="[
+                ...(classStudentFilters.studentId.trim() ? ['student_id'] : []),
+                ...(classStudentFilters.realName.trim() ? ['real_name'] : []),
+              ]"
+              :has-search-condition="!!(classStudentFilters.studentId.trim() || classStudentFilters.realName.trim())"
               @load-more="loadMoreUnboundStudents"
             >
               <template #filter-student_id>

@@ -295,7 +295,16 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? 'å
       :is-row-selectable="(row) => Number(row.id) !== currentUserId"
       :show-actions="true"
       :pagination="{ page: userPage, pageSize: userPageSize, totalPages: userTotalPages, pageOptions: userPageOptions, totalItems: userTotalItems }"
+      :all-items="userAllItems"
       :selected-items="selectedUserStudentIds.length"
+      :active-filter-keys="[
+        ...(userFilters.studentId.trim() ? ['login_id'] : []),
+        ...(userFilters.realName.trim() ? ['real_name'] : []),
+        ...(userFilters.role ? ['role'] : []),
+        ...(userFilters.managedClassName.trim() ? ['managed_class_id'] : []),
+        ...(userFilters.status ? ['status'] : []),
+      ]"
+      :has-search-condition="!!(userFilters.studentId.trim() || userFilters.realName.trim() || userFilters.role || userFilters.managedClassName.trim() || userFilters.status)"
       @update-page="emit('updateUserPage', $event)"
       @update-page-size="emit('updateUserPageSize', $event)"
       @toggle-row-selection="emit('toggleUserSelection', String($event))"

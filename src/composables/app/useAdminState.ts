@@ -102,22 +102,27 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const userPageSize = ref(10)
   const userTotalPages = ref(1)
   const userTotalItems = ref(0)
+  const userAllItems = ref(0)
   const coursePage = ref(1)
   const coursePageSize = ref(10)
   const courseTotalPages = ref(1)
   const courseTotalItems = ref(0)
+  const courseAllItems = ref(0)
   const classPage = ref(1)
   const classPageSize = ref(10)
   const classTotalPages = ref(1)
   const classTotalItems = ref(0)
+  const classAllItems = ref(0)
   const studentPage = ref(1)
   const studentPageSize = ref(10)
   const studentTotalPages = ref(1)
   const studentTotalItems = ref(0)
+  const studentAllItems = ref(0)
   const attendanceLogsPage = ref(1)
   const attendanceLogsPageSize = ref(10)
   const attendanceLogsTotalPages = ref(1)
   const attendanceLogsTotalItems = ref(0)
+  const attendanceLogsAllItems = ref(0)
 
   const userSaving = ref(false)
   const passwordResetting = ref(false)
@@ -666,22 +671,27 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userPageSize,
           userTotalPages,
           userTotalItems,
+          userAllItems,
           coursePage,
           coursePageSize,
           courseTotalPages,
           courseTotalItems,
+          courseAllItems,
           classPage,
           classPageSize,
           classTotalPages,
           classTotalItems,
+          classAllItems,
           studentPage,
           studentPageSize,
           studentTotalPages,
           studentTotalItems,
+          studentAllItems,
           attendanceLogsPage,
           attendanceLogsPageSize,
           attendanceLogsTotalPages,
           attendanceLogsTotalItems,
+          attendanceLogsAllItems,
           selectedCourseIds,
           selectedClassIds,
           selectedStudentIds,
@@ -781,10 +791,15 @@ export function useAdminState(deps: UseAdminStateDeps) {
     courseManageRouteGroupId.value = null
     courseManagePathCommand.value = null
     userTotalItems.value = 0
+    userAllItems.value = 0
     courseTotalItems.value = 0
+    courseAllItems.value = 0
     studentTotalItems.value = 0
+    studentAllItems.value = 0
     attendanceLogsTotalItems.value = 0
+    attendanceLogsAllItems.value = 0
     classTotalItems.value = 0
+    classAllItems.value = 0
     userRows.value = []
     classRows.value = []
     studentRows.value = []

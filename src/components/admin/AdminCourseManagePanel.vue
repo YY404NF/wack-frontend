@@ -1229,7 +1229,14 @@ function toggleCourseGroupClassExpanded(key: string) {
         :show-actions="true"
         action-col-class="col-pct-16"
         :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions, totalItems: courseTotalItems }"
+        :all-items="courseAllItems"
         :selected-items="selectedCourseIds.length"
+        :active-filter-keys="[
+          ...(courseFilters.courseName.trim() ? ['course_name'] : []),
+          ...(courseFilters.teacherName.trim() ? ['teacher_name'] : []),
+          ...(courseFilters.classId.trim() ? ['class_names'] : []),
+        ]"
+        :has-search-condition="!!(courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.classId.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
         @update-page="emit('updateCoursePage', $event)"
         @update-page-size="emit('updateCoursePageSize', $event)"
         @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
@@ -1373,6 +1380,11 @@ function toggleCourseGroupClassExpanded(key: string) {
             action-col-class="col-pct-28"
             :selected-items="selectedLessonIds.length"
             :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
+            :current-items="visibleCourseGroupLessons.length"
+            :total-items="filteredCourseGroupLessons.length"
+            :all-items="activeCourseGroupDetail?.sessions?.length ?? 0"
+            :active-filter-keys="lessonWeekFilter ? ['week_no'] : []"
+            :has-search-condition="!!lessonWeekFilter"
             @toggle-row-selection="toggleLessonSelection(Number($event))"
             @toggle-page-selection="toggleLessonPageSelection"
             @load-more="loadMoreCourseGroupLessons"
@@ -1568,6 +1580,8 @@ function toggleCourseGroupClassExpanded(key: string) {
                 :show-actions="true"
                 action-col-class="col-pct-20"
                 :lazy-load="{ hasMore: courseGroupClassHasMore, loading: courseGroupClassLoading, buttonText: '滚动到底部继续加载班级' }"
+                :active-filter-keys="courseGroupClassKeyword.trim() ? ['class_display'] : []"
+                :has-search-condition="!!courseGroupClassKeyword.trim()"
                 @load-more="loadMoreCourseGroupClasses"
               >
                 <template #filter-class_display>
@@ -1594,6 +1608,8 @@ function toggleCourseGroupClassExpanded(key: string) {
                 :show-actions="true"
                 action-col-class="col-pct-20"
                 :lazy-load="{ hasMore: courseGroupStudentHasMore, loading: courseGroupStudentLoading, buttonText: '滚动到底部继续加载学生' }"
+                :active-filter-keys="courseGroupStudentKeyword.trim() ? ['student_no'] : []"
+                :has-search-condition="!!courseGroupStudentKeyword.trim()"
                 @load-more="loadMoreCourseGroupStudents"
               >
                 <template #filter-student_no>

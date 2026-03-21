@@ -230,7 +230,14 @@ function asStudentItem(row: Record<string, unknown>) {
       :show-actions="true"
       action-col-class="col-pct-20"
       :pagination="{ page: studentPage, pageSize: studentPageSize, totalPages: studentTotalPages, pageOptions: studentPageOptions, totalItems: studentTotalItems }"
+      :all-items="studentAllItems"
       :selected-items="selectedStudentIds.length"
+      :active-filter-keys="[
+        ...(studentFilters.studentId.trim() ? ['student_id'] : []),
+        ...(studentFilters.realName.trim() ? ['real_name'] : []),
+        ...(studentFilters.className.trim() ? ['class_name'] : []),
+      ]"
+      :has-search-condition="!!(studentFilters.studentId.trim() || studentFilters.realName.trim() || studentFilters.className.trim())"
       @update-page="emit('updateStudentPage', $event)"
       @update-page-size="emit('updateStudentPageSize', $event)"
       @toggle-row-selection="emit('toggleStudentSelection', Number($event))"

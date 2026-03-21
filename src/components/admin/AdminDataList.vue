@@ -41,8 +41,11 @@ const props = withDefaults(defineProps<{
   pagination?: PaginationConfig | null
   lazyLoad?: LazyLoadConfig | null
   totalItems?: number | null
+  allItems?: number | null
   currentItems?: number | null
   selectedItems?: number | null
+  activeFilterKeys?: string[]
+  hasSearchCondition?: boolean
 }>(), {
   emptyText: '暂无数据',
   showSelection: false,
@@ -53,8 +56,11 @@ const props = withDefaults(defineProps<{
   pagination: null,
   lazyLoad: null,
   totalItems: null,
+  allItems: null,
   currentItems: null,
   selectedItems: null,
+  activeFilterKeys: () => [],
+  hasSearchCondition: false,
 })
 
 const emit = defineEmits<{
@@ -95,10 +101,13 @@ const totalColumnCount = computed(() => {
 const hasFilterRow = computed(() =>
   props.columns.some((column) => !!slots[`filter-${column.key}`]) || !!slots['filter-actions'],
 )
+const activeFilterKeySet = computed(() => new Set(props.activeFilterKeys))
 const resolvedSelectedCount = computed(() => props.selectedItems ?? props.selectedRowKeys.length)
 const resolvedCurrentCount = computed(() => props.currentItems ?? props.rows.length)
-const resolvedTotalCount = computed(() => props.pagination?.totalItems ?? props.totalItems ?? props.rows.length)
+const resolvedSearchCount = computed(() => props.pagination?.totalItems ?? props.totalItems ?? props.rows.length)
+const resolvedTotalCount = computed(() => props.allItems ?? resolvedSearchCount.value)
 const showSummaryStats = computed(() => props.rows.length > 0)
+const shouldShowSearchSummary = computed(() => props.hasSearchCondition)
 const pageTokens = computed(() => {
   if (!props.pagination) {
     return []
@@ -149,6 +158,10 @@ watch(
 
 function resolveRowKey(row: Record<string, unknown>) {
   return typeof props.rowKey === 'function' ? props.rowKey(row) : (row[props.rowKey] as string | number)
+}
+
+function isFilterCellActive(columnKey: string) {
+  return activeFilterKeySet.value.has(columnKey)
 }
 
 function onPageSizeChange(event: Event) {
@@ -321,7 +334,10 @@ onBeforeUnmount(() => {
             <th
               v-for="column in columns"
               :key="column.key"
-              :class="slots[`filter-${column.key}`] ? 'table-filter-cell' : 'table-filter-spacer'"
+              :class="[
+                slots[`filter-${column.key}`] ? 'table-filter-cell' : 'table-filter-spacer',
+                slots[`filter-${column.key}`] && isFilterCellActive(column.key) ? 'table-filter-cell-active' : '',
+              ]"
               :aria-hidden="slots[`filter-${column.key}`] ? undefined : 'true'"
             >
               <slot
@@ -400,6 +416,8 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="showSummaryStats" class="data-list-summary-right hint">
         本页 {{ resolvedCurrentCount }} 项
+        <span v-if="shouldShowSearchSummary" class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
+        <span v-if="shouldShowSearchSummary">搜索结果 {{ resolvedSearchCount }} 项</span>
         <span class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
         总计 {{ resolvedTotalCount }} 项
       </div>

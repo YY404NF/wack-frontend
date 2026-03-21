@@ -59,6 +59,7 @@ export type AdminWorkspaceProps = {
   userPageSize: number
   userTotalPages: number
   userTotalItems: number
+  userAllItems: number
   userPageOptions: number[]
   selectedUserStudentIds: string[]
   userPasswordModalOpen: boolean
@@ -85,6 +86,7 @@ export type AdminWorkspaceProps = {
   coursePageSize: number
   courseTotalPages: number
   courseTotalItems: number
+  courseAllItems: number
   coursePageOptions: number[]
   selectedCourseIds: number[]
   selectedCourseCount: number
@@ -118,6 +120,7 @@ export type AdminWorkspaceProps = {
   classPageSize: number
   classTotalPages: number
   classTotalItems: number
+  classAllItems: number
   classPageOptions: number[]
   selectedClassIds: number[]
   selectedClassCount: number
@@ -134,6 +137,7 @@ export type AdminWorkspaceProps = {
   studentPageSize: number
   studentTotalPages: number
   studentTotalItems: number
+  studentAllItems: number
   studentPageOptions: number[]
   selectedStudentIds: number[]
   selectedStudentCount: number
@@ -143,6 +147,7 @@ export type AdminWorkspaceProps = {
   attendanceLogsPageSize: number
   attendanceLogsTotalPages: number
   attendanceLogsTotalItems: number
+  attendanceLogsAllItems: number
   attendanceLogsPageOptions: number[]
   profileForm: AdminProfileForm
   profileModalOpen: boolean
