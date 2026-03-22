@@ -1,6 +1,7 @@
 import { request } from './client'
 import { apiPaths } from './paths'
 import type {
+  AdminOverviewData,
   AttendanceRecordLogItem,
   AttendanceRecordStudentItem,
   AttendanceResultItem,
@@ -20,6 +21,16 @@ function normalizeAttendanceSessionDetail(detail: AttendanceSessionDetail) {
 }
 
 export const attendanceApi = {
+  adminOverview() {
+    return request<AdminOverviewData>(apiPaths.admin.overview).then((payload) => ({
+      ...payload,
+      course_rankings: Array.isArray(payload.course_rankings) ? payload.course_rankings : [],
+      class_rankings: Array.isArray(payload.class_rankings) ? payload.class_rankings : [],
+      student_rankings: Array.isArray(payload.student_rankings) ? payload.student_rankings : [],
+      recent_sessions: Array.isArray(payload.recent_sessions) ? payload.recent_sessions : [],
+      recent_abnormal_students: Array.isArray(payload.recent_abnormal_students) ? payload.recent_abnormal_students : [],
+    }))
+  },
   adminAttendanceDashboard() {
     return request<DashboardSummary>(apiPaths.admin.attendanceDashboard)
   },

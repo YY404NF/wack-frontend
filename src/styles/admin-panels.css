@@ -12,26 +12,49 @@
   height: 100%;
 }
 
-.overview-toolbar {
+.overview-summary {
   display: flex;
-  justify-content: flex-start;
-  align-items: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(45, 134, 102, 0.12), rgba(55, 93, 140, 0.08)),
+    var(--paper-strong);
 }
 
-.overview-term-field {
-  width: min(260px, 100%);
+.overview-summary strong {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.overview-summary p {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.overview-summary small {
+  color: var(--muted);
+  text-align: right;
 }
 
 .overview-grid {
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
 }
 
 .overview-card {
+  grid-column: span 2;
   min-height: 0;
   height: 100%;
   display: grid;
@@ -43,7 +66,7 @@
   background: var(--paper-strong);
 }
 
-.overview-card-wide {
+.overview-card-half {
   grid-column: span 3;
 }
 
@@ -66,6 +89,8 @@
   display: grid;
   gap: 12px;
   align-content: start;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .overview-rank-item,
@@ -77,6 +102,27 @@
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(92, 82, 75, 0.06);
+}
+
+.overview-rank-leading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.overview-rank-index {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(45, 134, 102, 0.14);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .overview-rank-item strong,
@@ -1984,10 +2030,21 @@
 
   .overview-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
   }
 
-  .overview-card-wide {
+  .overview-card,
+  .overview-card-half {
     grid-column: span 1;
+  }
+
+  .overview-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .overview-summary small {
+    text-align: left;
   }
 
   .course-filters,

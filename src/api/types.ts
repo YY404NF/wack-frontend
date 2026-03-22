@@ -256,6 +256,77 @@ export interface DashboardSummary {
   leave: number
 }
 
+export interface OverviewCourseRankingItem {
+  course_id: number
+  course_name: string
+  teacher_name: string
+  grade: number
+  arrived_count: number
+  total_count: number
+  attendance_rate: number
+}
+
+export interface OverviewClassRankingItem {
+  class_id: number
+  class_name: string
+  major_name: string
+  grade: number
+  arrived_count: number
+  total_count: number
+  attendance_rate: number
+}
+
+export interface OverviewStudentRankingItem {
+  student_ref_id: number
+  student_id: string
+  real_name: string
+  class_name: string
+  arrived_count: number
+  total_count: number
+  attendance_rate: number
+}
+
+export interface OverviewRecentSessionItem {
+  course_group_lesson_id: number
+  course_name: string
+  teacher_name: string
+  week_no: number
+  weekday: number
+  section: number
+  building_name: string
+  room_name: string
+  class_summary: string
+  record_count: number
+  present_count: number
+  late_count: number
+  absent_count: number
+  leave_count: number
+  attendance_rate: number
+}
+
+export interface OverviewRecentAbnormalItem {
+  attendance_record_id: number
+  student_ref_id: number
+  student_id: string
+  real_name: string
+  class_name: string
+  course_name: string
+  teacher_name: string
+  status: number
+  week_no: number
+  weekday: number
+  section: number
+}
+
+export interface AdminOverviewData {
+  term: string
+  course_rankings: OverviewCourseRankingItem[]
+  class_rankings: OverviewClassRankingItem[]
+  student_rankings: OverviewStudentRankingItem[]
+  recent_sessions: OverviewRecentSessionItem[]
+  recent_abnormal_students: OverviewRecentAbnormalItem[]
+}
+
 export interface AttendanceRecordItem {
   course_group_lesson_id: number
   attendance_record_id: number

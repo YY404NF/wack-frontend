@@ -14,6 +14,7 @@ export const apiPaths = {
     updateProfile: buildPath('auth', 'profile'),
   },
   admin: {
+    overview: buildPath(ADMIN_PREFIX, 'overview'),
     users: buildPath(ADMIN_PREFIX, 'users'),
     classes: buildPath(ADMIN_PREFIX, 'classes'),
     classOptions: buildPath(ADMIN_PREFIX, 'class-options'),

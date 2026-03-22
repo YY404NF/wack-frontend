@@ -1,248 +1,109 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
-import type { AttendanceResultItem, MetaTermItem } from '../../api'
+import { sectionLabels, statusLabels, weekdayLabels } from '../../constants'
 import type { AdminOverviewProps } from './types'
-import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<AdminOverviewProps>()
 
-const selectedTerm = ref('')
 const courseRankAsc = ref(false)
 const classRankAsc = ref(false)
 const studentRankAsc = ref(false)
+const courseVisibleCount = ref(8)
+const classVisibleCount = ref(8)
+const studentVisibleCount = ref(8)
+const sessionVisibleCount = ref(8)
+const abnormalVisibleCount = ref(12)
 
-type RankedItem = {
-  key: string
-  label: string
-  subline: string
-  rate: number
-  present: number
-  total: number
-}
-
-type SessionSummary = {
-  key: string
-  term: string
-  course_group_lesson_id: number
-  course_name: string
-  teacher_name: string
-  week_no: number
-  session_no: number
-  present: number
-  late: number
-  absent: number
-  leave: number
-  total: number
-}
-
-const termOptions = computed(() => {
-  if (props.courseTerms.length > 0) {
-    return sortTermsForSelect(props.courseTerms)
-  }
-  const termMap = new Map<string, MetaTermItem>()
-  for (const item of props.attendanceResults) {
-    if (!termMap.has(item.term)) {
-      termMap.set(item.term, {
-        id: item.term_id,
-        name: item.term,
-        term_start_date: '',
-      })
-    }
-  }
-  return sortTermsForSelect(Array.from(termMap.values()))
-})
-
-watch(
-  termOptions,
-  (terms) => {
-    const names = new Set(terms.map((item) => item.name))
-    if (!selectedTerm.value || !names.has(selectedTerm.value)) {
-      selectedTerm.value = selectDefaultTermName(terms)
-    }
-  },
-  { immediate: true },
-)
-
-const filteredResults = computed(() =>
-  props.attendanceResults.filter((item) => !selectedTerm.value || item.term === selectedTerm.value),
-)
-
-function attendanceRate(statuses: number[]) {
-  const total = statuses.length
-  const present = statuses.filter((status) => status === 0).length
-  return {
-    present,
-    total,
-    rate: total === 0 ? 0 : present / total,
-  }
-}
-
-function sortRank(items: RankedItem[], asc: boolean) {
+function sortByRate<T extends { attendance_rate: number; total_count: number }>(items: T[], asc: boolean) {
   return [...items].sort((left, right) => {
-    if (left.rate !== right.rate) {
-      return asc ? left.rate - right.rate : right.rate - left.rate
+    if (left.attendance_rate !== right.attendance_rate) {
+      return asc ? left.attendance_rate - right.attendance_rate : right.attendance_rate - left.attendance_rate
     }
-    if (left.total !== right.total) {
-      return right.total - left.total
+    if (left.total_count !== right.total_count) {
+      return right.total_count - left.total_count
     }
-    return left.label.localeCompare(right.label, 'zh-Hans-CN')
+    return 0
   })
 }
 
-const courseRankings = computed(() => {
-  const grouped = new Map<string, AttendanceResultItem[]>()
-  for (const item of filteredResults.value) {
-    const key = String(item.course_id)
-    const current = grouped.get(key) ?? []
-    current.push(item)
-    grouped.set(key, current)
-  }
-  return sortRank(
-    Array.from(grouped.entries()).map(([key, items]) => {
-      const stats = attendanceRate(items.map((item) => item.status))
-      return {
-        key,
-        label: items[0]?.course_name ?? key,
-        subline: items[0]?.teacher_name ?? '-',
-        rate: stats.rate,
-        present: stats.present,
-        total: stats.total,
-      }
-    }),
-    courseRankAsc.value,
-  ).slice(0, 8)
-})
+function withDisplayRank<T extends { attendance_rate: number; total_count: number }>(items: T[], asc: boolean) {
+  const total = items.length
+  return sortByRate(items, asc).map((item, index) => ({
+    ...item,
+    rank: asc ? total - index : index + 1,
+  }))
+}
 
-const classRankings = computed(() => {
-  const grouped = new Map<string, AttendanceResultItem[]>()
-  for (const item of filteredResults.value) {
-    const key = item.class_name || '其他学生'
-    const current = grouped.get(key) ?? []
-    current.push(item)
-    grouped.set(key, current)
-  }
-  return sortRank(
-    Array.from(grouped.entries()).map(([key, items]) => {
-      const stats = attendanceRate(items.map((item) => item.status))
-      return {
-        key,
-        label: key,
-        subline: `${items.length} 条记录`,
-        rate: stats.rate,
-        present: stats.present,
-        total: stats.total,
-      }
-    }),
-    classRankAsc.value,
-  ).slice(0, 8)
-})
+const courseRankings = computed(() =>
+  withDisplayRank(props.overviewData?.course_rankings ?? [], courseRankAsc.value),
+)
 
-const studentRankings = computed(() => {
-  const grouped = new Map<string, AttendanceResultItem[]>()
-  for (const item of filteredResults.value) {
-    const key = item.student_id
-    const current = grouped.get(key) ?? []
-    current.push(item)
-    grouped.set(key, current)
-  }
-  return sortRank(
-    Array.from(grouped.entries()).map(([key, items]) => {
-      const stats = attendanceRate(items.map((item) => item.status))
-      return {
-        key,
-        label: items[0]?.real_name ?? key,
-        subline: `${key} · ${items[0]?.class_name || '其他学生'}`,
-        rate: stats.rate,
-        present: stats.present,
-        total: stats.total,
-      }
-    }),
-    studentRankAsc.value,
-  ).slice(0, 8)
-})
+const classRankings = computed(() =>
+  withDisplayRank(props.overviewData?.class_rankings ?? [], classRankAsc.value),
+)
 
-const recentSessions = computed(() => {
-  const grouped = new Map<string, SessionSummary>()
-  for (const item of filteredResults.value) {
-    const key = `${item.term}-${item.course_group_lesson_id}`
-    const current = grouped.get(key)
-    if (current) {
-      current.total += 1
-      if (item.status === 0) current.present += 1
-      else if (item.status === 1) current.late += 1
-      else if (item.status === 2) current.absent += 1
-      else if (item.status === 3) current.leave += 1
-      continue
-    }
-    grouped.set(key, {
-      key,
-      term: item.term,
-      course_group_lesson_id: item.course_group_lesson_id,
-      course_name: item.course_name,
-      teacher_name: item.teacher_name,
-      week_no: item.week_no,
-      session_no: item.session_no,
-      present: item.status === 0 ? 1 : 0,
-      late: item.status === 1 ? 1 : 0,
-      absent: item.status === 2 ? 1 : 0,
-      leave: item.status === 3 ? 1 : 0,
-      total: 1,
-    })
-  }
-  return Array.from(grouped.values())
-    .sort((left, right) => {
-      if (left.term !== right.term) {
-        return right.term.localeCompare(left.term, 'zh-Hans-CN')
-      }
-      if (left.week_no !== right.week_no) {
-        return right.week_no - left.week_no
-      }
-      if (left.session_no !== right.session_no) {
-        return right.session_no - left.session_no
-      }
-      return right.course_group_lesson_id - left.course_group_lesson_id
-    })
-    .slice(0, 8)
-})
+const studentRankings = computed(() =>
+  withDisplayRank(props.overviewData?.student_rankings ?? [], studentRankAsc.value),
+)
 
-const recentAbnormalStudents = computed(() =>
-  filteredResults.value
-    .filter((item) => item.status === 1 || item.status === 2 || item.status === 3)
-    .sort((left, right) => {
-      if (left.term !== right.term) {
-        return right.term.localeCompare(left.term, 'zh-Hans-CN')
-      }
-      if (left.week_no !== right.week_no) {
-        return right.week_no - left.week_no
-      }
-      if (left.session_no !== right.session_no) {
-        return right.session_no - left.session_no
-      }
-      return right.attendance_record_id - left.attendance_record_id
-    })
-    .slice(0, 12),
+const recentSessions = computed(() => props.overviewData?.recent_sessions ?? [])
+const recentAbnormalStudents = computed(() => props.overviewData?.recent_abnormal_students ?? [])
+
+const visibleCourseRankings = computed(() => courseRankings.value.slice(0, courseVisibleCount.value))
+const visibleClassRankings = computed(() => classRankings.value.slice(0, classVisibleCount.value))
+const visibleStudentRankings = computed(() => studentRankings.value.slice(0, studentVisibleCount.value))
+const visibleRecentSessions = computed(() => recentSessions.value.slice(0, sessionVisibleCount.value))
+const visibleRecentAbnormalStudents = computed(() =>
+  recentAbnormalStudents.value.slice(0, abnormalVisibleCount.value),
 )
 
 function rateText(value: number) {
-  return `${(value * 100).toFixed(1)}%`
+  const normalized = Number.isFinite(value) ? value : 0
+  return `${(normalized * 100).toFixed(1)} %`
 }
 
-function sessionSummaryText(item: SessionSummary) {
-  return `签到 ${item.present} / 迟到 ${item.late} / 缺勤 ${item.absent} / 请假 ${item.leave}`
+function weekSectionText(weekNo: number, weekday: number, section: number) {
+  return `第${weekNo}周 · ${weekdayLabels[weekday] ?? `周${weekday}`} · ${sectionLabels[section] ?? `第 ${section} 段`}`
+}
+
+function sessionTitleText(item: (typeof recentSessions.value)[number]) {
+  return `${item.course_name} · ${item.teacher_name} / ${weekSectionText(item.week_no, item.weekday, item.section)}`
+}
+
+function sessionMetaTitleText(item: (typeof recentSessions.value)[number]) {
+  return `查课 ${item.record_count} 人 · ${rateText(item.attendance_rate)}`
+}
+
+function sessionMetaBodyText(item: (typeof recentSessions.value)[number]) {
+  return `签到 ${item.present_count} 人 / 迟到 ${item.late_count} 人 / 缺勤 ${item.absent_count} 人 / 请假 ${item.leave_count} 人`
+}
+
+function abnormalTitleText(item: (typeof recentAbnormalStudents.value)[number]) {
+  return `${item.real_name} · ${item.student_id} · ${item.class_name || '其他学生'}`
+}
+
+function growVisibleCount(target: 'course' | 'class' | 'student' | 'session' | 'abnormal') {
+  if (target === 'course') courseVisibleCount.value += 8
+  if (target === 'class') classVisibleCount.value += 8
+  if (target === 'student') studentVisibleCount.value += 8
+  if (target === 'session') sessionVisibleCount.value += 8
+  if (target === 'abnormal') abnormalVisibleCount.value += 12
+}
+
+function handleListScroll(event: Event, target: 'course' | 'class' | 'student' | 'session' | 'abnormal') {
+  const element = event.currentTarget as HTMLElement | null
+  if (!element) {
+    return
+  }
+  if (element.scrollTop + element.clientHeight >= element.scrollHeight - 24) {
+    growVisibleCount(target)
+  }
 }
 </script>
 
 <template>
   <section class="workspace-card overview-panel">
-    <div class="overview-toolbar">
-      <label class="field overview-term-field">
-        <select v-model="selectedTerm">
-          <option v-for="term in termOptions" :key="term.id || term.name" :value="term.name">{{ term.name }}</option>
-        </select>
-      </label>
-    </div>
-
     <div class="overview-grid">
       <article class="overview-card">
         <div class="overview-card-header">
@@ -251,15 +112,18 @@ function sessionSummaryText(item: SessionSummary) {
             {{ courseRankAsc ? '正序' : '逆序' }}
           </button>
         </div>
-        <div class="overview-rank-list">
-          <div v-for="item in courseRankings" :key="item.key" class="overview-rank-item">
-            <div>
-              <strong>{{ item.label }}</strong>
-              <p>{{ item.subline }}</p>
+        <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'course')">
+          <div v-for="item in visibleCourseRankings" :key="item.course_id" class="overview-rank-item">
+            <div class="overview-rank-leading">
+              <span class="overview-rank-index">{{ item.rank }}</span>
+              <div>
+                <strong>{{ item.course_name }}</strong>
+                <p>{{ item.teacher_name }} · {{ item.grade }}级</p>
+              </div>
             </div>
             <div class="overview-rank-meta">
-              <strong>{{ rateText(item.rate) }}</strong>
-              <small>{{ item.present }} / {{ item.total }}</small>
+              <strong>{{ rateText(item.attendance_rate) }}</strong>
+              <small>{{ item.arrived_count }} / {{ item.total_count }}</small>
             </div>
           </div>
           <p v-if="courseRankings.length === 0" class="empty-hint">当前学期暂无课程出勤数据</p>
@@ -273,15 +137,18 @@ function sessionSummaryText(item: SessionSummary) {
             {{ classRankAsc ? '正序' : '逆序' }}
           </button>
         </div>
-        <div class="overview-rank-list">
-          <div v-for="item in classRankings" :key="item.key" class="overview-rank-item">
-            <div>
-              <strong>{{ item.label }}</strong>
-              <p>{{ item.subline }}</p>
+        <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'class')">
+          <div v-for="item in visibleClassRankings" :key="item.class_id" class="overview-rank-item">
+            <div class="overview-rank-leading">
+              <span class="overview-rank-index">{{ item.rank }}</span>
+              <div>
+                <strong>{{ item.class_name }}</strong>
+                <p>{{ item.major_name }} · {{ item.grade }}级</p>
+              </div>
             </div>
             <div class="overview-rank-meta">
-              <strong>{{ rateText(item.rate) }}</strong>
-              <small>{{ item.present }} / {{ item.total }}</small>
+              <strong>{{ rateText(item.attendance_rate) }}</strong>
+              <small>{{ item.arrived_count }} / {{ item.total_count }}</small>
             </div>
           </div>
           <p v-if="classRankings.length === 0" class="empty-hint">当前学期暂无班级出勤数据</p>
@@ -295,53 +162,56 @@ function sessionSummaryText(item: SessionSummary) {
             {{ studentRankAsc ? '正序' : '逆序' }}
           </button>
         </div>
-        <div class="overview-rank-list">
-          <div v-for="item in studentRankings" :key="item.key" class="overview-rank-item">
-            <div>
-              <strong>{{ item.label }}</strong>
-              <p>{{ item.subline }}</p>
+        <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'student')">
+          <div v-for="item in visibleStudentRankings" :key="item.student_ref_id" class="overview-rank-item">
+            <div class="overview-rank-leading">
+              <span class="overview-rank-index">{{ item.rank }}</span>
+              <div>
+                <strong>{{ item.real_name }}</strong>
+                <p>{{ item.student_id }} · {{ item.class_name || '其他学生' }}</p>
+              </div>
             </div>
             <div class="overview-rank-meta">
-              <strong>{{ rateText(item.rate) }}</strong>
-              <small>{{ item.present }} / {{ item.total }}</small>
+              <strong>{{ rateText(item.attendance_rate) }}</strong>
+              <small>{{ item.arrived_count }} / {{ item.total_count }}</small>
             </div>
           </div>
           <p v-if="studentRankings.length === 0" class="empty-hint">当前学期暂无个人出勤数据</p>
         </div>
       </article>
 
-      <article class="overview-card overview-card-wide">
+      <article class="overview-card overview-card-half">
         <div class="overview-card-header">
           <strong>最近完成查课的课次</strong>
         </div>
-        <div class="overview-session-list">
-          <div v-for="item in recentSessions" :key="item.key" class="overview-session-item">
+        <div class="overview-session-list" @scroll.passive="handleListScroll($event, 'session')">
+          <div v-for="item in visibleRecentSessions" :key="item.course_group_lesson_id" class="overview-session-item">
             <div>
-              <strong>{{ item.course_name }}</strong>
-              <p>{{ item.teacher_name }} · {{ item.term }} · 第 {{ item.week_no }} 周 / 第 {{ item.session_no }} 次</p>
+              <strong>{{ sessionTitleText(item) }}</strong>
+              <p>{{ item.building_name }}-{{ item.room_name }} · {{ item.class_summary || '其他学生' }}</p>
             </div>
             <div class="overview-session-meta">
-              <strong>{{ sessionSummaryText(item) }}</strong>
-              <small>ID {{ item.course_group_lesson_id }}</small>
+              <strong>{{ sessionMetaTitleText(item) }}</strong>
+              <small>{{ sessionMetaBodyText(item) }}</small>
             </div>
           </div>
           <p v-if="recentSessions.length === 0" class="empty-hint">当前学期暂无已完成查课课次</p>
         </div>
       </article>
 
-      <article class="overview-card overview-card-wide">
+      <article class="overview-card overview-card-half">
         <div class="overview-card-header">
-          <strong>最近缺勤、迟到、请假的学生</strong>
+          <strong>最近迟到、缺勤、请假的学生</strong>
         </div>
-        <div class="overview-session-list">
-          <div v-for="item in recentAbnormalStudents" :key="item.attendance_record_id" class="overview-session-item">
+        <div class="overview-session-list" @scroll.passive="handleListScroll($event, 'abnormal')">
+          <div v-for="item in visibleRecentAbnormalStudents" :key="item.attendance_record_id" class="overview-session-item">
             <div>
-              <strong>{{ item.real_name }}（{{ item.student_id }}）</strong>
-              <p>{{ item.class_name || '其他学生' }} · {{ item.course_name }} · {{ item.teacher_name }}</p>
+              <strong>{{ abnormalTitleText(item) }}</strong>
+              <p>{{ item.course_name }} · {{ item.teacher_name }}</p>
             </div>
             <div class="overview-session-meta">
-              <strong>{{ item.term }} · 第 {{ item.week_no }} 周 / 第 {{ item.session_no }} 次</strong>
-              <small>{{ item.status === 1 ? '迟到' : item.status === 2 ? '缺勤' : '请假' }}</small>
+              <strong>{{ statusLabels[item.status as 0 | 1 | 2 | 3] ?? '未知' }}</strong>
+              <small>{{ weekSectionText(item.week_no, item.weekday, item.section) }}</small>
             </div>
           </div>
           <p v-if="recentAbnormalStudents.length === 0" class="empty-hint">当前学期暂无异常考勤记录</p>

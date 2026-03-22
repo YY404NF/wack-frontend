@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 
 import {
   api,
+  type AdminOverviewData,
   type AttendanceRecordLogItem,
   type AttendanceResultItem,
   type ClassItem,
@@ -108,6 +109,7 @@ export type AdminFlowDeps = {
   courseCalendar: Ref<CourseCalendarItem[]>
   courseCalendarTerm: Ref<string>
   dashboard: Ref<DashboardSummary | null>
+  overviewData: Ref<AdminOverviewData | null>
   attendanceResults: Ref<AttendanceResultItem[]>
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
@@ -203,13 +205,13 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadOverviewData() {
     const requestToken = nextRequestToken('overview')
-    const [terms, summary, resultPage] = await Promise.all([api.listMetaTerms(), api.adminAttendanceDashboard(), api.adminAttendanceResults()])
+    const [terms, overview] = await Promise.all([api.listMetaTerms(), api.adminOverview()])
     if (!isLatestRequest('overview', requestToken)) {
       return
     }
     deps.courseTerms.value = terms
-    deps.dashboard.value = summary
-    deps.attendanceResults.value = resultPage.items ?? []
+    deps.overviewData.value = overview
+    deps.dashboard.value = null
   }
 
   async function loadAttendanceData() {

@@ -125,9 +125,7 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
     <AdminOverviewPanel
       v-if="activeTab === 'overview'"
       key="overview"
-      :admin-stats="adminStats"
-      :course-terms="courseTerms"
-      :attendance-results="attendanceResults"
+      :overview-data="overviewData"
     />
 
     <AdminAttendancePanel

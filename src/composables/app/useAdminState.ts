@@ -2,6 +2,7 @@ import { computed, reactive, ref, shallowRef, watch, type Ref } from 'vue'
 
 import {
   api,
+  type AdminOverviewData,
   type AttendanceRecordLogItem,
   type AttendanceResultItem,
   type ClassItem,
@@ -93,6 +94,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const courseCalendar = ref<CourseCalendarItem[]>([])
   const courseCalendarTerm = ref('')
   const dashboard = ref<DashboardSummary | null>(null)
+  const overviewData = ref<AdminOverviewData | null>(null)
   const attendanceResults = ref<AttendanceResultItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
   const attendanceLogs = ref<AttendanceRecordLogItem[]>([])
@@ -584,6 +586,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           courseCalendar,
           courseCalendarTerm,
           dashboard,
+          overviewData,
           attendanceResults,
           freeTimes,
           attendanceLogs,
@@ -810,6 +813,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     courseCalendar.value = []
     courseCalendarTerm.value = ''
     dashboard.value = null
+    overviewData.value = null
     attendanceResults.value = []
     freeTimes.value = []
     systemSettings.value = null

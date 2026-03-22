@@ -1,4 +1,5 @@
 import type {
+  AdminOverviewData,
   AttendanceRecordLogItem,
   AttendanceResultItem,
   ClassItem,
@@ -29,7 +30,7 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from './form-types'
-import type { AdminRoleName, AdminSlotLabel, AdminStatItem, AdminStatusClass, AdminStatusName } from './shared-types'
+import type { AdminRoleName, AdminSlotLabel, AdminStatusClass, AdminStatusName } from './shared-types'
 
 export type AdminAttendanceProps = {
   attendanceResults: AttendanceResultItem[]
@@ -38,9 +39,7 @@ export type AdminAttendanceProps = {
 }
 
 export type AdminOverviewProps = {
-  adminStats: AdminStatItem[]
-  courseTerms: MetaTermItem[]
-  attendanceResults: AttendanceResultItem[]
+  overviewData: AdminOverviewData | null
 }
 
 export type AdminCourseManageProps = {
