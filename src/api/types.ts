@@ -312,6 +312,7 @@ export interface OverviewRecentAbnormalItem {
   class_name: string
   course_name: string
   teacher_name: string
+  grade?: number | null
   status: number
   week_no: number
   weekday: number

@@ -83,6 +83,10 @@ function abnormalTitleText(item: (typeof recentAbnormalStudents.value)[number]) 
   return `${item.real_name} · ${item.student_id} · ${item.class_name || '其他学生'}`
 }
 
+function abnormalSubtitleText(item: (typeof recentAbnormalStudents.value)[number]) {
+  return [item.course_name, item.teacher_name, item.grade ? `${item.grade}级` : ''].filter(Boolean).join(' · ')
+}
+
 function growVisibleCount(target: 'course' | 'class' | 'student' | 'session' | 'abnormal') {
   if (target === 'course') courseVisibleCount.value += 8
   if (target === 'class') classVisibleCount.value += 8
@@ -207,7 +211,7 @@ function handleListScroll(event: Event, target: 'course' | 'class' | 'student' |
           <div v-for="item in visibleRecentAbnormalStudents" :key="item.attendance_record_id" class="overview-session-item">
             <div>
               <strong>{{ abnormalTitleText(item) }}</strong>
-              <p>{{ item.course_name }} · {{ item.teacher_name }}</p>
+              <p>{{ abnormalSubtitleText(item) }}</p>
             </div>
             <div class="overview-session-meta">
               <strong>{{ statusLabels[item.status as 0 | 1 | 2 | 3] ?? '未知' }}</strong>
