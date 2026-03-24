@@ -14,7 +14,7 @@ export const studentsApi = {
   } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 100))
+    params.set('page_size', String(query.page_size ?? 20))
     if (typeof query.class_id === 'number' && query.class_id > 0) {
       params.set('class_id', String(query.class_id))
     }

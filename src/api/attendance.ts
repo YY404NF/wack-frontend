@@ -59,7 +59,7 @@ export const attendanceApi = {
   adminAttendanceSessions(query: { page?: number; page_size?: number; keyword?: string; week_no?: string; status?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 10))
+    params.set('page_size', String(query.page_size ?? 20))
     if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
     if (query.week_no?.trim()) params.set('week_no', query.week_no.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
@@ -76,7 +76,7 @@ export const attendanceApi = {
   adminGetAttendanceSessionPage(sessionId: number, query: { page?: number; page_size?: number; keyword?: string; status?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 10))
+    params.set('page_size', String(query.page_size ?? 20))
     if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
     return request<{
