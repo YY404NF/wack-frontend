@@ -257,6 +257,19 @@ function openCourseSelection(courseGroupLessonId: number) {
   return props.availableCourses.find((course) => course.course_group_lesson_id === courseGroupLessonId) ?? null
 }
 
+function courseActionLabel(course: AvailableCourseItem) {
+  if (loadingCourseGroupLessonId.value === course.course_group_lesson_id) {
+    return '加载中...'
+  }
+  if (course.can_enter) {
+    return '查课'
+  }
+  if (course.availability_status === 'upcoming') {
+    return '未开始'
+  }
+  return '已结束'
+}
+
 async function handleOpenAttendance(courseGroupLessonId: number) {
   clearExpiredAttendanceDrafts()
   const course = openCourseSelection(courseGroupLessonId)
@@ -500,11 +513,11 @@ watch([activeCheckDetail, activeClassKeys, activeSkippedIds, localStatusDraft, c
           :disabled="loadingCourseGroupLessonId !== null || !course.can_enter"
           @click="handleOpenAttendance(course.course_group_lesson_id)"
         >
-          {{ loadingCourseGroupLessonId === course.course_group_lesson_id ? '加载中...' : course.can_enter ? '查课' : '已结束' }}
+          {{ courseActionLabel(course) }}
         </button>
       </article>
     </div>
-    <p v-else class="empty-hint student-empty-hint">当前没有处于可查时间窗口内的课程。</p>
+    <p v-else class="empty-hint student-empty-hint">今天暂无课程。</p>
 
     <Transition name="modal-float" appear>
       <div v-if="selectionModalOpen && previewCheckDetail" class="modal-backdrop" @click.self="closeSelectionModal">

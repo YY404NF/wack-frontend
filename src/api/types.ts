@@ -390,6 +390,7 @@ export interface AvailableCourseItem {
   building_name: string
   room_name: string
   can_enter: boolean
+  availability_status: 'open' | 'upcoming' | 'ended'
   enter_deadline: string
 }
 
