@@ -6,7 +6,7 @@ export const classesApi = {
   listClasses(query: { page?: number; page_size?: number; grade?: string; major_name?: string; class_name?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 100))
+    params.set('page_size', String(query.page_size ?? 20))
     if (query.grade?.trim()) params.set('grade', query.grade.trim())
     if (query.major_name?.trim()) params.set('major_name', query.major_name.trim())
     if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())

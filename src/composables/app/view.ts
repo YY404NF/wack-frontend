@@ -1,6 +1,6 @@
 import { roleLabels, sectionLabels, statusLabels, type StatusCode, weekdayLabels } from '../../constants'
 
-export const USER_PAGE_OPTIONS = [5, 10, 20, 50]
+export const USER_PAGE_OPTIONS = [10, 20, 50, 100]
 
 export function roleName(role?: number) {
   return role ? roleLabels[role] ?? `角色 ${role}` : '-'

@@ -13,7 +13,7 @@ const emit = defineEmits<{
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
 }>()
 
-const PAGE_OPTIONS = [5, 10, 20, 50]
+const PAGE_OPTIONS = [10, 20, 50, 100]
 
 type AttendanceSessionSummary = {
   course_group_lesson_id: number
@@ -33,7 +33,7 @@ const sessionKeyword = ref('')
 const sessionWeekNo = ref('')
 const sessionStatus = ref('')
 const sessionPage = ref(1)
-const sessionPageSize = ref(10)
+const sessionPageSize = ref(20)
 const sessionLoading = ref(false)
 const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
@@ -44,7 +44,7 @@ const sessionAllItems = ref(0)
 const detailKeyword = ref('')
 const detailStatus = ref('')
 const detailPage = ref(1)
-const detailPageSize = ref(10)
+const detailPageSize = ref(20)
 const activeSession = ref<AttendanceSessionSummary | null>(null)
 const detailLoading = ref(false)
 const detailError = ref('')

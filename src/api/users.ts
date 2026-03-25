@@ -6,7 +6,7 @@ export const usersApi = {
   listUsers(query: UserPageQuery & { login_id?: string; real_name?: string; managed_class_name?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 10))
+    params.set('page_size', String(query.page_size ?? 20))
     if (query.role) params.set('role', query.role)
     if (query.status) params.set('status', query.status)
     if (query.keyword) params.set('keyword', query.keyword)

@@ -11,7 +11,7 @@ export function usePagedCollection<T>({
   source,
   predicate,
   resetDeps,
-  initialPageSize = 10,
+  initialPageSize = 20,
 }: UsePagedCollectionOptions<T>) {
   const page = ref(1)
   const pageSize = ref(initialPageSize)

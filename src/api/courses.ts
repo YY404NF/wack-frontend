@@ -28,7 +28,7 @@ export const coursesApi = {
   listCourses(query: { page?: number; page_size?: number; term?: string; course_name?: string; teacher_name?: string; class_id?: number | '' } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
-    params.set('page_size', String(query.page_size ?? 100))
+    params.set('page_size', String(query.page_size ?? 20))
     if (query.term?.trim()) params.set('term', query.term.trim())
     if (query.course_name?.trim()) params.set('keyword', query.course_name.trim())
     if (query.teacher_name?.trim()) params.set('teacher_name', query.teacher_name.trim())
