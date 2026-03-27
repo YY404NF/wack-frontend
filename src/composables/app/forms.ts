@@ -151,6 +151,8 @@ export function createStudentForm(): AdminStudentForm {
 
 export function createAttendanceLogFilters(): AdminAttendanceLogFilters {
   return {
+    term: '',
+    courseGroupLessonId: '',
     studentId: '',
     operatorStudentId: '',
     operationType: '',

@@ -18,6 +18,7 @@ defineProps<AdminWorkspaceProps & {
   activeTab: AppTab
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
+  attendanceRouteSessionId?: number | null
   courseManagePathCommand?: {
     token: number
     target: 'courses' | 'groups'
@@ -63,6 +64,8 @@ const emit = defineEmits<{
   toggleClassPageSelection: []
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
+  openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
+  updateAttendanceRoute: [payload: { sessionId?: number | null }]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -114,9 +117,6 @@ function forwardUserStatus(studentId: string, status: number) {
   emit('setUserStatus', studentId, status)
 }
 
-function forwardAdminStatus(sessionId: number, studentRefId: number, status: StatusCode) {
-  emit('updateAdminStatus', sessionId, studentRefId, status)
-}
 </script>
 
 <template>
@@ -132,15 +132,19 @@ function forwardAdminStatus(sessionId: number, studentRefId: number, status: Sta
       v-else-if="activeTab === 'attendance'"
       key="attendance"
       :attendance-results="attendanceResults"
+      :course-terms="courseTerms"
+      :attendance-route-session-id="attendanceRouteSessionId"
       :status-name="statusName"
       :status-class="statusClass"
-      @update-admin-status="forwardAdminStatus"
+      @open-attendance-logs="emit('openAttendanceLogs', $event)"
+      @update-attendance-route="emit('updateAttendanceRoute', $event)"
     />
 
     <AdminAttendanceLogsPanel
       v-else-if="activeTab === 'attendance-logs'"
       key="attendance-logs"
       :attendance-logs="attendanceLogs"
+      :course-terms="courseTerms"
       :attendance-log-filters="attendanceLogFilters"
       :attendance-logs-page="attendanceLogsPage"
       :attendance-logs-page-size="attendanceLogsPageSize"

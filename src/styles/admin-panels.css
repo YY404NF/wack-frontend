@@ -228,6 +228,41 @@
   background: transparent;
 }
 
+/*
+ * Some subpages reuse a two-row card layout: heading + list.
+ * When the heading is intentionally omitted, the list becomes the
+ * only child and would otherwise sit in the first auto-sized row.
+ * Let the list span the whole card so every multi-function list
+ * fills the available content height.
+ */
+.workspace-card > .admin-data-list:only-child,
+.course-subpage-main > .admin-data-list:only-child,
+.class-student-list-card > .admin-data-list:only-child,
+.course-lesson-list-card > .admin-data-list:only-child,
+.course-group-current-students-card > .admin-data-list:only-child,
+.course-group-candidates-card > .admin-data-list:only-child {
+  grid-row: 1 / -1;
+}
+
+.admin-data-list-empty > .table-wrap,
+.admin-data-list-empty > .user-table-wrap {
+  display: flex;
+}
+
+.admin-data-list-empty .data-table {
+  height: 100%;
+}
+
+.admin-data-list-empty .data-table tbody,
+.admin-data-list-empty .data-table tbody tr {
+  height: 100%;
+}
+
+.admin-data-list-empty .empty-cell {
+  height: 100%;
+  vertical-align: middle;
+}
+
 .data-table {
   --table-header-row-height: 64px;
   width: 100%;
@@ -542,6 +577,159 @@
   text-align: center;
 }
 
+.filter-action-push {
+  margin-left: 0;
+}
+
+.attendance-manage-panel {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  height: 100%;
+}
+
+.attendance-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.attendance-panel-heading-main h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.attendance-panel-heading-main p {
+  margin: 6px 0 0;
+}
+
+.attendance-toolbar-actions {
+  margin-left: auto;
+}
+
+.attendance-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.attendance-summary-card {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(92, 82, 75, 0.05);
+}
+
+.attendance-summary-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.attendance-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.attendance-summary-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.attendance-status-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.attendance-status-modal-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.attendance-status-modal-meta span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.attendance-record-panel,
+.attendance-page,
+.attendance-detail-layout {
+  min-height: 0;
+  height: 100%;
+}
+
+.attendance-page {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.attendance-page > .admin-data-list,
+.attendance-detail-layout > .course-subpage-main > .admin-data-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.attendance-page-toolbar {
+  width: 100%;
+}
+
+.attendance-path-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.attendance-path-bar strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.attendance-path-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.attendance-path-link:hover {
+  color: var(--accent);
+}
+
+.attendance-path-separator {
+  color: var(--muted);
+}
+
+.attendance-pagination-term {
+  width: min(260px, 100%);
+}
+
+.attendance-pagination-term-plain {
+  display: block;
+}
+
+.attendance-detail-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.attendance-status-static-field {
+  display: grid;
+  gap: 4px;
+}
+
+.attendance-status-static-field span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .copy-token-group {
   display: inline-flex;
   align-items: center;
@@ -622,6 +810,13 @@
 }
 
 .user-manage-panel > .class-student-subpage-grid {
+  grid-row: 1 / span 3;
+  min-height: 0;
+  height: 100%;
+}
+
+.user-manage-panel > .attendance-page,
+.user-manage-panel > .attendance-detail-layout {
   grid-row: 1 / span 3;
   min-height: 0;
   height: 100%;

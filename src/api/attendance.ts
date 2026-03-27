@@ -1,6 +1,7 @@
 import { request } from './client'
 import { apiPaths } from './paths'
 import type {
+  AdminAttendanceSessionPageResult,
   AdminOverviewData,
   AttendanceRecordLogItem,
   AttendanceRecordStudentItem,
@@ -56,13 +57,29 @@ export const attendanceApi = {
       total: items.length,
     }
   },
-  adminAttendanceSessions(query: { page?: number; page_size?: number; keyword?: string; week_no?: string; status?: string } = {}) {
+  adminAttendanceSessions(query: {
+    page?: number
+    page_size?: number
+    term?: string
+    keyword?: string
+    week_no?: string
+    weekday?: string
+    section?: string
+    class_id?: string
+    status?: string
+    include_unchecked?: boolean
+  } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
+    if (query.term?.trim()) params.set('term', query.term.trim())
     if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
     if (query.week_no?.trim()) params.set('week_no', query.week_no.trim())
+    if (query.weekday?.trim()) params.set('weekday', query.weekday.trim())
+    if (query.section?.trim()) params.set('section', query.section.trim())
+    if (query.class_id?.trim()) params.set('class_id', query.class_id.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
+    if (query.include_unchecked) params.set('include_unchecked', '1')
     return request<PageResult<Record<string, unknown>>>(`${apiPaths.admin.attendanceSessions}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
@@ -73,22 +90,24 @@ export const attendanceApi = {
       `${apiPaths.admin.attendanceSessions}/${sessionId}`,
     ).then((payload) => payload.attendance_records ?? [])
   },
-  adminGetAttendanceSessionPage(sessionId: number, query: { page?: number; page_size?: number; keyword?: string; status?: string } = {}) {
+  adminGetAttendanceSessionPage(sessionId: number, query: {
+    page?: number
+    page_size?: number
+    student_id?: string
+    real_name?: string
+    class_name?: string
+    status?: string
+  } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
-    if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
+    if (query.student_id?.trim()) params.set('student_id', query.student_id.trim())
+    if (query.real_name?.trim()) params.set('real_name', query.real_name.trim())
+    if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
-    return request<{
-      attendance_records: AttendanceRecordStudentItem[] | null
-      page: number
-      page_size: number
-      total: number
-    }>(`${apiPaths.admin.attendanceSessions}/${sessionId}?${params.toString()}`).then((payload) => ({
-      items: payload.attendance_records ?? [],
-      page: payload.page,
-      page_size: payload.page_size,
-      total: payload.total,
+    return request<AdminAttendanceSessionPageResult>(`${apiPaths.admin.attendanceSessions}/${sessionId}?${params.toString()}`).then((payload) => ({
+      ...payload,
+      attendance_records: payload.attendance_records ?? [],
     }))
   },
   adminAttendanceRecordLogs(recordId: number) {

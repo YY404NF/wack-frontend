@@ -2,6 +2,7 @@
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceLogsProps } from './types'
 import { statusName } from '../../composables/app/view'
+import { sortTermsForSelect } from '../../utils/terms'
 
 defineProps<AdminAttendanceLogsProps>()
 
@@ -26,6 +27,16 @@ function formatDateTime(value: string) {
 
 <template>
   <section class="workspace-card user-manage-panel">
+    <div class="section-heading attendance-panel-heading">
+      <div class="attendance-panel-heading-main">
+        <h3>考勤日志</h3>
+        <p v-if="attendanceLogFilters.courseGroupLessonId" class="hint">当前已按课次 {{ attendanceLogFilters.courseGroupLessonId }} 筛选</p>
+      </div>
+      <div v-if="attendanceLogFilters.courseGroupLessonId" class="inline-actions">
+        <button class="ghost-button compact-button" type="button" @click="attendanceLogFilters.courseGroupLessonId = ''">清除课次筛选</button>
+      </div>
+    </div>
+
     <AdminDataList
       :rows="attendanceLogs as unknown as Array<Record<string, unknown>>"
       :columns="attendanceLogColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
@@ -34,17 +45,23 @@ function formatDateTime(value: string) {
       :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions, totalItems: attendanceLogsTotalItems }"
       :all-items="attendanceLogsAllItems"
       :active-filter-keys="[
+        ...(attendanceLogFilters.term ? ['term'] : []),
+        ...(attendanceLogFilters.courseGroupLessonId ? ['attendance_record_id'] : []),
         ...(attendanceLogFilters.operatedDate ? ['operated_at'] : []),
         ...(attendanceLogFilters.studentId.trim() ? ['student_id'] : []),
         ...(attendanceLogFilters.operatorStudentId.trim() ? ['operator_login_id'] : []),
         ...(attendanceLogFilters.newStatus ? ['new_status'] : []),
         ...(attendanceLogFilters.operationType.trim() ? ['operation_type'] : []),
       ]"
-      :has-search-condition="!!(attendanceLogFilters.operatedDate || attendanceLogFilters.studentId.trim() || attendanceLogFilters.operatorStudentId.trim() || attendanceLogFilters.newStatus || attendanceLogFilters.operationType.trim())"
+      :has-search-condition="!!(attendanceLogFilters.term || attendanceLogFilters.courseGroupLessonId || attendanceLogFilters.operatedDate || attendanceLogFilters.studentId.trim() || attendanceLogFilters.operatorStudentId.trim() || attendanceLogFilters.newStatus || attendanceLogFilters.operationType.trim())"
       @update-page="emit('updateAttendanceLogsPage', $event)"
       @update-page-size="emit('updateAttendanceLogsPageSize', $event)"
     >
       <template #filter-operated_at>
+        <select v-model="attendanceLogFilters.term" aria-label="按学期筛选考勤日志">
+          <option value="">全部学期</option>
+          <option v-for="item in sortTermsForSelect(courseTerms)" :key="item.id" :value="item.name">{{ item.name }}</option>
+        </select>
         <input v-model="attendanceLogFilters.operatedDate" type="date" aria-label="按日期筛选考勤日志" />
       </template>
       <template #filter-student_id>

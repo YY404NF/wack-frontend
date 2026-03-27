@@ -99,10 +99,6 @@ function asStudentItem(row: Record<string, unknown>) {
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading section-heading-titleless">
-      <button class="primary-button" type="button" @click="emit('openCreateStudentModal')">创建学生</button>
-    </div>
-
     <Transition name="modal-float" appear>
     <div v-if="studentModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-wide student-bind-modal">
@@ -257,6 +253,9 @@ function asStudentItem(row: Record<string, unknown>) {
         </button>
         <button class="ghost-button compact-button danger-button" type="button" :disabled="studentDeleting || selectedStudentIds.length === 0" @click="emit('openBulkDeleteStudentModal')">
           批量删除
+        </button>
+        <button class="primary-button compact-button filter-action-push" type="button" @click="emit('openCreateStudentModal')">
+          创建学生
         </button>
       </template>
       <template #cell-class_name="{ row, copyText }">

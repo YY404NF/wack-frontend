@@ -56,6 +56,7 @@ const emit = defineEmits<{
   toggleClassPageSelection: []
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
+  openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -110,6 +111,7 @@ const aboutModalOpen = ref(false)
 const courseManageView = ref<'courses' | 'groups' | 'lessons' | 'students'>('courses')
 const courseManageRouteCourseId = ref<number | null>(null)
 const courseManageRouteGroupId = ref<number | null>(null)
+const attendanceRouteSessionId = ref<number | null>(null)
 const courseManagePathCommand = ref<{ token: number; target: 'courses' | 'groups'; courseId?: number | null } | null>(null)
 
 const activeTabLabel = computed(() => {
@@ -117,16 +119,23 @@ const activeTabLabel = computed(() => {
 })
 
 const pathSegments = computed(() => {
-  const segments: Array<{ key: string; label: string; clickable: boolean; target?: 'courses' | 'groups' | 'class-manage-root' }> = [
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: 'courses' | 'groups' | 'class-manage-root' | 'attendance-root' }> = [
     {
       key: 'root',
       label: activeTabLabel.value,
       clickable:
+        (props.activeTab === 'attendance' && attendanceRouteSessionId.value !== null) ||
         (props.activeTab === 'course-manage' && courseManageView.value !== 'courses') ||
         (props.activeTab === 'class-manage' && props.classStudentModalOpen),
-      target: props.activeTab === 'class-manage' ? 'class-manage-root' : 'courses',
+      target: props.activeTab === 'class-manage' ? 'class-manage-root' : props.activeTab === 'attendance' ? 'attendance-root' : 'courses',
     },
   ]
+  if (props.activeTab === 'attendance') {
+    if (attendanceRouteSessionId.value !== null) {
+      segments.push({ key: 'attendance-detail', label: '课次考勤明细', clickable: false })
+    }
+    return segments
+  }
   if (props.activeTab === 'class-manage') {
     if (props.classStudentModalOpen) {
       segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
@@ -156,21 +165,46 @@ const pathSegments = computed(() => {
 watch(
   () => props.activeTab,
   (tab) => {
+    let shouldSyncQuery = false
+    const nextQuery = { ...route.query }
     if (tab !== 'course-manage') {
       courseManageView.value = 'courses'
       courseManageRouteCourseId.value = null
       courseManageRouteGroupId.value = null
       courseManagePathCommand.value = null
-      const { courseView, courseId, groupId, ...restQuery } = route.query
-      if (courseView !== undefined || courseId !== undefined || groupId !== undefined) {
-        void router.replace({
-          name: 'admin',
-          params: { tab },
-          query: restQuery,
-        })
+      if (route.query.courseView !== undefined || route.query.courseId !== undefined || route.query.groupId !== undefined) {
+        delete nextQuery.courseView
+        delete nextQuery.courseId
+        delete nextQuery.groupId
+        shouldSyncQuery = true
       }
     }
+    if (tab !== 'attendance') {
+      attendanceRouteSessionId.value = null
+      if (route.query.attendanceSessionId !== undefined) {
+        delete nextQuery.attendanceSessionId
+        shouldSyncQuery = true
+      }
+    }
+    if (shouldSyncQuery) {
+      void router.replace({
+        name: 'admin',
+        params: { tab },
+        query: nextQuery,
+      })
+    }
   },
+)
+
+watch(
+  () => [props.activeTab, route.query.attendanceSessionId] as const,
+  ([tab, sessionIdValue]) => {
+    if (tab !== 'attendance') {
+      return
+    }
+    attendanceRouteSessionId.value = typeof sessionIdValue === 'string' && /^\d+$/.test(sessionIdValue) ? Number(sessionIdValue) : null
+  },
+  { immediate: true },
 )
 
 watch(
@@ -232,8 +266,30 @@ function handleCourseManageRouteChange(payload: { view: 'courses' | 'groups' | '
   void syncCourseManageViewToQuery(payload)
 }
 
-function handlePathSegmentClick(target?: 'courses' | 'groups' | 'class-manage-root') {
+async function syncAttendanceRouteToQuery(payload: { sessionId?: number | null }, mode: 'push' | 'replace' = 'push') {
+  const nextQuery = { ...route.query }
+  if (payload.sessionId) {
+    nextQuery.attendanceSessionId = String(payload.sessionId)
+  } else {
+    delete nextQuery.attendanceSessionId
+  }
+  await router[mode]({ query: nextQuery })
+}
+
+function handleAttendanceRouteChange(payload: { sessionId?: number | null }) {
+  attendanceRouteSessionId.value = payload.sessionId ?? null
+  void syncAttendanceRouteToQuery(payload)
+}
+
+function handlePathSegmentClick(target?: 'courses' | 'groups' | 'class-manage-root' | 'attendance-root') {
   if (!target) {
+    return
+  }
+  if (target === 'attendance-root') {
+    if (props.activeTab === 'attendance' && attendanceRouteSessionId.value !== null) {
+      attendanceRouteSessionId.value = null
+      void syncAttendanceRouteToQuery({ sessionId: null })
+    }
     return
   }
   if (target === 'class-manage-root') {
@@ -325,6 +381,7 @@ function closeAboutModal() {
 
         <AdminPanelContent
           v-bind="$props"
+          :attendance-route-session-id="attendanceRouteSessionId"
           :course-manage-route-view="courseManageView"
           :course-manage-route-course-id="courseManageRouteCourseId"
           :course-manage-route-group-id="courseManageRouteGroupId"
@@ -344,6 +401,7 @@ function closeAboutModal() {
           @toggle-course-page-selection="emit('toggleCoursePageSelection')"
           @bulk-delete-courses="emit('bulkDeleteCourses')"
           @update-course-calendar-term="emit('updateCourseCalendarTerm', $event)"
+          @open-attendance-logs="emit('openAttendanceLogs', $event)"
           @open-create-class-modal="emit('openCreateClassModal')"
           @open-edit-class-modal="emit('openEditClassModal', $event)"
           @open-class-student-modal="emit('openClassStudentModal', $event)"
@@ -381,6 +439,7 @@ function closeAboutModal() {
           @bulk-delete-classes="emit('bulkDeleteClasses')"
           @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
           @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
+          @update-attendance-route="handleAttendanceRouteChange"
           @open-create-user-modal="emit('openCreateUserModal')"
           @open-edit-user-modal="emit('openEditUserModal', $event)"
           @close-user-modal="emit('closeUserModal')"

@@ -534,6 +534,14 @@ export function useAdminState(deps: UseAdminStateDeps) {
     attendanceLogsPage.value = 1
   }
 
+  async function openAttendanceLogs(payload: { term: string; courseGroupLessonId: number; studentId?: string }) {
+    attendanceLogFilters.term = payload.term
+    attendanceLogFilters.courseGroupLessonId = String(payload.courseGroupLessonId)
+    attendanceLogFilters.studentId = payload.studentId ?? ''
+    attendanceLogsPage.value = 1
+    await deps.setActiveTab('attendance-logs', 'push')
+  }
+
   function clearAdminSelections() {
     clearAdminCollectionSelections()
     bulkDeleteCourseModalOpen.value = false
@@ -755,6 +763,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           openCreateUserModal,
           updateAttendanceLogsPage,
           updateAttendanceLogsPageSize,
+          openAttendanceLogs,
           openEditUserModal,
           openUserPasswordModal,
           openUserFreeTimeModal,
@@ -863,7 +872,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate] as const,
+    () => [attendanceLogFilters.term, attendanceLogFilters.courseGroupLessonId, attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate] as const,
     () => {
       attendanceLogsPage.value = 1
     },
@@ -909,6 +918,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
     () => [
       attendanceLogsPage.value,
       attendanceLogsPageSize.value,
+      attendanceLogFilters.term,
+      attendanceLogFilters.courseGroupLessonId,
       attendanceLogFilters.studentId,
       attendanceLogFilters.operatorStudentId,
       attendanceLogFilters.operationType,

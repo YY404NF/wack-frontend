@@ -429,6 +429,25 @@ export interface AttendanceSessionDetail {
   students: AttendanceRecordStudentItem[]
 }
 
+export interface AdminAttendanceSessionPageResult {
+  course_group_lesson: {
+    id: number
+    term_id?: number
+    course_group_id?: number
+    week_no: number
+    weekday: number
+    section: number
+    building_name: string
+    room_name: string
+    status?: number
+  }
+  course: CourseItem
+  attendance_records: AttendanceRecordStudentItem[]
+  page: number
+  page_size: number
+  total: number
+}
+
 export interface SubmitAttendanceStatusesResult {
   accepted_items: number[]
   ignored_items: number[]

@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="admin-data-list"
-    :class="{ 'admin-data-list-with-pagination': !!pagination }"
+    :class="{ 'admin-data-list-with-pagination': !!pagination, 'admin-data-list-empty': rows.length === 0 }"
     tabindex="0"
     @keydown="handleRootKeydown"
   >

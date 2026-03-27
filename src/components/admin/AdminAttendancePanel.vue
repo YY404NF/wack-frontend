@@ -1,147 +1,267 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
-import { api, type AttendanceRecordLogItem, type AttendanceRecordStudentItem } from '../../api'
-import { statusName } from '../../composables/app/view'
-import type { StatusCode } from '../../constants'
+import { api, type AttendanceRecordStudentItem, type MetaTermItem } from '../../api'
+import { sectionLabels } from '../../constants'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceProps } from './types'
 
-defineProps<AdminAttendanceProps>()
-
-const emit = defineEmits<{
-  updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
-}>()
-
-const PAGE_OPTIONS = [10, 20, 50, 100]
-
 type AttendanceSessionSummary = {
   course_group_lesson_id: number
+  term_id: number
+  term: string
   course_id: number
   course_name: string
   teacher_name: string
   week_no: number
+  weekday: number
+  section: number
+  building_name: string
+  room_name: string
+  class_summary: string
   session_no: number
   student_count: number
+  record_count: number
   present_count: number
   late_count: number
   absent_count: number
   leave_count: number
 }
 
-const sessionKeyword = ref('')
-const sessionWeekNo = ref('')
-const sessionStatus = ref('')
+const props = defineProps<AdminAttendanceProps>()
+const emit = defineEmits<{
+  updateAttendanceRoute: [payload: { sessionId?: number | null }]
+}>()
+
+const PAGE_OPTIONS = [10, 20, 50, 100]
+
+const termOptions = computed(() => sortTermsForSelect(props.courseTerms))
+const selectedTerm = ref('')
+
+const sessionDate = ref('')
+const sessionSection = ref('')
+const sessionCourseName = ref('')
+const sessionTeacherName = ref('')
+const sessionClassName = ref('')
+const sessionStudentCount = ref('')
 const sessionPage = ref(1)
 const sessionPageSize = ref(20)
 const sessionLoading = ref(false)
 const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
-const sessionTotalPages = ref(1)
-const sessionTotalItems = ref(0)
-const sessionAllItems = ref(0)
 
-const detailKeyword = ref('')
+const activeSession = ref<AttendanceSessionSummary | null>(null)
+const activeSessionCourseGrade = ref<number | null>(null)
+const detailRows = ref<AttendanceRecordStudentItem[]>([])
+const detailStudentId = ref('')
+const detailRealName = ref('')
+const detailClassName = ref('')
 const detailStatus = ref('')
 const detailPage = ref(1)
 const detailPageSize = ref(20)
-const activeSession = ref<AttendanceSessionSummary | null>(null)
+const detailTotalItems = ref(0)
 const detailLoading = ref(false)
 const detailError = ref('')
-const detailRecords = ref<AttendanceRecordStudentItem[]>([])
-const detailTotalPages = ref(1)
-const detailTotalItems = ref(0)
-const detailAllItems = ref(0)
-const selectedRecordLogs = ref<AttendanceRecordLogItem[]>([])
-const selectedRecordLogName = ref('')
-const logsLoading = ref(false)
-const logsError = ref('')
+
+const editModalOpen = ref(false)
+const editingRecord = ref<AttendanceRecordStudentItem | null>(null)
+const editingStatus = ref('')
+const savingStatus = ref(false)
+const actionError = ref('')
+
 let sessionRequestToken = 0
 let detailRequestToken = 0
-let logsRequestToken = 0
 
-const attendanceSessionColumns = [
-  { key: 'course_name', label: '课程', colClass: 'col-pct-18' },
-  { key: 'teacher_name', label: '教师', colClass: 'col-pct-14' },
-  { key: 'week_no', label: '周次', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => `第 ${row.week_no} 周 / 第 ${row.session_no} 次` },
-  { key: 'student_count', label: '学生数', colClass: 'col-pct-12' },
-  { key: 'summary', label: '考勤概况', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => sessionSummaryText(row as unknown as AttendanceSessionSummary) },
-] as const
-const attendanceDetailColumns = [
-  { key: 'course', label: '课程', colClass: 'col-pct-14', copyValue: () => activeSession.value?.course_name ?? '-' },
-  { key: 'teacher', label: '教师', colClass: 'col-pct-12', copyValue: () => activeSession.value?.teacher_name ?? '-' },
-  { key: 'week', label: '周次', colClass: 'col-pct-18', copyValue: () => activeSession.value ? `第 ${activeSession.value.week_no} 周 / 第 ${activeSession.value.session_no} 次` : '-' },
-  { key: 'student', label: '学号 / 姓名', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => `${row.student_id} / ${row.real_name}` },
-  { key: 'class_name', label: '班级', colClass: 'col-pct-14', copyValue: (row: Record<string, unknown>) => String(row.class_name || '其他学生') },
-  { key: 'status', label: '状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => row.status === null || row.status === undefined ? '未查' : statusName(Number(row.status)) },
-  { key: 'edit_status', label: '修改', colClass: 'col-pct-12', copyable: false },
+const sessionColumns = [
+  { key: 'lesson_date', label: '日期', colClass: 'col-pct-12', copyable: false },
+  { key: 'lesson_time', label: '时间', colClass: 'col-pct-12', copyable: false },
+  { key: 'course_name', label: '课程', colClass: 'col-pct-16' },
+  { key: 'teacher_name', label: '教师', colClass: 'col-pct-12' },
+  { key: 'class_summary', label: '班级', colClass: 'col-pct-18', copyable: false },
+  { key: 'student_count', label: '人数', colClass: 'col-pct-10' },
+  { key: 'summary', label: '考勤概况', colClass: 'col-pct-20', copyable: false },
 ] as const
 
-const sessionSummaryText = (item: AttendanceSessionSummary) =>
-  `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count}`
+const detailColumns = [
+  { key: 'student_id', label: '学号', colClass: 'col-pct-20' },
+  { key: 'real_name', label: '姓名', colClass: 'col-pct-18' },
+  { key: 'class_name', label: '班级', colClass: 'col-pct-34', copyable: false },
+  { key: 'status', label: '状态', colClass: 'col-pct-14', copyable: false },
+] as const
 
-function onStatusChange(event: Event, studentRefId: number) {
-  const target = event.target as HTMLSelectElement
-  if (!activeSession.value || target.value === '') {
+watch(
+  termOptions,
+  (terms) => {
+    if (!selectedTerm.value) {
+      selectedTerm.value = selectDefaultTermName(terms as MetaTermItem[]) || terms[0]?.name || ''
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [props.attendanceRouteSessionId ?? null, sessionRows.value.length] as const,
+  ([sessionId]) => {
+    if (sessionId === null) {
+      if (activeSession.value) {
+        activeSession.value = null
+        activeSessionCourseGrade.value = null
+        detailRows.value = []
+        detailError.value = ''
+      }
+      return
+    }
+    if (activeSession.value?.course_group_lesson_id === sessionId) {
+      return
+    }
+    const target = sessionRows.value.find((item) => item.course_group_lesson_id === sessionId)
+    if (target) {
+      void openSessionDetail(target, false)
+    }
+  },
+  { immediate: true },
+)
+
+watch([selectedTerm], () => {
+  sessionPage.value = 1
+  if (selectedTerm.value) {
+    void loadSessions()
+  }
+}, { immediate: true })
+
+watch([sessionDate, sessionSection, sessionCourseName, sessionTeacherName, sessionClassName, sessionStudentCount, sessionPageSize], () => {
+  sessionPage.value = 1
+})
+
+watch([detailStudentId, detailRealName, detailClassName, detailStatus, detailPageSize], () => {
+  detailPage.value = 1
+})
+
+watch([detailPage, detailPageSize, detailStudentId, detailRealName, detailClassName, detailStatus], () => {
+  if (activeSession.value) {
+    void loadSessionDetailPage(activeSession.value, false)
+  }
+})
+
+const termStartMap = computed(() => new Map(props.courseTerms.map((item) => [item.name, item.term_start_date])))
+
+const classOptions = computed(() =>
+  Array.from(
+    new Set(
+      sessionRows.value
+        .map((item) => item.class_summary.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
+
+const sortedSessionRows = computed(() =>
+  [...sessionRows.value].sort((left, right) => {
+    const leftDate = `${formatLessonDate(left)} ${pad(left.section)}`
+    const rightDate = `${formatLessonDate(right)} ${pad(right.section)}`
+    return rightDate.localeCompare(leftDate, 'zh-Hans-CN')
+  }),
+)
+
+const filteredSessions = computed(() => {
+  const courseKeyword = sessionCourseName.value.trim().toLowerCase()
+  const teacherKeyword = sessionTeacherName.value.trim().toLowerCase()
+  const countKeyword = sessionStudentCount.value.trim()
+
+  return sortedSessionRows.value.filter((item) => {
+    if (sessionDate.value && formatLessonDate(item) !== sessionDate.value) {
+      return false
+    }
+    if (sessionSection.value && String(item.section) !== sessionSection.value) {
+      return false
+    }
+    if (courseKeyword && !item.course_name.toLowerCase().includes(courseKeyword)) {
+      return false
+    }
+    if (teacherKeyword && !item.teacher_name.toLowerCase().includes(teacherKeyword)) {
+      return false
+    }
+    if (sessionClassName.value && item.class_summary !== sessionClassName.value) {
+      return false
+    }
+    if (countKeyword && String(item.student_count) !== countKeyword) {
+      return false
+    }
+    return true
+  })
+})
+
+const paginatedSessions = computed(() => {
+  const start = (sessionPage.value - 1) * sessionPageSize.value
+  return filteredSessions.value.slice(start, start + sessionPageSize.value)
+})
+
+const sessionTotalPages = computed(() => Math.max(1, Math.ceil(filteredSessions.value.length / sessionPageSize.value)))
+
+const detailClassOptions = computed(() =>
+  Array.from(
+    new Set(
+      detailRows.value
+        .map((item) => normalizeClassName(item.class_name))
+        .filter((item) => item.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
+
+const detailTotalPages = computed(() => Math.max(1, Math.ceil(detailTotalItems.value / detailPageSize.value)))
+
+const activeLessonSummary = computed(() => {
+  if (!activeSession.value) {
+    return []
+  }
+  return [
+    { label: '日期', value: formatLessonDate(activeSession.value) || '-' },
+    { label: '时间', value: lessonTimeLabel(activeSession.value.section) },
+    { label: '地点', value: `${activeSession.value.building_name}-${activeSession.value.room_name}` },
+  ]
+})
+
+const activeGroupSummary = computed(() => {
+  if (!activeSession.value) {
+    return []
+  }
+  return [
+    { label: '上课班级', value: activeSession.value.class_summary || '-' },
+    { label: '上课人数', value: `${activeSession.value.student_count}` },
+  ]
+})
+
+const activeCourseSummary = computed(() => {
+  if (!activeSession.value) {
+    return []
+  }
+  return [
+    { label: '课程名称', value: activeSession.value.course_name },
+    { label: '教师', value: activeSession.value.teacher_name },
+    { label: '年级', value: activeSessionCourseGrade.value === null ? '-' : String(activeSessionCourseGrade.value) },
+    { label: '学期', value: activeSession.value.term },
+  ]
+})
+
+async function loadSessions() {
+  if (!selectedTerm.value) {
     return
   }
-  emit('updateAdminStatus', activeSession.value.course_group_lesson_id, studentRefId, Number(target.value) as StatusCode)
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '-'
-  }
-  return value.replace('T', ' ').slice(0, 19)
-}
-
-function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
-  return row as unknown as AttendanceRecordStudentItem
-}
-
-async function openSessionDetail(item: AttendanceSessionSummary) {
-  activeSession.value = item
-  detailPage.value = 1
-  selectedRecordLogs.value = []
-  selectedRecordLogName.value = ''
-  logsError.value = ''
-  await loadDetailRecords()
-}
-
-function closeSessionDetail() {
-  activeSession.value = null
-  detailRecords.value = []
-  detailError.value = ''
-  detailKeyword.value = ''
-  detailStatus.value = ''
-  selectedRecordLogs.value = []
-  selectedRecordLogName.value = ''
-  logsError.value = ''
-}
-
-async function loadSessionRows() {
   sessionRequestToken += 1
   const requestToken = sessionRequestToken
   sessionLoading.value = true
   sessionError.value = ''
   try {
-    const [result, allResult] = await Promise.all([
-      api.adminAttendanceSessions({
-        page: sessionPage.value,
-        page_size: sessionPageSize.value,
-        keyword: sessionKeyword.value,
-        week_no: sessionWeekNo.value,
-        status: sessionStatus.value,
-      }),
-      api.adminAttendanceSessions({ page: 1, page_size: 1 }),
-    ])
+    const result = await api.adminAttendanceSessions({
+      page: 1,
+      page_size: 5000,
+      term: selectedTerm.value,
+    })
     if (requestToken !== sessionRequestToken) {
       return
     }
-    sessionRows.value = (result.items ?? []) as unknown as AttendanceSessionSummary[]
-    sessionTotalItems.value = result.total ?? 0
-    sessionAllItems.value = allResult.total ?? 0
-    sessionTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / sessionPageSize.value))
+    sessionRows.value = (result.items ?? []) as AttendanceSessionSummary[]
   } catch (error) {
     if (requestToken !== sessionRequestToken) {
       return
@@ -155,39 +275,49 @@ async function loadSessionRows() {
   }
 }
 
-async function loadDetailRecords() {
-  if (!activeSession.value) {
-    return
+async function openSessionDetail(item: AttendanceSessionSummary, syncRoute = true) {
+  activeSession.value = item
+  if (syncRoute) {
+    emit('updateAttendanceRoute', { sessionId: item.course_group_lesson_id })
+  }
+  detailStudentId.value = ''
+  detailRealName.value = ''
+  detailClassName.value = ''
+  detailStatus.value = ''
+  detailPage.value = 1
+  await loadSessionDetailPage(item, false)
+}
+
+async function loadSessionDetailPage(item: AttendanceSessionSummary, syncRoute = false) {
+  if (syncRoute) {
+    emit('updateAttendanceRoute', { sessionId: item.course_group_lesson_id })
   }
   detailRequestToken += 1
   const requestToken = detailRequestToken
   detailLoading.value = true
   detailError.value = ''
   try {
-    const [result, allResult] = await Promise.all([
-      api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
-        page: detailPage.value,
-        page_size: detailPageSize.value,
-        keyword: detailKeyword.value,
-        status: detailStatus.value,
-      }),
-      api.adminGetAttendanceSessionPage(activeSession.value.course_group_lesson_id, {
-        page: 1,
-        page_size: 1,
-      }),
-    ])
+    const result = await api.adminGetAttendanceSessionPage(item.course_group_lesson_id, {
+      page: detailPage.value,
+      page_size: detailPageSize.value,
+      student_id: detailStudentId.value,
+      real_name: detailRealName.value,
+      class_name: detailClassName.value === '未绑定班级' ? '' : detailClassName.value,
+      status: detailStatus.value,
+    })
     if (requestToken !== detailRequestToken) {
       return
     }
-    detailRecords.value = result.items ?? []
+    activeSessionCourseGrade.value = result.course?.grade ?? null
+    detailRows.value = result.attendance_records ?? []
     detailTotalItems.value = result.total ?? 0
-    detailAllItems.value = allResult.total ?? 0
-    detailTotalPages.value = Math.max(1, Math.ceil((result.total ?? 0) / detailPageSize.value))
   } catch (error) {
     if (requestToken !== detailRequestToken) {
       return
     }
-    detailRecords.value = []
+    activeSessionCourseGrade.value = null
+    detailRows.value = []
+    detailTotalItems.value = 0
     detailError.value = error instanceof Error ? error.message : '加载考勤明细失败'
   } finally {
     if (requestToken === detailRequestToken) {
@@ -196,222 +326,346 @@ async function loadDetailRecords() {
   }
 }
 
-async function openRecordLogs(item: AttendanceRecordStudentItem) {
-  if (!item.attendance_record_id) {
-    selectedRecordLogs.value = []
-    selectedRecordLogName.value = `${item.real_name}（${item.student_id}）`
-    logsError.value = ''
+function openEditModal(item: AttendanceRecordStudentItem) {
+  editingRecord.value = item
+  editingStatus.value = item.status === null || item.status === undefined ? '0' : String(item.status)
+  actionError.value = ''
+  editModalOpen.value = true
+}
+
+function closeEditModal() {
+  editModalOpen.value = false
+  editingRecord.value = null
+  editingStatus.value = ''
+  savingStatus.value = false
+  actionError.value = ''
+}
+
+async function saveAttendanceStatus() {
+  if (!activeSession.value || !editingRecord.value || editingStatus.value === '') {
     return
   }
-  logsRequestToken += 1
-  const requestToken = logsRequestToken
-  logsLoading.value = true
-  logsError.value = ''
-  selectedRecordLogName.value = `${item.real_name}（${item.student_id}）`
+  savingStatus.value = true
+  actionError.value = ''
   try {
-    const result = await api.adminAttendanceRecordLogs(item.attendance_record_id)
-    if (requestToken !== logsRequestToken) {
-      return
-    }
-    selectedRecordLogs.value = result
+    await api.adminUpdateAttendanceStatus(
+      activeSession.value.course_group_lesson_id,
+      editingRecord.value.id,
+      Number(editingStatus.value),
+    )
+    await openSessionDetail(activeSession.value)
+    closeEditModal()
   } catch (error) {
-    if (requestToken !== logsRequestToken) {
-      return
-    }
-    selectedRecordLogs.value = []
-    logsError.value = error instanceof Error ? error.message : '加载修改记录失败'
+    actionError.value = error instanceof Error ? error.message : '修改考勤状态失败'
   } finally {
-    if (requestToken === logsRequestToken) {
-      logsLoading.value = false
-    }
+    savingStatus.value = false
   }
 }
 
-watch([sessionKeyword, sessionWeekNo, sessionStatus, sessionPageSize], () => {
-  sessionPage.value = 1
-})
+function exportSessions() {
+  const header = ['日期', '时间', '课程', '教师', '班级', '人数', '考勤概况']
+  const rows = filteredSessions.value.map((item) => [
+    formatLessonDate(item),
+    lessonTimeLabel(item.section),
+    item.course_name,
+    item.teacher_name,
+    item.class_summary,
+    String(item.student_count),
+    sessionSummaryText(item),
+  ])
+  const csv = [header, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `考勤记录-${selectedTerm.value || '导出'}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 
-watch([detailKeyword, detailStatus, detailPageSize], () => {
-  detailPage.value = 1
-})
-
-watch([sessionPage, sessionPageSize, sessionKeyword, sessionWeekNo, sessionStatus], () => {
-  void loadSessionRows()
-}, { immediate: true })
-
-watch([detailPage, detailPageSize, detailKeyword, detailStatus], () => {
-  if (activeSession.value) {
-    void loadDetailRecords()
+function formatLessonDate(item: AttendanceSessionSummary) {
+  const termStart = termStartMap.value.get(item.term)
+  if (!termStart) {
+    return ''
   }
-})
-</script>
+  const date = parseDate(termStart)
+  if (!date) {
+    return ''
+  }
+  date.setDate(date.getDate() + (item.week_no - 1) * 7 + (item.weekday - 1))
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function parseDate(value: string) {
+  const [year, month, day] = value.split('-').map((item) => Number(item))
+  if (!year || !month || !day) {
+    return null
+  }
+  return new Date(year, month - 1, day)
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function lessonTimeLabel(section: number) {
+  return sectionLabels[section] ?? `第 ${section} 节`
+}
+
+function sessionSummaryText(item: AttendanceSessionSummary) {
+  return `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count}`
+}
+
+function normalizeClassName(value?: string | null) {
+  return value?.trim() || '未绑定班级'
+}
+
+function formatStatus(status?: number | null) {
+  if (status === null || status === undefined) {
+    return '未查'
+  }
+  return props.statusName(status)
+}
+
+function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
+  return row as unknown as AttendanceRecordStudentItem
+}
+  </script>
 
 <template>
-  <section class="workspace-card user-manage-panel">
-    <template v-if="activeSession">
-      <div class="section-heading section-heading-titleless">
-        <div class="inline-actions">
-          <button class="ghost-button compact-button" type="button" @click="closeSessionDetail">返回考勤记录</button>
-        </div>
+  <section class="workspace-card user-manage-panel attendance-record-panel">
+    <Transition name="subpage-fade" mode="out-in" appear>
+    <div v-if="!activeSession" key="attendance-list" class="attendance-page">
+        <AdminDataList
+          :rows="paginatedSessions as unknown as Array<Record<string, unknown>>"
+          :columns="sessionColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          row-key="course_group_lesson_id"
+          empty-text="暂无考勤记录"
+          :show-actions="true"
+          action-col-class="col-pct-12"
+          :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: filteredSessions.length }"
+          :all-items="sessionRows.length"
+          :active-filter-keys="[
+            ...(sessionDate ? ['lesson_date'] : []),
+            ...(sessionSection ? ['lesson_time'] : []),
+            ...(sessionCourseName.trim() ? ['course_name'] : []),
+            ...(sessionTeacherName.trim() ? ['teacher_name'] : []),
+            ...(sessionClassName ? ['class_summary'] : []),
+            ...(sessionStudentCount.trim() ? ['student_count'] : []),
+          ]"
+          :has-search-condition="!!(sessionDate || sessionSection || sessionCourseName.trim() || sessionTeacherName.trim() || sessionClassName || sessionStudentCount.trim())"
+          @update-page="sessionPage = $event"
+          @update-page-size="sessionPageSize = $event"
+        >
+          <template #filter-lesson_date>
+            <input v-model="sessionDate" type="date" aria-label="按日期筛选考勤记录" />
+          </template>
+          <template #filter-lesson_time>
+            <select v-model="sessionSection" aria-label="按时间筛选考勤记录">
+              <option value="">全部</option>
+              <option v-for="(label, key) in sectionLabels" :key="key" :value="String(key)">{{ label }}</option>
+            </select>
+          </template>
+          <template #filter-course_name>
+            <input v-model="sessionCourseName" aria-label="按课程筛选考勤记录" />
+          </template>
+          <template #filter-teacher_name>
+            <input v-model="sessionTeacherName" aria-label="按教师筛选考勤记录" />
+          </template>
+          <template #filter-class_summary>
+            <select v-model="sessionClassName" aria-label="按班级筛选考勤记录">
+              <option value="">全部</option>
+              <option v-for="item in classOptions" :key="item" :value="item">{{ item }}</option>
+            </select>
+          </template>
+          <template #filter-student_count>
+            <input v-model="sessionStudentCount" type="number" min="0" aria-label="按人数筛选考勤记录" />
+          </template>
+          <template #filter-actions>
+            <button class="ghost-button compact-button" type="button" :disabled="filteredSessions.length === 0" @click="exportSessions">
+              导出
+            </button>
+          </template>
+          <template #cell-lesson_date="{ row }">
+            {{ formatLessonDate(row as AttendanceSessionSummary) || '-' }}
+          </template>
+          <template #cell-lesson_time="{ row }">
+            {{ lessonTimeLabel(Number((row as AttendanceSessionSummary).section)) }}
+          </template>
+          <template #cell-class_summary="{ value }">
+            {{ value || '-' }}
+          </template>
+          <template #cell-summary="{ row }">
+            {{ sessionSummaryText(row as AttendanceSessionSummary) }}
+          </template>
+          <template #actions="{ row }">
+            <div class="inline-actions user-actions">
+              <button class="ghost-button compact-button" type="button" @click="openSessionDetail(row as AttendanceSessionSummary)">考勤明细</button>
+            </div>
+          </template>
+          <template #empty>
+            <template v-if="sessionLoading">加载中...</template>
+            <template v-else-if="sessionError">{{ sessionError }}</template>
+            <template v-else>暂无考勤记录</template>
+          </template>
+          <template #footer-trailing>
+            <label class="course-manage-term-filter attendance-pagination-term attendance-pagination-term-plain">
+              <select v-model="selectedTerm">
+                <option v-for="item in termOptions" :key="item.id" :value="item.name">{{ item.name }}</option>
+              </select>
+            </label>
+          </template>
+        </AdminDataList>
       </div>
 
-      <AdminDataList
-        :rows="detailRecords as unknown as Array<Record<string, unknown>>"
-        :columns="attendanceDetailColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
-        row-key="id"
-        empty-text="暂无符合条件的考勤明细"
-        :show-actions="true"
-        action-col-class="col-pct-12"
-        :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
-        :all-items="detailAllItems"
-        :active-filter-keys="[
-          ...(detailKeyword.trim() ? ['student'] : []),
-          ...(detailStatus ? ['status'] : []),
-        ]"
-        :has-search-condition="!!(detailKeyword.trim() || detailStatus)"
-        @update-page="detailPage = $event"
-        @update-page-size="detailPageSize = $event"
-      >
-        <template #filter-student>
-          <input v-model="detailKeyword" aria-label="按学号或姓名筛选考勤明细" />
-        </template>
-        <template #filter-status>
-          <select v-model="detailStatus" aria-label="按状态筛选考勤明细">
-            <option value="">全部</option>
-            <option value="unrecorded">未查</option>
-            <option value="0">签到</option>
-            <option value="1">迟到</option>
-            <option value="2">缺勤</option>
-            <option value="3">请假</option>
-          </select>
-        </template>
-        <template #cell-course>
-          {{ activeSession?.course_name ?? '-' }}
-        </template>
-        <template #cell-teacher>
-          {{ activeSession?.teacher_name ?? '-' }}
-        </template>
-        <template #cell-week>
-          {{ activeSession ? `第 ${activeSession.week_no} 周 / 第 ${activeSession.session_no} 次` : '-' }}
-        </template>
-        <template #cell-student="{ row }">
-          {{ row.student_id }} / {{ row.real_name }}
-        </template>
-        <template #cell-class_name="{ value }">
-          {{ value || '其他学生' }}
-        </template>
-        <template #cell-status="{ row }">
-          <span class="status-badge" :class="row.status === null || row.status === undefined ? 'tag-muted' : statusClass(Number(row.status))">
-            {{ row.status === null || row.status === undefined ? '未查' : statusName(Number(row.status)) }}
-          </span>
-        </template>
-        <template #cell-edit_status="{ row }">
-          <select class="mini-select" :value="row.status ?? ''" @change="onStatusChange($event, Number(row.id))">
-            <option value="">未查</option>
-            <option :value="0">签到</option>
-            <option :value="1">迟到</option>
-            <option :value="2">缺勤</option>
-            <option :value="3">请假</option>
-          </select>
-        </template>
-        <template #actions="{ row }">
-          <div class="inline-actions user-actions">
-            <button class="ghost-button compact-button" type="button" :disabled="!asAttendanceRecordStudentItem(row).attendance_record_id" @click="openRecordLogs(asAttendanceRecordStudentItem(row))">查看修改记录</button>
-          </div>
-        </template>
-        <template #empty>
-          <template v-if="detailLoading">加载中...</template>
-          <template v-else-if="detailError">{{ detailError }}</template>
-          <template v-else>暂无符合条件的考勤明细</template>
-        </template>
-      </AdminDataList>
+    <div v-else key="attendance-detail" class="attendance-detail-layout">
+        <aside class="workspace-card course-context-card">
+          <div class="settings-profile-summary-list">
+            <div class="workspace-card nested-context-card">
+              <div class="section-heading section-heading-compact">
+                <strong>课次</strong>
+              </div>
+              <div class="settings-profile-summary-list">
+                <div v-for="item in activeLessonSummary" :key="item.label" class="settings-profile-summary-item">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </div>
 
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>修改记录</th>
-              <th>操作人</th>
-              <th>原状态</th>
-              <th>新状态</th>
-              <th>操作类型</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="logsLoading">
-              <td colspan="5" class="empty-cell">加载修改记录中...</td>
-            </tr>
-            <tr v-else-if="logsError">
-              <td colspan="5" class="empty-cell">{{ logsError }}</td>
-            </tr>
-            <tr v-else-if="selectedRecordLogs.length === 0">
-              <td colspan="5" class="empty-cell">
-                {{ selectedRecordLogName ? `“${selectedRecordLogName}”暂无修改记录` : '请选择一条考勤明细查看修改记录' }}
-              </td>
-            </tr>
-            <tr v-for="item in selectedRecordLogs" :key="item.id">
-              <td>{{ formatDateTime(item.operated_at) }}</td>
-              <td>{{ item.operator_login_id }}</td>
-              <td>{{ item.operation_type === 'create_record' || item.old_status === null || item.old_status === undefined ? '-' : statusName(item.old_status) }}</td>
-              <td>{{ statusName(item.new_status) }}</td>
-              <td>{{ item.operation_type }}</td>
-            </tr>
-          </tbody>
-        </table>
+            <div class="workspace-card nested-context-card">
+              <div class="section-heading section-heading-compact">
+                <strong>课程组</strong>
+              </div>
+              <div class="settings-profile-summary-list">
+                <div v-for="item in activeGroupSummary" :key="item.label" class="settings-profile-summary-item">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="workspace-card nested-context-card">
+              <div class="section-heading section-heading-compact">
+                <strong>课程</strong>
+              </div>
+              <div class="settings-profile-summary-list">
+                <div v-for="item in activeCourseSummary" :key="item.label" class="settings-profile-summary-item">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="workspace-card course-subpage-main">
+          <AdminDataList
+            :rows="detailRows as unknown as Array<Record<string, unknown>>"
+            :columns="detailColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+            row-key="id"
+            empty-text="暂无课次考勤明细"
+            :show-actions="true"
+            action-col-class="col-pct-14"
+            :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
+            :all-items="detailTotalItems"
+            :active-filter-keys="[
+              ...(detailStudentId.trim() ? ['student_id'] : []),
+              ...(detailRealName.trim() ? ['real_name'] : []),
+              ...(detailClassName ? ['class_name'] : []),
+              ...(detailStatus ? ['status'] : []),
+            ]"
+            :has-search-condition="!!(detailStudentId.trim() || detailRealName.trim() || detailClassName || detailStatus)"
+            @update-page="detailPage = $event"
+            @update-page-size="detailPageSize = $event"
+          >
+            <template #filter-student_id>
+              <input v-model="detailStudentId" aria-label="按学号筛选课次考勤明细" />
+            </template>
+            <template #filter-real_name>
+              <input v-model="detailRealName" aria-label="按姓名筛选课次考勤明细" />
+            </template>
+            <template #filter-class_name>
+              <select v-model="detailClassName" aria-label="按班级筛选课次考勤明细">
+                <option value="">全部</option>
+                <option v-for="item in detailClassOptions" :key="item" :value="item">{{ item }}</option>
+              </select>
+            </template>
+            <template #filter-status>
+              <select v-model="detailStatus" aria-label="按状态筛选课次考勤明细">
+                <option value="">全部</option>
+                <option value="unrecorded">未查</option>
+                <option value="0">签到</option>
+                <option value="1">迟到</option>
+                <option value="2">缺勤</option>
+                <option value="3">请假</option>
+              </select>
+            </template>
+            <template #cell-class_name="{ value }">
+              {{ normalizeClassName(String(value ?? '')) }}
+            </template>
+            <template #cell-status="{ value }">
+              {{ formatStatus(value as number | null | undefined) }}
+            </template>
+            <template #actions="{ row }">
+              <div class="inline-actions user-actions">
+                <button class="ghost-button compact-button" type="button" @click="openEditModal(asAttendanceRecordStudentItem(row))">修改</button>
+              </div>
+            </template>
+            <template #empty>
+              <template v-if="detailLoading">加载中...</template>
+              <template v-else-if="detailError">{{ detailError }}</template>
+              <template v-else>暂无课次考勤明细</template>
+            </template>
+          </AdminDataList>
+        </section>
       </div>
-    </template>
+    </Transition>
 
-    <template v-else>
-      <AdminDataList
-        :rows="sessionRows as unknown as Array<Record<string, unknown>>"
-        :columns="attendanceSessionColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
-        row-key="course_group_lesson_id"
-        empty-text="暂无符合条件的考勤记录"
-        :show-actions="true"
-        action-col-class="col-pct-14"
-        :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: sessionTotalItems }"
-        :all-items="sessionAllItems"
-        :active-filter-keys="[
-          ...(sessionKeyword.trim() ? ['course_name'] : []),
-          ...(String(sessionWeekNo ?? '').trim() ? ['week_no'] : []),
-          ...(sessionStatus ? ['summary'] : []),
-        ]"
-        :has-search-condition="!!(sessionKeyword.trim() || String(sessionWeekNo ?? '').trim() || sessionStatus)"
-        @update-page="sessionPage = $event"
-        @update-page-size="sessionPageSize = $event"
-      >
-        <template #filter-course_name>
-          <input v-model="sessionKeyword" aria-label="按课程或教师筛选考勤记录" />
-        </template>
-        <template #filter-week_no>
-          <input v-model="sessionWeekNo" type="number" min="1" aria-label="按周次筛选考勤记录" />
-        </template>
-        <template #filter-summary>
-          <select v-model="sessionStatus" aria-label="按状态筛选考勤记录">
-            <option value="">全部</option>
-            <option value="0">包含签到</option>
-            <option value="1">包含迟到</option>
-            <option value="2">包含缺勤</option>
-            <option value="3">包含请假</option>
-          </select>
-        </template>
-        <template #cell-week_no="{ row }">
-          第 {{ row.week_no }} 周 / 第 {{ row.session_no }} 次
-        </template>
-        <template #cell-summary="{ row }">
-          {{ sessionSummaryText(row as AttendanceSessionSummary) }}
-        </template>
-        <template #actions="{ row }">
-          <div class="inline-actions user-actions">
-            <button class="ghost-button compact-button" type="button" @click="openSessionDetail(row as AttendanceSessionSummary)">考勤明细</button>
+    <Transition name="modal-float" appear>
+      <div v-if="editModalOpen && editingRecord" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>修改考勤状态</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeEditModal">关闭</button>
           </div>
-        </template>
-        <template #empty>
-          <template v-if="sessionLoading">加载中...</template>
-          <template v-else-if="sessionError">{{ sessionError }}</template>
-          <template v-else>暂无符合条件的考勤记录</template>
-        </template>
-      </AdminDataList>
-    </template>
+          <div class="attendance-status-modal">
+            <div class="attendance-status-static-field">
+              <span>学号</span>
+              <strong>{{ editingRecord.student_id }}</strong>
+            </div>
+            <div class="attendance-status-static-field">
+              <span>姓名</span>
+              <strong>{{ editingRecord.real_name }}</strong>
+            </div>
+            <div class="attendance-status-static-field">
+              <span>班级</span>
+              <strong>{{ normalizeClassName(editingRecord.class_name) }}</strong>
+            </div>
+            <label class="field">
+              <span>状态</span>
+              <select v-model="editingStatus">
+                <option value="0">签到</option>
+                <option value="1">迟到</option>
+                <option value="2">缺勤</option>
+                <option value="3">请假</option>
+              </select>
+            </label>
+            <p v-if="actionError" class="hint form-error-text">{{ actionError }}</p>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" @click="closeEditModal">取消</button>
+              <button class="primary-button" type="button" :disabled="savingStatus" @click="saveAttendanceStatus">
+                <span v-if="savingStatus" class="button-spinner" aria-hidden="true"></span>
+                <span>{{ savingStatus ? '保存中...' : '保存' }}</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </Transition>
   </section>
 </template>

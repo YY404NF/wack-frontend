@@ -58,6 +58,8 @@ type StudentFilters = {
 }
 
 type AttendanceLogFilters = {
+  term: string
+  courseGroupLessonId: string
   operatedDate: string
   studentId: string
   operatorStudentId: string
@@ -216,19 +218,25 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadAttendanceData() {
     const requestToken = nextRequestToken('attendance')
-    const resultPage = await api.adminAttendanceResults()
+    const [resultPage, terms] = await Promise.all([
+      api.adminAttendanceResults(),
+      api.listMetaTerms(),
+    ])
     if (!isLatestRequest('attendance', requestToken)) {
       return
     }
     deps.attendanceResults.value = resultPage.items ?? []
+    deps.courseTerms.value = terms
   }
 
   async function loadAttendanceLogsData() {
     const requestToken = nextRequestToken('attendanceLogs')
-    const [attendanceLogPageResult, attendanceLogAllResult] = await Promise.all([
+    const [attendanceLogPageResult, attendanceLogAllResult, terms] = await Promise.all([
       api.listAttendanceRecordLogs({
         page: deps.attendanceLogsPage.value,
         page_size: deps.attendanceLogsPageSize.value,
+        term: deps.attendanceLogFilters.term,
+        course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
         student_id: deps.attendanceLogFilters.studentId,
         operator_login_id: deps.attendanceLogFilters.operatorStudentId,
         operation_type: deps.attendanceLogFilters.operationType,
@@ -236,12 +244,14 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         operated_date: deps.attendanceLogFilters.operatedDate,
       }),
       api.listAttendanceRecordLogs({ page: 1, page_size: 1 }),
+      api.listMetaTerms(),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {
       return
     }
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
     deps.attendanceLogRows.value = attendanceLogPageResult.items ?? []
+    deps.courseTerms.value = terms
     deps.attendanceLogsTotalItems.value = attendanceLogPageResult.total ?? 0
     deps.attendanceLogsAllItems.value = attendanceLogAllResult.total ?? 0
     deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))

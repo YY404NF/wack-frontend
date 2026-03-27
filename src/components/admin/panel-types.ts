@@ -34,6 +34,8 @@ import type { AdminRoleName, AdminSlotLabel, AdminStatusClass, AdminStatusName }
 
 export type AdminAttendanceProps = {
   attendanceResults: AttendanceResultItem[]
+  courseTerms: MetaTermItem[]
+  attendanceRouteSessionId?: number | null
   statusName: AdminStatusName
   statusClass: AdminStatusClass
 }
@@ -133,6 +135,7 @@ export type AdminFreeTimeCalendarProps = {
 
 export type AdminAttendanceLogsProps = {
   attendanceLogs: AttendanceRecordLogItem[]
+  courseTerms: MetaTermItem[]
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number
   attendanceLogsPageSize: number
