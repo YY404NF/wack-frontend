@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { api, type MetaTermItem } from '../../api'
 import AdminDataList from './AdminDataList.vue'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminSettingsProps } from './types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { sortTermsForSelect } from '../../utils/terms'
@@ -24,6 +25,9 @@ const termFormError = ref('')
 const editingTermId = ref<number | null>(null)
 const localTerms = ref<MetaTermItem[]>([])
 const visibleTermCount = ref(12)
+const termFilters = reactive({
+  name: '',
+})
 const termForm = reactive({
   startYear: new Date().getFullYear(),
   termNo: 1,
@@ -42,13 +46,40 @@ watch(
   () => props.courseTerms,
   (terms) => {
     localTerms.value = sortTermsForSelect(terms)
-    visibleTermCount.value = Math.min(12, Math.max(12, visibleTermCount.value))
+    visibleTermCount.value = 12
   },
   { immediate: true },
 )
 
-const visibleTerms = computed(() => localTerms.value.slice(0, visibleTermCount.value))
-const hasMoreTerms = computed(() => visibleTerms.value.length < localTerms.value.length)
+const filteredTerms = computed(() =>
+  localTerms.value.filter((item) => {
+    const matchedName = !termFilters.name.trim() || item.name.toLocaleLowerCase().includes(termFilters.name.trim().toLocaleLowerCase())
+    return matchedName
+  }),
+)
+const visibleTerms = computed(() => filteredTerms.value.slice(0, visibleTermCount.value))
+const hasMoreTerms = computed(() => visibleTerms.value.length < filteredTerms.value.length)
+const termNameOptions = computed(() => localTerms.value.map((item) => item.name))
+const activeTermFilterKeys = computed(() => [
+  ...(termFilters.name.trim() ? ['name'] : []),
+])
+const hasTermSearchCondition = computed(() => activeTermFilterKeys.value.length > 0)
+const termNoInput = computed({
+  get: () => String(termForm.termNo),
+  set: (value: string) => {
+    const parsed = Number(value.trim())
+    if (parsed === 1 || parsed === 2) {
+      termForm.termNo = parsed
+    }
+  },
+})
+
+watch(
+  () => termFilters.name,
+  () => {
+    visibleTermCount.value = 12
+  },
+)
 
 function parseTermName(name: string) {
   const matched = name.match(/^(\d{4})-(\d{4})-(1|2)$/)
@@ -112,9 +143,7 @@ async function saveTerm() {
       const saved = await api.updateMetaTerm(editingTermId.value, {
         term_start_date: termForm.termStartDate,
       })
-      localTerms.value = localTerms.value
-        .map((item) => (item.id === saved.id ? saved : item))
-        .sort((left, right) => right.name.localeCompare(left.name, 'zh-Hans-CN'))
+      localTerms.value = sortTermsForSelect(localTerms.value.map((item) => (item.id === saved.id ? saved : item)))
       closeTermModal()
       return
     }
@@ -123,7 +152,7 @@ async function saveTerm() {
       name: termPreviewName.value,
       term_start_date: termForm.termStartDate,
     })
-    localTerms.value = [created, ...localTerms.value].sort((left, right) => right.name.localeCompare(left.name, 'zh-Hans-CN'))
+    localTerms.value = sortTermsForSelect([created, ...localTerms.value])
     closeTermModal()
   } finally {
     termSaving.value = false
@@ -137,6 +166,7 @@ function asMetaTermItem(row: Record<string, unknown>) {
 function loadMoreTerms() {
   visibleTermCount.value += 12
 }
+
 </script>
 
 <template>
@@ -191,9 +221,19 @@ function loadMoreTerms() {
             table-class="user-manage-table"
             :lazy-load="{ hasMore: hasMoreTerms, loading: false, buttonText: '滚动到底部继续加载学期' }"
             :current-items="visibleTerms.length"
-            :total-items="localTerms.length"
+            :total-items="filteredTerms.length"
+            :all-items="localTerms.length"
+            :active-filter-keys="activeTermFilterKeys"
+            :has-search-condition="hasTermSearchCondition"
             @load-more="loadMoreTerms"
           >
+            <template #filter-name>
+              <AppInputSelect
+                v-model="termFilters.name"
+                :options="termNameOptions"
+                aria-label="按学期名称筛选"
+              />
+            </template>
             <template #actions="{ row }">
               <div class="inline-actions user-actions">
                 <button class="ghost-button compact-button" type="button" @click="openEditTermModal(asMetaTermItem(row))">编辑学期</button>
@@ -219,10 +259,12 @@ function loadMoreTerms() {
               </label>
               <label class="field">
                 <span>学期</span>
-                <select v-model.number="termForm.termNo">
-                  <option :value="1">1</option>
-                  <option :value="2">2</option>
-                </select>
+                <AppInputSelect
+                  v-model="termNoInput"
+                  :options="['1', '2']"
+                  aria-label="选择学期"
+                  :allow-custom="false"
+                />
               </label>
             </template>
             <label class="field">

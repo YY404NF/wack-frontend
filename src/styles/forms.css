@@ -9,7 +9,7 @@ button {
   cursor: pointer;
 }
 
-input:not([type='checkbox']):not([type='radio']),
+input:not([type='checkbox']):not([type='radio']):not(.el-select__input):not(.el-input__inner),
 select {
   width: 100%;
   border: 1px solid var(--line);
