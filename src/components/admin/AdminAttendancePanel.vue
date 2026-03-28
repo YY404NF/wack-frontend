@@ -69,9 +69,14 @@ const editingRecord = ref<AttendanceRecordStudentItem | null>(null)
 const editingStatus = ref('')
 const savingStatus = ref(false)
 const actionError = ref('')
+const exportModalOpen = ref(false)
+const exportSessionsLoading = ref(false)
+const exportingWeeklyAbnormal = ref(false)
+const weeklyExportError = ref('')
 
 let sessionRequestToken = 0
 let detailRequestToken = 0
+const EXPORT_PAGE_SIZE = 500
 
 const sessionColumns = [
   { key: 'lesson_date', label: '日期', colClass: 'col-pct-12', copyable: false },
@@ -253,15 +258,13 @@ async function loadSessions() {
   sessionLoading.value = true
   sessionError.value = ''
   try {
-    const result = await api.adminAttendanceSessions({
-      page: 1,
-      page_size: 5000,
+    const result = await fetchAllAttendanceSessions({
       term: selectedTerm.value,
     })
     if (requestToken !== sessionRequestToken) {
       return
     }
-    sessionRows.value = (result.items ?? []) as AttendanceSessionSummary[]
+    sessionRows.value = result
   } catch (error) {
     if (requestToken !== sessionRequestToken) {
       return
@@ -273,6 +276,63 @@ async function loadSessions() {
       sessionLoading.value = false
     }
   }
+}
+
+async function fetchAllAttendanceSessions(query: {
+  term?: string
+  keyword?: string
+  week_no?: string
+  weekday?: string
+  section?: string
+  class_id?: string
+  status?: string
+  include_unchecked?: boolean
+}) {
+  let page = 1
+  let total = 0
+  const items: AttendanceSessionSummary[] = []
+
+  do {
+    const result = await api.adminAttendanceSessions({
+      ...query,
+      page,
+      page_size: EXPORT_PAGE_SIZE,
+    })
+    const pageItems = (result.items ?? []) as AttendanceSessionSummary[]
+    items.push(...pageItems)
+    total = result.total ?? items.length
+    page += 1
+  } while (items.length < total)
+
+  return items
+}
+
+async function fetchAllAttendanceSessionRecords(
+  sessionId: number,
+  query: {
+    student_id?: string
+    real_name?: string
+    class_name?: string
+    status?: string
+  } = {},
+) {
+  let page = 1
+  let total = 0
+  const items: AttendanceRecordStudentItem[] = []
+
+  do {
+    const result = await api.adminGetAttendanceSessionPage(sessionId, {
+      ...query,
+      page,
+      page_size: EXPORT_PAGE_SIZE,
+    })
+    const pageItems = result.attendance_records ?? []
+    items.push(...pageItems)
+    total = result.total ?? items.length
+    page += 1
+  } while (items.length < total)
+
+  return items
 }
 
 async function openSessionDetail(item: AttendanceSessionSummary, syncRoute = true) {
@@ -362,17 +422,17 @@ async function saveAttendanceStatus() {
   }
 }
 
-function exportSessions() {
-  const header = ['日期', '时间', '课程', '教师', '班级', '人数', '考勤概况']
-  const rows = filteredSessions.value.map((item) => [
-    formatLessonDate(item),
-    lessonTimeLabel(item.section),
-    item.course_name,
-    item.teacher_name,
-    item.class_summary,
-    String(item.student_count),
-    sessionSummaryText(item),
-  ])
+function openExportModal() {
+  weeklyExportError.value = ''
+  exportModalOpen.value = true
+}
+
+function closeExportModal() {
+  exportSessionsLoading.value = false
+  exportModalOpen.value = false
+}
+
+function downloadCsv(filename: string, header: string[], rows: Array<Array<string>>) {
   const csv = [header, ...rows]
     .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
     .join('\n')
@@ -380,11 +440,96 @@ function exportSessions() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `考勤记录-${selectedTerm.value || '导出'}.csv`
+  link.download = filename
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+}
+
+function isAbnormalStatus(status?: number | null) {
+  return status === 1 || status === 2 || status === 3
+}
+
+async function confirmExportSessions() {
+  exportSessionsLoading.value = true
+  weeklyExportError.value = ''
+  try {
+    const rows: Array<Array<string>> = []
+    for (const session of filteredSessions.value) {
+      const records = await fetchAllAttendanceSessionRecords(session.course_group_lesson_id)
+      for (const record of records) {
+        if (!isAbnormalStatus(record.status)) {
+          continue
+        }
+        rows.push([
+          formatLessonDate(session),
+          lessonTimeLabel(session.section),
+          session.course_name,
+          session.teacher_name,
+          record.student_id,
+          record.real_name,
+          normalizeClassName(record.class_name),
+          formatStatus(record.status),
+        ])
+      }
+    }
+
+    downloadCsv(
+      `考勤记录-${selectedTerm.value || '导出'}.csv`,
+      ['日期', '时间', '课程名称', '教师', '学号', '姓名', '班级', '状态'],
+      rows,
+    )
+    closeExportModal()
+  } catch (error) {
+    weeklyExportError.value = error instanceof Error ? error.message : '导出考勤记录失败'
+  } finally {
+    exportSessionsLoading.value = false
+  }
+}
+
+async function exportWeeklyAbnormalRecords() {
+  if (!activeSession.value) {
+    return
+  }
+  exportingWeeklyAbnormal.value = true
+  weeklyExportError.value = ''
+  try {
+    const sessions = await fetchAllAttendanceSessions({
+      term: activeSession.value.term,
+      week_no: String(activeSession.value.week_no),
+    })
+
+    const rows: Array<Array<string>> = []
+    for (const session of sessions) {
+      const records = await fetchAllAttendanceSessionRecords(session.course_group_lesson_id)
+      for (const record of records) {
+        if (!isAbnormalStatus(record.status)) {
+          continue
+        }
+        rows.push([
+          formatLessonDate(session),
+          lessonTimeLabel(session.section),
+          session.course_name,
+          session.teacher_name,
+          record.student_id,
+          record.real_name,
+          normalizeClassName(record.class_name),
+          formatStatus(record.status),
+        ])
+      }
+    }
+
+    downloadCsv(
+      `考勤异常记录-${activeSession.value.term}-第${activeSession.value.week_no}周.csv`,
+      ['日期', '时间', '课程名称', '教师', '学号', '姓名', '班级', '状态'],
+      rows,
+    )
+  } catch (error) {
+    weeklyExportError.value = error instanceof Error ? error.message : '导出本周异常记录失败'
+  } finally {
+    exportingWeeklyAbnormal.value = false
+  }
 }
 
 function formatLessonDate(item: AttendanceSessionSummary) {
@@ -486,7 +631,7 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             <input v-model="sessionStudentCount" type="number" min="0" aria-label="按人数筛选考勤记录" />
           </template>
           <template #filter-actions>
-            <button class="ghost-button compact-button" type="button" :disabled="filteredSessions.length === 0" @click="exportSessions">
+            <button class="ghost-button compact-button" type="button" :disabled="filteredSessions.length === 0" @click="openExportModal">
               导出
             </button>
           </template>
@@ -634,6 +779,12 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             <button class="ghost-button compact-button modal-close" type="button" @click="closeEditModal">关闭</button>
           </div>
           <div class="attendance-status-modal">
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" :disabled="exportingWeeklyAbnormal" @click="exportWeeklyAbnormalRecords">
+                <span v-if="exportingWeeklyAbnormal" class="button-spinner" aria-hidden="true"></span>
+                <span>{{ exportingWeeklyAbnormal ? '导出中...' : '导出本周所有迟到、缺勤和请假记录' }}</span>
+              </button>
+            </div>
             <div class="attendance-status-static-field">
               <span>学号</span>
               <strong>{{ editingRecord.student_id }}</strong>
@@ -655,12 +806,43 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
                 <option value="3">请假</option>
               </select>
             </label>
+            <p v-if="weeklyExportError" class="hint form-error-text">{{ weeklyExportError }}</p>
             <p v-if="actionError" class="hint form-error-text">{{ actionError }}</p>
             <div class="inline-actions">
               <button class="ghost-button" type="button" @click="closeEditModal">取消</button>
               <button class="primary-button" type="button" :disabled="savingStatus" @click="saveAttendanceStatus">
                 <span v-if="savingStatus" class="button-spinner" aria-hidden="true"></span>
                 <span>{{ savingStatus ? '保存中...' : '保存' }}</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="exportModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>导出考勤记录</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeExportModal">关闭</button>
+          </div>
+          <div class="attendance-status-modal">
+            <p class="hint">将按当前学期与当前筛选条件导出逐条考勤记录。</p>
+            <div class="attendance-status-static-field">
+              <span>学期</span>
+              <strong>{{ selectedTerm || '-' }}</strong>
+            </div>
+            <div class="attendance-status-static-field">
+              <span>课次数量</span>
+              <strong>{{ filteredSessions.length }}</strong>
+            </div>
+            <p v-if="weeklyExportError" class="hint form-error-text">{{ weeklyExportError }}</p>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" :disabled="exportSessionsLoading" @click="closeExportModal">取消</button>
+              <button class="primary-button" type="button" :disabled="filteredSessions.length === 0 || exportSessionsLoading" @click="confirmExportSessions">
+                <span v-if="exportSessionsLoading" class="button-spinner" aria-hidden="true"></span>
+                <span>{{ exportSessionsLoading ? '导出中...' : '导出' }}</span>
               </button>
             </div>
           </div>
