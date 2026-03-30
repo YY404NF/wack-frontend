@@ -67,10 +67,16 @@ export type AdminStudentForm = {
 export type AdminAttendanceLogFilters = {
   term: string
   courseGroupLessonId: string
+  lessonDate: string
+  section: string
+  courseName: string
+  teacherName: string
   studentId: string
-  operatorStudentId: string
-  operationType: string
+  realName: string
+  className: string
+  oldStatus: string
   newStatus: string
+  operatorName: string
   operatedDate: string
 }
 

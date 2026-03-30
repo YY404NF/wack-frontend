@@ -1,6 +1,6 @@
 import type {
   AdminOverviewData,
-  AttendanceRecordLogItem,
+  AttendanceRecordLogListItem,
   AttendanceResultItem,
   ClassItem,
   ClassStudentItem,
@@ -134,7 +134,7 @@ export type AdminFreeTimeCalendarProps = {
 }
 
 export type AdminAttendanceLogsProps = {
-  attendanceLogs: AttendanceRecordLogItem[]
+  attendanceLogs: AttendanceRecordLogListItem[]
   courseTerms: MetaTermItem[]
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number

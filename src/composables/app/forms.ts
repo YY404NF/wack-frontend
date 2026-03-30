@@ -151,12 +151,18 @@ export function createStudentForm(): AdminStudentForm {
 
 export function createAttendanceLogFilters(): AdminAttendanceLogFilters {
   return {
-    term: '',
+    term: getCurrentAcademicTerm(),
     courseGroupLessonId: '',
+    lessonDate: '',
+    section: '',
+    courseName: '',
+    teacherName: '',
     studentId: '',
-    operatorStudentId: '',
-    operationType: '',
+    realName: '',
+    className: '',
+    oldStatus: '',
     newStatus: '',
+    operatorName: '',
     operatedDate: '',
   }
 }

@@ -1,6 +1,6 @@
 import type {
   AdminOverviewData,
-  AttendanceRecordLogItem,
+  AttendanceRecordLogListItem,
   AttendanceResultItem,
   ClassItem,
   ClassStudentItem,
@@ -42,7 +42,7 @@ export type AdminWorkspaceProps = {
   systemSettings: SystemSetting | null
   systemSettingSaving: boolean
   overviewData: AdminOverviewData | null
-  attendanceLogs: AttendanceRecordLogItem[]
+  attendanceLogs: AttendanceRecordLogListItem[]
   classes: ClassItem[]
   allClasses: ClassItem[]
   students: StudentItem[]

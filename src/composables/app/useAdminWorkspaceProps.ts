@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
-import type { AdminOverviewData, AttendanceResultItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeItem, MetaTermItem, SessionUser, SystemSetting, StudentItem } from '../../api'
+import type { AdminOverviewData, AttendanceRecordLogListItem, AttendanceResultItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeItem, MetaTermItem, SessionUser, SystemSetting, StudentItem } from '../../api'
 import type {
   AdminAttendanceLogFilters,
   AdminClassForm,
@@ -32,7 +32,7 @@ export type AdminWorkspacePropsDeps = {
   systemSettings: Ref<SystemSetting | null>
   systemSettingSaving: Ref<boolean>
   overviewData: Ref<AdminOverviewData | null>
-  paginatedAttendanceLogs: ComputedRef<any[]>
+  paginatedAttendanceLogs: ComputedRef<AttendanceRecordLogListItem[]>
   paginatedClasses: ComputedRef<ClassItem[]>
   classes: Ref<ClassItem[]>
   students: Ref<StudentItem[]>

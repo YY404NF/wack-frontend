@@ -3,7 +3,7 @@ import { computed, reactive, ref, shallowRef, watch, type Ref } from 'vue'
 import {
   api,
   type AdminOverviewData,
-  type AttendanceRecordLogItem,
+  type AttendanceRecordLogListItem,
   type AttendanceResultItem,
   type ClassItem,
   type ClassStudentItem,
@@ -97,8 +97,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const overviewData = ref<AdminOverviewData | null>(null)
   const attendanceResults = ref<AttendanceResultItem[]>([])
   const freeTimes = ref<FreeTimeItem[]>([])
-  const attendanceLogs = ref<AttendanceRecordLogItem[]>([])
-  const attendanceLogRows = ref<AttendanceRecordLogItem[]>([])
+  const attendanceLogs = ref<AttendanceRecordLogListItem[]>([])
+  const attendanceLogRows = ref<AttendanceRecordLogListItem[]>([])
   const systemSettings = ref<SystemSetting | null>(null)
   const userPage = ref(1)
   const userPageSize = ref(20)
@@ -535,9 +535,11 @@ export function useAdminState(deps: UseAdminStateDeps) {
   }
 
   async function openAttendanceLogs(payload: { term: string; courseGroupLessonId: number; studentId?: string }) {
-    attendanceLogFilters.term = payload.term
-    attendanceLogFilters.courseGroupLessonId = String(payload.courseGroupLessonId)
-    attendanceLogFilters.studentId = payload.studentId ?? ''
+    Object.assign(attendanceLogFilters, createAttendanceLogFilters(), {
+      term: payload.term,
+      courseGroupLessonId: String(payload.courseGroupLessonId),
+      studentId: payload.studentId ?? '',
+    })
     attendanceLogsPage.value = 1
     await deps.setActiveTab('attendance-logs', 'push')
   }
@@ -872,7 +874,21 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [attendanceLogFilters.term, attendanceLogFilters.courseGroupLessonId, attendanceLogFilters.studentId, attendanceLogFilters.operatorStudentId, attendanceLogFilters.operationType, attendanceLogFilters.newStatus, attendanceLogFilters.operatedDate] as const,
+    () => [
+      attendanceLogFilters.term,
+      attendanceLogFilters.courseGroupLessonId,
+      attendanceLogFilters.lessonDate,
+      attendanceLogFilters.section,
+      attendanceLogFilters.courseName,
+      attendanceLogFilters.teacherName,
+      attendanceLogFilters.studentId,
+      attendanceLogFilters.realName,
+      attendanceLogFilters.className,
+      attendanceLogFilters.oldStatus,
+      attendanceLogFilters.newStatus,
+      attendanceLogFilters.operatorName,
+      attendanceLogFilters.operatedDate,
+    ] as const,
     () => {
       attendanceLogsPage.value = 1
     },
@@ -920,10 +936,16 @@ export function useAdminState(deps: UseAdminStateDeps) {
       attendanceLogsPageSize.value,
       attendanceLogFilters.term,
       attendanceLogFilters.courseGroupLessonId,
+      attendanceLogFilters.lessonDate,
+      attendanceLogFilters.section,
+      attendanceLogFilters.courseName,
+      attendanceLogFilters.teacherName,
       attendanceLogFilters.studentId,
-      attendanceLogFilters.operatorStudentId,
-      attendanceLogFilters.operationType,
+      attendanceLogFilters.realName,
+      attendanceLogFilters.className,
+      attendanceLogFilters.oldStatus,
       attendanceLogFilters.newStatus,
+      attendanceLogFilters.operatorName,
       attendanceLogFilters.operatedDate,
     ] as const,
     () => {

@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import {
   api,
   type AdminOverviewData,
-  type AttendanceRecordLogItem,
+  type AttendanceRecordLogListItem,
   type AttendanceResultItem,
   type ClassItem,
   type CourseCalendarItem,
@@ -60,11 +60,17 @@ type StudentFilters = {
 type AttendanceLogFilters = {
   term: string
   courseGroupLessonId: string
+  lessonDate: string
+  section: string
+  courseName: string
+  teacherName: string
   operatedDate: string
   studentId: string
-  operatorStudentId: string
-  operationType: string
+  realName: string
+  className: string
+  oldStatus: string
   newStatus: string
+  operatorName: string
 }
 
 type ProfileForm = {
@@ -115,8 +121,8 @@ export type AdminFlowDeps = {
   attendanceResults: Ref<AttendanceResultItem[]>
   freeTimes: Ref<FreeTimeItem[]>
   systemSettings: Ref<SystemSetting | null>
-  attendanceLogs: Ref<AttendanceRecordLogItem[]>
-  attendanceLogRows: Ref<AttendanceRecordLogItem[]>
+  attendanceLogs: Ref<AttendanceRecordLogListItem[]>
+  attendanceLogRows: Ref<AttendanceRecordLogListItem[]>
   userForm: UserForm
   userFilters: UserFilters
   courseFilters: CourseFilters
@@ -237,13 +243,23 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         page_size: deps.attendanceLogsPageSize.value,
         term: deps.attendanceLogFilters.term,
         course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
+        lesson_date: deps.attendanceLogFilters.lessonDate,
+        section: deps.attendanceLogFilters.section,
+        course_name: deps.attendanceLogFilters.courseName,
+        teacher_name: deps.attendanceLogFilters.teacherName,
         student_id: deps.attendanceLogFilters.studentId,
-        operator_login_id: deps.attendanceLogFilters.operatorStudentId,
-        operation_type: deps.attendanceLogFilters.operationType,
+        real_name: deps.attendanceLogFilters.realName,
+        class_name: deps.attendanceLogFilters.className,
+        old_status: deps.attendanceLogFilters.oldStatus,
         new_status: deps.attendanceLogFilters.newStatus,
+        operator_name: deps.attendanceLogFilters.operatorName,
         operated_date: deps.attendanceLogFilters.operatedDate,
       }),
-      api.listAttendanceRecordLogs({ page: 1, page_size: 1 }),
+      api.listAttendanceRecordLogs({
+        page: 1,
+        page_size: 1,
+        term: deps.attendanceLogFilters.term,
+      }),
       api.listMetaTerms(),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {

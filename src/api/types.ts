@@ -249,6 +249,24 @@ export interface AttendanceRecordLogItem {
   created_at: string
 }
 
+export interface AttendanceRecordLogListItem {
+  id: number
+  attendance_record_id: number
+  course_group_lesson_id: number
+  term: string
+  lesson_date: string
+  section: number
+  course_name: string
+  teacher_name: string
+  student_id: string
+  real_name: string
+  class_name: string
+  old_status?: number | null
+  new_status: number
+  operator_name: string
+  operated_at: string
+}
+
 export interface DashboardSummary {
   present: number
   late: number

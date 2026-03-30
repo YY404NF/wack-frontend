@@ -1,42 +1,122 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue'
+
+import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
+import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceLogsProps } from './types'
-import { statusName } from '../../composables/app/view'
-import { sortTermsForSelect } from '../../utils/terms'
 
-defineProps<AdminAttendanceLogsProps>()
+const props = defineProps<AdminAttendanceLogsProps>()
 
 const emit = defineEmits<{
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
 }>()
+
 const attendanceLogColumns = [
-  { key: 'operated_at', label: '操作时间', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
-  { key: 'student_id', label: '学生', colClass: 'col-pct-14' },
-  { key: 'operator_login_id', label: '操作人', colClass: 'col-pct-14' },
-  { key: 'attendance_record_id', label: '考勤记录 ID', colClass: 'col-pct-14' },
-  { key: 'old_status', label: '原状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => row.operation_type === 'create_record' || row.old_status === null || row.old_status === undefined ? '-' : statusName(Number(row.old_status)) },
-  { key: 'new_status', label: '新状态', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => statusName(Number(row.new_status)) },
-  { key: 'operation_type', label: '操作类型', colClass: 'col-pct-16' },
+  { key: 'lesson_date', label: '日期', colClass: 'col-pct-10' },
+  { key: 'section', label: '时间', colClass: 'col-pct-10', copyValue: (row: Record<string, unknown>) => formatSection(Number(row.section)) },
+  { key: 'course_name', label: '课程', colClass: 'col-pct-14' },
+  { key: 'teacher_name', label: '教师', colClass: 'col-pct-10' },
+  { key: 'student_id', label: '学号', colClass: 'col-pct-12' },
+  { key: 'real_name', label: '姓名', colClass: 'col-pct-10' },
+  { key: 'class_name', label: '班级', colClass: 'col-pct-14' },
+  { key: 'old_status', label: '原状态', colClass: 'col-pct-8', copyValue: (row: Record<string, unknown>) => formatStatus(row.old_status, '未查') },
+  { key: 'new_status', label: '新状态', colClass: 'col-pct-8', copyValue: (row: Record<string, unknown>) => formatStatus(row.new_status) },
+  { key: 'operator_name', label: '操作用户', colClass: 'col-pct-10' },
+  { key: 'operated_at', label: '操作时间', colClass: 'col-pct-14', copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
 ] as const
+
+const termOptions = computed(() => sortTermsForSelect(props.courseTerms))
+const defaultTermName = computed(() => selectDefaultTermName(props.courseTerms) || termOptions.value[0]?.name || '')
+const sectionOptions = computed(() =>
+  Object.entries(sectionLabels).map(([value, label]) => ({
+    value,
+    label: label.replace(/\s+/g, ''),
+  })),
+)
+const statusOptions = [
+  { value: '0', label: '签到' },
+  { value: '1', label: '迟到' },
+  { value: '2', label: '缺勤' },
+  { value: '3', label: '请假' },
+] as const
+
+const classOptions = computed(() =>
+  Array.from(
+    new Set(
+      [props.attendanceLogFilters.className, ...props.attendanceLogs.map((item) => item.class_name)]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
+
+const activeFilterKeys = computed(() => [
+  ...(props.attendanceLogFilters.lessonDate ? ['lesson_date'] : []),
+  ...(props.attendanceLogFilters.section ? ['section'] : []),
+  ...(props.attendanceLogFilters.courseName.trim() ? ['course_name'] : []),
+  ...(props.attendanceLogFilters.teacherName.trim() ? ['teacher_name'] : []),
+  ...(props.attendanceLogFilters.studentId.trim() ? ['student_id'] : []),
+  ...(props.attendanceLogFilters.realName.trim() ? ['real_name'] : []),
+  ...(props.attendanceLogFilters.className.trim() ? ['class_name'] : []),
+  ...(props.attendanceLogFilters.oldStatus ? ['old_status'] : []),
+  ...(props.attendanceLogFilters.newStatus ? ['new_status'] : []),
+  ...(props.attendanceLogFilters.operatorName.trim() ? ['operator_name'] : []),
+  ...(props.attendanceLogFilters.operatedDate ? ['operated_at'] : []),
+])
+
+const hasSearchCondition = computed(() =>
+  Boolean(
+    props.attendanceLogFilters.courseGroupLessonId ||
+    props.attendanceLogFilters.lessonDate ||
+    props.attendanceLogFilters.section ||
+    props.attendanceLogFilters.courseName.trim() ||
+    props.attendanceLogFilters.teacherName.trim() ||
+    props.attendanceLogFilters.studentId.trim() ||
+    props.attendanceLogFilters.realName.trim() ||
+    props.attendanceLogFilters.className.trim() ||
+    props.attendanceLogFilters.oldStatus ||
+    props.attendanceLogFilters.newStatus ||
+    props.attendanceLogFilters.operatorName.trim() ||
+    props.attendanceLogFilters.operatedDate ||
+    (props.attendanceLogFilters.term && props.attendanceLogFilters.term !== defaultTermName.value),
+  ),
+)
+
+watch(
+  termOptions,
+  (terms) => {
+    const termNames = terms.map((item) => item.name)
+    if (termNames.length === 0) {
+      return
+    }
+    if (!props.attendanceLogFilters.term || !termNames.includes(props.attendanceLogFilters.term)) {
+      props.attendanceLogFilters.term = defaultTermName.value || termNames[0]
+    }
+  },
+  { immediate: true },
+)
 
 function formatDateTime(value: string) {
   return value.replace('T', ' ').slice(0, 19)
+}
+
+function formatSection(value: number) {
+  return sectionLabels[value]?.replace(/\s+/g, '') ?? `第${value}节`
+}
+
+function formatStatus(value: unknown, emptyLabel = '-') {
+  if (value === null || value === undefined || value === '') {
+    return emptyLabel
+  }
+  return props.statusName(Number(value))
 }
 </script>
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading attendance-panel-heading">
-      <div class="attendance-panel-heading-main">
-        <h3>考勤日志</h3>
-        <p v-if="attendanceLogFilters.courseGroupLessonId" class="hint">当前已按课次 {{ attendanceLogFilters.courseGroupLessonId }} 筛选</p>
-      </div>
-      <div v-if="attendanceLogFilters.courseGroupLessonId" class="inline-actions">
-        <button class="ghost-button compact-button" type="button" @click="attendanceLogFilters.courseGroupLessonId = ''">清除课次筛选</button>
-      </div>
-    </div>
-
     <AdminDataList
       :rows="attendanceLogs as unknown as Array<Record<string, unknown>>"
       :columns="attendanceLogColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
@@ -44,52 +124,82 @@ function formatDateTime(value: string) {
       empty-text="暂无考勤日志"
       :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions, totalItems: attendanceLogsTotalItems }"
       :all-items="attendanceLogsAllItems"
-      :active-filter-keys="[
-        ...(attendanceLogFilters.term ? ['term'] : []),
-        ...(attendanceLogFilters.courseGroupLessonId ? ['attendance_record_id'] : []),
-        ...(attendanceLogFilters.operatedDate ? ['operated_at'] : []),
-        ...(attendanceLogFilters.studentId.trim() ? ['student_id'] : []),
-        ...(attendanceLogFilters.operatorStudentId.trim() ? ['operator_login_id'] : []),
-        ...(attendanceLogFilters.newStatus ? ['new_status'] : []),
-        ...(attendanceLogFilters.operationType.trim() ? ['operation_type'] : []),
-      ]"
-      :has-search-condition="!!(attendanceLogFilters.term || attendanceLogFilters.courseGroupLessonId || attendanceLogFilters.operatedDate || attendanceLogFilters.studentId.trim() || attendanceLogFilters.operatorStudentId.trim() || attendanceLogFilters.newStatus || attendanceLogFilters.operationType.trim())"
+      :active-filter-keys="activeFilterKeys"
+      :has-search-condition="hasSearchCondition"
       @update-page="emit('updateAttendanceLogsPage', $event)"
       @update-page-size="emit('updateAttendanceLogsPageSize', $event)"
     >
-      <template #filter-operated_at>
-        <select v-model="attendanceLogFilters.term" aria-label="按学期筛选考勤日志">
-          <option value="">全部学期</option>
-          <option v-for="item in sortTermsForSelect(courseTerms)" :key="item.id" :value="item.name">{{ item.name }}</option>
+      <template #filter-lesson_date>
+        <input v-model="attendanceLogFilters.lessonDate" type="date" aria-label="按日期筛选考勤日志" />
+      </template>
+      <template #filter-section>
+        <select v-model="attendanceLogFilters.section" aria-label="按时间筛选考勤日志">
+          <option value="">全部</option>
+          <option v-for="item in sectionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
-        <input v-model="attendanceLogFilters.operatedDate" type="date" aria-label="按日期筛选考勤日志" />
+      </template>
+      <template #filter-course_name>
+        <input v-model="attendanceLogFilters.courseName" aria-label="按课程筛选考勤日志" />
+      </template>
+      <template #filter-teacher_name>
+        <input v-model="attendanceLogFilters.teacherName" aria-label="按教师筛选考勤日志" />
       </template>
       <template #filter-student_id>
-        <input v-model="attendanceLogFilters.studentId" aria-label="按学生学号筛选考勤日志" />
+        <input v-model="attendanceLogFilters.studentId" inputmode="numeric" aria-label="按学号筛选考勤日志" />
       </template>
-      <template #filter-operator_login_id>
-        <input v-model="attendanceLogFilters.operatorStudentId" aria-label="按操作人筛选考勤日志" />
+      <template #filter-real_name>
+        <input v-model="attendanceLogFilters.realName" aria-label="按姓名筛选考勤日志" />
+      </template>
+      <template #filter-class_name>
+        <AppInputSelect
+          v-model="attendanceLogFilters.className"
+          :options="classOptions"
+          aria-label="按班级筛选考勤日志"
+        />
+      </template>
+      <template #filter-old_status>
+        <select v-model="attendanceLogFilters.oldStatus" aria-label="按原状态筛选考勤日志">
+          <option value="">全部</option>
+          <option value="none">未查</option>
+          <option v-for="item in statusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+        </select>
       </template>
       <template #filter-new_status>
         <select v-model="attendanceLogFilters.newStatus" aria-label="按新状态筛选考勤日志">
           <option value="">全部</option>
-          <option value="0">签到</option>
-          <option value="1">迟到</option>
-          <option value="2">缺勤</option>
-          <option value="3">请假</option>
+          <option v-for="item in statusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
       </template>
-      <template #filter-operation_type>
-        <input v-model="attendanceLogFilters.operationType" aria-label="按操作类型筛选考勤日志" />
+      <template #filter-operator_name>
+        <input v-model="attendanceLogFilters.operatorName" aria-label="按操作用户筛选考勤日志" />
+      </template>
+      <template #filter-operated_at>
+        <input v-model="attendanceLogFilters.operatedDate" type="date" aria-label="按操作时间筛选考勤日志" />
+      </template>
+      <template #cell-section="{ value }">
+        {{ formatSection(Number(value)) }}
+      </template>
+      <template #cell-old_status="{ value }">
+        <span v-if="value === null || value === undefined" class="status-badge attendance-status-badge-unrecorded">未查</span>
+        <span v-else class="status-badge" :class="attendanceStatusBadgeClass(Number(value))">
+          {{ formatStatus(value, '未查') }}
+        </span>
+      </template>
+      <template #cell-new_status="{ value }">
+        <span class="status-badge" :class="attendanceStatusBadgeClass(Number(value))">
+          {{ formatStatus(value) }}
+        </span>
       </template>
       <template #cell-operated_at="{ value }">
         {{ typeof value === 'string' ? formatDateTime(value) : '-' }}
       </template>
-      <template #cell-old_status="{ row, value }">
-        {{ row.operation_type === 'create_record' || value === null || value === undefined ? '-' : statusName(Number(value)) }}
-      </template>
-      <template #cell-new_status="{ value }">
-        {{ statusName(Number(value)) }}
+      <template #footer-trailing>
+        <label class="course-manage-term-filter">
+          <span class="visually-hidden">学期</span>
+          <select v-model="attendanceLogFilters.term" aria-label="按学期筛选考勤日志" :disabled="termOptions.length === 0">
+            <option v-for="item in termOptions" :key="item.id" :value="item.name">{{ item.name }}</option>
+          </select>
+        </label>
       </template>
     </AdminDataList>
   </section>

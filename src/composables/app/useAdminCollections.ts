@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
-import type { AttendanceRecordLogItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeEditorItem, StudentItem, UserItem } from '../../api'
+import type { AttendanceRecordLogListItem, ClassItem, ClassStudentItem, CourseItem, FreeTimeEditorItem, StudentItem, UserItem } from '../../api'
 import type {
   AdminClassStudentFilters,
 } from '../../components/admin/form-types'
@@ -14,7 +14,7 @@ export type UseAdminCollectionsDeps = {
   students: Ref<StudentItem[]>
   courses: Ref<CourseItem[]>
   courseTerms: Ref<{ id: number; name: string; term_start_date: string }[]>
-  attendanceLogs: Ref<AttendanceRecordLogItem[]>
+  attendanceLogs: Ref<AttendanceRecordLogListItem[]>
   classStudents: Ref<ClassStudentItem[]>
   classStudentFilters: AdminClassStudentFilters
   userFreeTimeItems: Ref<FreeTimeEditorItem[]>
