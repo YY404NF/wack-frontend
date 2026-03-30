@@ -270,9 +270,9 @@ function loadMoreTerms() {
             <label class="field">
               <span>学期名称</span>
               <input
-                class="term-name-preview-input"
+                class="readonly-field-input"
                 :value="isEditingTerm ? localTerms.find((item) => item.id === editingTermId)?.name ?? '' : termPreviewName"
-                disabled
+                readonly
               />
             </label>
             <label class="field">

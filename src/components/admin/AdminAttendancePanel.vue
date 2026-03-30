@@ -765,18 +765,18 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             <button class="ghost-button compact-button modal-close" type="button" @click="closeEditModal">关闭</button>
           </div>
           <div class="attendance-status-modal">
-            <div class="attendance-status-static-field">
+            <label class="field attendance-status-static-field">
               <span>学号</span>
-              <strong>{{ editingRecord.student_id }}</strong>
-            </div>
-            <div class="attendance-status-static-field">
+              <input class="readonly-field-input" :value="editingRecord.student_id" readonly />
+            </label>
+            <label class="field attendance-status-static-field">
               <span>姓名</span>
-              <strong>{{ editingRecord.real_name }}</strong>
-            </div>
-            <div class="attendance-status-static-field">
+              <input class="readonly-field-input" :value="editingRecord.real_name" readonly />
+            </label>
+            <label class="field attendance-status-static-field">
               <span>班级</span>
-              <strong>{{ normalizeClassName(editingRecord.class_name) }}</strong>
-            </div>
+              <input class="readonly-field-input" :value="normalizeClassName(editingRecord.class_name)" readonly />
+            </label>
             <label class="field">
               <span>状态</span>
               <select v-model="editingStatus">
