@@ -218,6 +218,7 @@ export interface CourseGroupDetail {
 
 export interface CourseCalendarItem {
   id: number
+  course_group_id: number
   course_id: number
   session_no: number
   term: string

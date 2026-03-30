@@ -137,10 +137,10 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
     string,
     {
       key: string
+      courseGroupId: number
       courseName: string
       teacherName: string
-      buildingName: string
-      roomName: string
+      locations: string[]
       classNames: string[]
       weekNos: number[]
       containsSelectedWeek: boolean
@@ -148,11 +148,12 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
   >()
 
   for (const item of items) {
-    const key = `${item.course_id}-${item.building_name}-${item.room_name}`
+    const key = String(item.course_group_id)
     const current = grouped.get(key)
     if (current) {
       current.weekNos.push(item.week_no)
       current.classNames.push(...item.class_names)
+      current.locations.push(formatCourseLocation(item))
       if (item.week_no === selectedWeek.value) {
         current.containsSelectedWeek = true
       }
@@ -160,10 +161,10 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
     }
     grouped.set(key, {
       key,
+      courseGroupId: item.course_group_id,
       courseName: item.course_name,
       teacherName: item.teacher_name,
-      buildingName: item.building_name,
-      roomName: item.room_name,
+      locations: [formatCourseLocation(item)],
       classNames: [...item.class_names],
       weekNos: [item.week_no],
       containsSelectedWeek: item.week_no === selectedWeek.value,
@@ -173,6 +174,7 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
   return Array.from(grouped.values())
     .map((item) => ({
       ...item,
+      locations: Array.from(new Set(item.locations)).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
       weekNos: Array.from(new Set(item.weekNos)).sort((left, right) => left - right),
       classNames: Array.from(new Set(item.classNames)).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
     }))
@@ -210,10 +212,14 @@ function formatWeekText(weeks: number[]) {
   return `第 ${weeks.join('、')} 周`
 }
 
+function formatCourseLocation(item: Pick<CourseCalendarItem, 'building_name' | 'room_name'>) {
+  return `${item.building_name}-${item.room_name}`
+}
+
 function courseTooltipLines(item: (typeof courseCells.value)[number][number][number]) {
   return [
     `${item.teacherName} · ${formatWeekText(item.weekNos)}`,
-    `${item.buildingName}-${item.roomName}`,
+    ...item.locations,
     item.classNames.join('、') || '未关联班级',
   ]
 }
