@@ -151,6 +151,10 @@
   white-space: nowrap;
 }
 
+.overview-session-meta .status-badge {
+  white-space: nowrap;
+}
+
 .overview-rank-meta small,
 .overview-session-meta small {
   color: var(--muted);

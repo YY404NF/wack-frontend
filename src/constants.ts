@@ -24,6 +24,22 @@ export const statusLabels: Record<StatusCode, string> = {
   3: '请假',
 }
 
+export function attendanceStatusBadgeClass(status?: number | null) {
+  if (status === null || status === undefined) {
+    return 'attendance-status-badge-unrecorded'
+  }
+  if (status === 0) {
+    return 'attendance-status-badge-present'
+  }
+  if (status === 1) {
+    return 'attendance-status-badge-late'
+  }
+  if (status === 2) {
+    return 'attendance-status-badge-absent'
+  }
+  return 'attendance-status-badge-leave'
+}
+
 export const weekdayLabels: Record<number, string> = {
   1: '周一',
   2: '周二',

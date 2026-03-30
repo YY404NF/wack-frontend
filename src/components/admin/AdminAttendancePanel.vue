@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { api, type AttendanceRecordStudentItem, type MetaTermItem } from '../../api'
-import { sectionLabels } from '../../constants'
+import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceProps } from './types'
@@ -740,7 +740,9 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
               {{ normalizeClassName(String(value ?? '')) }}
             </template>
             <template #cell-status="{ value }">
-              {{ formatStatus(value as number | null | undefined) }}
+              <span class="status-badge" :class="attendanceStatusBadgeClass(value as number | null | undefined)">
+                {{ formatStatus(value as number | null | undefined) }}
+              </span>
             </template>
             <template #actions="{ row }">
               <div class="inline-actions user-actions">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import { sectionLabels, statusLabels, weekdayLabels } from '../../constants'
+import { attendanceStatusBadgeClass, sectionLabels, statusLabels, weekdayLabels } from '../../constants'
 import type { AdminOverviewProps } from './types'
 
 const props = defineProps<AdminOverviewProps>()
@@ -214,7 +214,9 @@ function handleListScroll(event: Event, target: 'course' | 'class' | 'student' |
               <p>{{ abnormalSubtitleText(item) }}</p>
             </div>
             <div class="overview-session-meta">
-              <strong>{{ statusLabels[item.status as 0 | 1 | 2 | 3] ?? '未知' }}</strong>
+              <span class="status-badge" :class="attendanceStatusBadgeClass(item.status)">
+                {{ statusLabels[item.status as 0 | 1 | 2 | 3] ?? '未知' }}
+              </span>
               <small>{{ weekSectionText(item.week_no, item.weekday, item.section) }}</small>
             </div>
           </div>

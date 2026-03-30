@@ -9,6 +9,31 @@
   font-weight: 700;
 }
 
+.attendance-status-badge-unrecorded {
+  background: #d7d1c9;
+  color: #6b6056;
+}
+
+.attendance-status-badge-present {
+  background: #97d47f;
+  color: #0a9448;
+}
+
+.attendance-status-badge-late {
+  background: #fff162;
+  color: #f5a000;
+}
+
+.attendance-status-badge-absent {
+  background: #f8cbce;
+  color: #d72626;
+}
+
+.attendance-status-badge-leave {
+  background: #9bd5ef;
+  color: #167fbc;
+}
+
 .pill,
 .tag-muted {
   background: rgba(92, 82, 75, 0.12);
