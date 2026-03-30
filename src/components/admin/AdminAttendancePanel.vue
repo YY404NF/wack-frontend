@@ -35,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const PAGE_OPTIONS = [10, 20, 50, 100]
+const TERM_WEEK_COUNT = 16
 
 const termOptions = computed(() => sortTermsForSelect(props.courseTerms))
 const selectedTerm = ref('')
@@ -70,7 +71,6 @@ const editingStatus = ref('')
 const savingStatus = ref(false)
 const actionError = ref('')
 const exportModalOpen = ref(false)
-const exportSessionsLoading = ref(false)
 const exportingWeeklyAbnormal = ref(false)
 const weeklyExportError = ref('')
 
@@ -150,6 +150,7 @@ watch([detailPage, detailPageSize, detailStudentId, detailRealName, detailClassN
 })
 
 const termStartMap = computed(() => new Map(props.courseTerms.map((item) => [item.name, item.term_start_date])))
+const selectedTermMeta = computed(() => props.courseTerms.find((item) => item.name === selectedTerm.value) ?? null)
 
 const classOptions = computed(() =>
   Array.from(
@@ -203,6 +204,28 @@ const paginatedSessions = computed(() => {
 })
 
 const sessionTotalPages = computed(() => Math.max(1, Math.ceil(filteredSessions.value.length / sessionPageSize.value)))
+
+const exportWeekNo = computed(() => {
+  const startDate = selectedTermMeta.value?.term_start_date
+  if (!startDate) {
+    return null
+  }
+  const start = parseDate(startDate)
+  if (!start) {
+    return null
+  }
+  const today = new Date()
+  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const diff = now.getTime() - start.getTime()
+  return Math.min(TERM_WEEK_COUNT, Math.max(1, Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1))
+})
+
+const exportWeekSessionCount = computed(() => {
+  if (exportWeekNo.value === null) {
+    return 0
+  }
+  return sessionRows.value.filter((item) => item.week_no === exportWeekNo.value).length
+})
 
 const detailClassOptions = computed(() =>
   Array.from(
@@ -428,7 +451,6 @@ function openExportModal() {
 }
 
 function closeExportModal() {
-  exportSessionsLoading.value = false
   exportModalOpen.value = false
 }
 
@@ -451,53 +473,16 @@ function isAbnormalStatus(status?: number | null) {
   return status === 1 || status === 2 || status === 3
 }
 
-async function confirmExportSessions() {
-  exportSessionsLoading.value = true
-  weeklyExportError.value = ''
-  try {
-    const rows: Array<Array<string>> = []
-    for (const session of filteredSessions.value) {
-      const records = await fetchAllAttendanceSessionRecords(session.course_group_lesson_id)
-      for (const record of records) {
-        if (!isAbnormalStatus(record.status)) {
-          continue
-        }
-        rows.push([
-          formatLessonDate(session),
-          lessonTimeLabel(session.section),
-          session.course_name,
-          session.teacher_name,
-          record.student_id,
-          record.real_name,
-          normalizeClassName(record.class_name),
-          formatStatus(record.status),
-        ])
-      }
-    }
-
-    downloadCsv(
-      `考勤记录-${selectedTerm.value || '导出'}.csv`,
-      ['日期', '时间', '课程名称', '教师', '学号', '姓名', '班级', '状态'],
-      rows,
-    )
-    closeExportModal()
-  } catch (error) {
-    weeklyExportError.value = error instanceof Error ? error.message : '导出考勤记录失败'
-  } finally {
-    exportSessionsLoading.value = false
-  }
-}
-
 async function exportWeeklyAbnormalRecords() {
-  if (!activeSession.value) {
+  if (!selectedTerm.value || exportWeekNo.value === null) {
     return
   }
   exportingWeeklyAbnormal.value = true
   weeklyExportError.value = ''
   try {
     const sessions = await fetchAllAttendanceSessions({
-      term: activeSession.value.term,
-      week_no: String(activeSession.value.week_no),
+      term: selectedTerm.value,
+      week_no: String(exportWeekNo.value),
     })
 
     const rows: Array<Array<string>> = []
@@ -521,10 +506,11 @@ async function exportWeeklyAbnormalRecords() {
     }
 
     downloadCsv(
-      `考勤异常记录-${activeSession.value.term}-第${activeSession.value.week_no}周.csv`,
+      `考勤异常记录-${selectedTerm.value}-第${exportWeekNo.value}周.csv`,
       ['日期', '时间', '课程名称', '教师', '学号', '姓名', '班级', '状态'],
       rows,
     )
+    closeExportModal()
   } catch (error) {
     weeklyExportError.value = error instanceof Error ? error.message : '导出本周异常记录失败'
   } finally {
@@ -631,7 +617,7 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             <input v-model="sessionStudentCount" type="number" min="0" aria-label="按人数筛选考勤记录" />
           </template>
           <template #filter-actions>
-            <button class="ghost-button compact-button" type="button" :disabled="filteredSessions.length === 0" @click="openExportModal">
+            <button class="ghost-button compact-button" type="button" :disabled="!selectedTerm" @click="openExportModal">
               导出
             </button>
           </template>
@@ -779,12 +765,6 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             <button class="ghost-button compact-button modal-close" type="button" @click="closeEditModal">关闭</button>
           </div>
           <div class="attendance-status-modal">
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" :disabled="exportingWeeklyAbnormal" @click="exportWeeklyAbnormalRecords">
-                <span v-if="exportingWeeklyAbnormal" class="button-spinner" aria-hidden="true"></span>
-                <span>{{ exportingWeeklyAbnormal ? '导出中...' : '导出本周所有迟到、缺勤和请假记录' }}</span>
-              </button>
-            </div>
             <div class="attendance-status-static-field">
               <span>学号</span>
               <strong>{{ editingRecord.student_id }}</strong>
@@ -806,7 +786,6 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
                 <option value="3">请假</option>
               </select>
             </label>
-            <p v-if="weeklyExportError" class="hint form-error-text">{{ weeklyExportError }}</p>
             <p v-if="actionError" class="hint form-error-text">{{ actionError }}</p>
             <div class="inline-actions">
               <button class="ghost-button" type="button" @click="closeEditModal">取消</button>
@@ -825,24 +804,28 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
         <article class="modal-card modal-card-narrow">
           <div class="modal-header">
             <h3>导出考勤记录</h3>
-            <button class="ghost-button compact-button modal-close" type="button" @click="closeExportModal">关闭</button>
+            <button class="ghost-button compact-button modal-close" type="button" :disabled="exportingWeeklyAbnormal" @click="closeExportModal">关闭</button>
           </div>
           <div class="attendance-status-modal">
-            <p class="hint">将按当前学期与当前筛选条件导出逐条考勤记录。</p>
+            <p class="hint">将导出当前学期本周所有迟到、缺勤和请假记录。</p>
             <div class="attendance-status-static-field">
               <span>学期</span>
               <strong>{{ selectedTerm || '-' }}</strong>
             </div>
             <div class="attendance-status-static-field">
+              <span>周次</span>
+              <strong>{{ exportWeekNo === null ? '-' : `第 ${exportWeekNo} 周` }}</strong>
+            </div>
+            <div class="attendance-status-static-field">
               <span>课次数量</span>
-              <strong>{{ filteredSessions.length }}</strong>
+              <strong>{{ exportWeekSessionCount }}</strong>
             </div>
             <p v-if="weeklyExportError" class="hint form-error-text">{{ weeklyExportError }}</p>
             <div class="inline-actions">
-              <button class="ghost-button" type="button" :disabled="exportSessionsLoading" @click="closeExportModal">取消</button>
-              <button class="primary-button" type="button" :disabled="filteredSessions.length === 0 || exportSessionsLoading" @click="confirmExportSessions">
-                <span v-if="exportSessionsLoading" class="button-spinner" aria-hidden="true"></span>
-                <span>{{ exportSessionsLoading ? '导出中...' : '导出' }}</span>
+              <button class="ghost-button" type="button" :disabled="exportingWeeklyAbnormal" @click="closeExportModal">取消</button>
+              <button class="primary-button" type="button" :disabled="exportWeekNo === null || exportingWeeklyAbnormal" @click="exportWeeklyAbnormalRecords">
+                <span v-if="exportingWeeklyAbnormal" class="button-spinner" aria-hidden="true"></span>
+                <span>{{ exportingWeeklyAbnormal ? '导出中...' : '导出本周所有迟到、缺勤和请假记录' }}</span>
               </button>
             </div>
           </div>
