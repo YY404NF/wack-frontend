@@ -11,7 +11,7 @@ import {
   type CourseGroupStudentItem,
   type CourseItem,
 } from '../../api'
-import { sectionLabels, weekdayLabels } from '../../constants'
+import { formatClassNameListMultiline, sectionLabels, weekdayLabels } from '../../constants'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
@@ -269,7 +269,7 @@ const activeCourseGroupSummary = computed(() => {
   }
   return [
     { label: '课程组', value: `课程组 ${group.id}` },
-    { label: '上课班级', value: group.class_names.length > 0 ? group.class_names.join('、') : '未绑定班级' },
+    { label: '上课班级', value: formatClassNameListMultiline(group.class_names) },
     { label: '上课学生', value: `${group.student_count} 人` },
     { label: '课次数量', value: `${group.lesson_count} 节` },
   ]

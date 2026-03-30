@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { api, type AttendanceRecordStudentItem, type MetaTermItem } from '../../api'
-import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
+import { attendanceStatusBadgeClass, formatClassSummaryMultiline, sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceProps } from './types'
@@ -255,7 +255,7 @@ const activeGroupSummary = computed(() => {
     return []
   }
   return [
-    { label: '上课班级', value: activeSession.value.class_summary || '-' },
+    { label: '上课班级', value: formatClassSummaryMultiline(activeSession.value.class_summary) },
     { label: '上课人数', value: `${activeSession.value.student_count}` },
   ]
 })

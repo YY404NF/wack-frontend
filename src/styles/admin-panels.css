@@ -1953,6 +1953,15 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
     0 12px 28px rgba(41, 23, 16, 0.05);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.course-context-card::-webkit-scrollbar,
+.class-student-context-card::-webkit-scrollbar {
+  display: none;
 }
 
 .nested-context-card {
@@ -1964,6 +1973,8 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.48),
     0 8px 18px rgba(41, 23, 16, 0.04);
+  align-self: start;
+  min-height: max-content;
 }
 
 .section-heading-compact {
@@ -1976,20 +1987,24 @@
   display: grid;
   gap: 16px;
   min-height: 0;
-  height: 100%;
+  height: auto;
+  min-height: max-content;
   align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .course-subpage-grid > .course-context-card > .settings-profile-summary-list > .nested-context-card:only-child {
-  min-height: 0;
-  height: 100%;
+  min-height: max-content;
+  height: auto;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  align-self: start;
 }
 
 .course-subpage-grid > .course-context-card > .settings-profile-summary-list > .nested-context-card:only-child > .settings-profile-summary-list {
   min-height: 0;
-  height: 100%;
+  height: auto;
+  min-height: max-content;
   align-content: start;
 }
 
@@ -2009,6 +2024,7 @@
   border-radius: 14px;
   border: 1px solid rgba(160, 119, 84, 0.1);
   background: rgba(255, 255, 255, 0.72);
+  align-self: start;
 }
 
 .settings-profile-summary-item span {
@@ -2021,6 +2037,7 @@
   color: var(--text);
   font-size: 0.98rem;
   line-height: 1.4;
+  white-space: pre-line;
 }
 
 .course-lessons-main {

@@ -40,6 +40,21 @@ export function attendanceStatusBadgeClass(status?: number | null) {
   return 'attendance-status-badge-leave'
 }
 
+export function formatClassSummaryMultiline(value?: string | null, fallback = '-') {
+  const items = String(value ?? '')
+    .split(/[、,，]\s*/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+  return items.length > 0 ? items.join('\n') : fallback
+}
+
+export function formatClassNameListMultiline(values: string[], fallback = '未绑定班级') {
+  const items = values
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+  return items.length > 0 ? items.join('\n') : fallback
+}
+
 export const weekdayLabels: Record<number, string> = {
   1: '周一',
   2: '周二',
