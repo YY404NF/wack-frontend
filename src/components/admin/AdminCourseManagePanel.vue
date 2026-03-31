@@ -59,31 +59,31 @@ const syncingRouteState = ref(false)
 const selectedCourseIdSet = computed(() => new Set(props.selectedCourseIds))
 const areAllCoursesSelected = computed(() => props.courses.length > 0 && props.courses.every((item) => selectedCourseIdSet.value.has(item.id)))
 const courseColumns = [
-  { key: 'course_name', label: '课程名称', colClass: 'col-pct-28' },
-  { key: 'teacher_name', label: '授课教师', colClass: 'col-pct-22' },
-  { key: 'class_names', label: '班级', colClass: 'col-pct-24', copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '人数', colClass: 'col-pct-10' },
+  { key: 'course_name', label: '课程名称', width: 14 },
+  { key: 'teacher_name', label: '授课教师', width: 10 },
+  { key: 'class_names', label: '班级', width: 20, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'student_count', label: '人数', width: 8 },
 ] as const
 const groupColumns = [
-  { key: 'id', label: '课程组', colClass: 'col-pct-14', copyable: false },
-  { key: 'class_names', label: '上课班级', colClass: 'col-pct-34', copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '学生', colClass: 'col-pct-12' },
-  { key: 'lesson_count', label: '课次', colClass: 'col-pct-12' },
+  { key: 'id', label: '课程组', width: 14, copyable: false },
+  { key: 'class_names', label: '上课班级', width: 34, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'student_count', label: '学生', width: 12 },
+  { key: 'lesson_count', label: '课次', width: 12 },
 ] as const
 const lessonColumns = [
-  { key: 'week_no', label: '周次', colClass: 'col-pct-18', copyable: false },
-  { key: 'weekday', label: '星期', colClass: 'col-pct-14', copyable: false },
-  { key: 'section', label: '时间节', colClass: 'col-pct-20', copyable: false },
-  { key: 'location', label: '地点', colClass: 'col-pct-20', copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
+  { key: 'week_no', label: '周次', width: 18, copyable: false },
+  { key: 'weekday', label: '星期', width: 14, copyable: false },
+  { key: 'section', label: '时间节', width: 20, copyable: false },
+  { key: 'location', label: '地点', width: 20, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
 ] as const
 const candidateClassColumns = [
-  { key: 'class_display', label: '班级', colClass: 'col-pct-68', copyable: true, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
-  { key: 'student_count', label: '人数', colClass: 'col-pct-12' },
+  { key: 'class_display', label: '班级', width: 68, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
+  { key: 'student_count', label: '人数', width: 12 },
 ] as const
 const candidateStudentColumns = [
-  { key: 'student_no', label: '学号', colClass: 'col-pct-24' },
-  { key: 'student_name', label: '姓名', colClass: 'col-pct-18' },
-  { key: 'class_display', label: '所属班级', colClass: 'col-pct-38', copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
+  { key: 'student_no', label: '学号', width: 24 },
+  { key: 'student_name', label: '姓名', width: 18 },
+  { key: 'class_display', label: '所属班级', width: 38, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
 ] as const
 
 const termOptions = computed(() => {
@@ -1212,22 +1212,16 @@ function toggleCourseGroupClassExpanded(key: string) {
 
     <Transition name="subpage-fade" mode="out-in" appear>
     <div v-if="currentView === 'courses'" key="courses" class="course-manage-page">
-      <div class="section-heading section-heading-titleless course-page-toolbar">
-        <div class="inline-actions">
-          <button class="primary-button" type="button" @click="emit('openCreateCourseModal')">创建课程</button>
-        </div>
-      </div>
-
       <AdminDataList
         :rows="courses as unknown as Array<Record<string, unknown>>"
-        :columns="courseColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+        :columns="courseColumns as unknown as Array<{ key: string; label: string; width?: number }>"
         row-key="id"
         table-class="course-manage-table"
         empty-text="暂无符合条件的课程"
         :show-selection="true"
         :selected-row-keys="selectedCourseIds"
         :show-actions="true"
-        action-col-class="col-pct-16"
+        :action-col-width="24"
         :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions, totalItems: courseTotalItems }"
         :all-items="courseAllItems"
         :selected-items="selectedCourseIds.length"
@@ -1256,6 +1250,9 @@ function toggleCourseGroupClassExpanded(key: string) {
           </button>
           <button class="ghost-button compact-button danger-button" type="button" :disabled="courseDeleting || selectedCourseIds.length === 0" @click="emit('openBulkDeleteCourseModal')">
             批量删除
+          </button>
+          <button class="primary-button compact-button filter-action-push" type="button" @click="emit('openCreateCourseModal')">
+            创建课程
           </button>
         </template>
         <template #footer-trailing>
@@ -1308,12 +1305,12 @@ function toggleCourseGroupClassExpanded(key: string) {
         <AdminDataList
           v-else
           :rows="visibleCourseGroups as unknown as Array<Record<string, unknown>>"
-          :columns="groupColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          :columns="groupColumns as unknown as Array<{ key: string; label: string; width?: number }>"
           row-key="id"
           table-class="course-group-table"
           empty-text="当前课程还没有课程组"
           :show-actions="true"
-          action-col-class="col-pct-28"
+          :action-col-width="28"
           :lazy-load="{ hasMore: visibleCourseGroups.length < courseGroups.length, loading: false, buttonText: '滚动到底部继续加载课程组' }"
           @load-more="loadMoreCourseGroups"
         >
@@ -1370,14 +1367,14 @@ function toggleCourseGroupClassExpanded(key: string) {
           <AdminDataList
             v-else
             :rows="visibleCourseGroupLessons.map(asCourseGroupLessonRow)"
-            :columns="lessonColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+            :columns="lessonColumns as unknown as Array<{ key: string; label: string; width?: number }>"
             row-key="id"
             table-class="course-group-table"
             empty-text="当前课程组还没有课次"
             :show-selection="true"
             :selected-row-keys="selectedLessonIds"
             :show-actions="true"
-            action-col-class="col-pct-28"
+            :action-col-width="28"
             :selected-items="selectedLessonIds.length"
             :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
             :current-items="visibleCourseGroupLessons.length"
@@ -1573,12 +1570,12 @@ function toggleCourseGroupClassExpanded(key: string) {
               </div>
               <AdminDataList
                 :rows="courseGroupClassRows"
-                :columns="candidateClassColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+                :columns="candidateClassColumns as unknown as Array<{ key: string; label: string; width?: number }>"
                 row-key="id"
                 table-class="course-group-candidate-table"
                 empty-text="没有可添加的班级"
                 :show-actions="true"
-                action-col-class="col-pct-20"
+                :action-col-width="20"
                 :lazy-load="{ hasMore: courseGroupClassHasMore, loading: courseGroupClassLoading, buttonText: '滚动到底部继续加载班级' }"
                 :active-filter-keys="courseGroupClassKeyword.trim() ? ['class_display'] : []"
                 :has-search-condition="!!courseGroupClassKeyword.trim()"
@@ -1601,12 +1598,12 @@ function toggleCourseGroupClassExpanded(key: string) {
               </div>
               <AdminDataList
                 :rows="courseGroupStudentRows"
-                :columns="candidateStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+                :columns="candidateStudentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
                 row-key="id"
                 table-class="course-group-candidate-table"
                 empty-text="没有可添加的学生"
                 :show-actions="true"
-                action-col-class="col-pct-20"
+                :action-col-width="20"
                 :lazy-load="{ hasMore: courseGroupStudentHasMore, loading: courseGroupStudentLoading, buttonText: '滚动到底部继续加载学生' }"
                 :active-filter-keys="courseGroupStudentKeyword.trim() ? ['student_no'] : []"
                 :has-search-condition="!!courseGroupStudentKeyword.trim()"

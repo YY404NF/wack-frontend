@@ -200,10 +200,13 @@
 .table-wrap,
 .user-table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
   background: var(--paper-strong);
+  scrollbar-gutter: stable both-edges;
 }
 
 .admin-data-list {
+  --admin-list-col-unit: 11px;
   min-height: 0;
   height: 100%;
   display: grid;
@@ -269,9 +272,11 @@
 
 .data-table {
   --table-header-row-height: 64px;
-  width: 100%;
+  width: max(100%, var(--admin-data-list-min-width, 960px));
+  min-width: var(--admin-data-list-min-width, 960px);
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
 }
 
 .data-table th,
@@ -280,6 +285,8 @@
   padding: 16px 18px;
   text-align: left;
   border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   user-select: none;
 }
@@ -313,12 +320,24 @@
   table-layout: fixed;
 }
 
+.student-manage-table {
+  table-layout: fixed;
+}
+
+.class-manage-table {
+  table-layout: fixed;
+}
+
 .course-manage-table {
   table-layout: fixed;
 }
 
 .selection-column {
-  width: 52px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  overflow: visible !important;
+  text-overflow: clip !important;
   text-align: center !important;
 }
 
@@ -337,6 +356,10 @@
 
 .data-list-copy-cell {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
 }
 
 .admin-data-list-copy-toast {
@@ -348,6 +371,12 @@
 }
 
 .copyable-inline-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
   padding: 0;
   border: 0;
   background: transparent;
@@ -355,70 +384,6 @@
   font: inherit;
   line-height: inherit;
   cursor: copy;
-}
-
-.col-pct-7 {
-  width: 7%;
-}
-
-.col-pct-12 {
-  width: 12%;
-}
-
-.col-pct-13 {
-  width: 13%;
-}
-
-.col-pct-14 {
-  width: 14%;
-}
-
-.col-pct-18 {
-  width: 18%;
-}
-
-.col-pct-20 {
-  width: 20%;
-}
-
-.col-pct-22 {
-  width: 22%;
-}
-
-.col-pct-24 {
-  width: 24%;
-}
-
-.col-pct-28 {
-  width: 28%;
-}
-
-.col-pct-30 {
-  width: 30%;
-}
-
-.col-pct-34 {
-  width: 34%;
-}
-
-.col-pct-10 {
-  width: 10%;
-}
-
-.col-pct-16 {
-  width: 16%;
-}
-
-.col-pct-38 {
-  width: 38%;
-}
-
-.col-pct-68 {
-  width: 68%;
-}
-
-.col-pct-33 {
-  width: 33%;
 }
 
 .actions-column {
@@ -735,12 +700,15 @@
 }
 
 .copy-token-group {
-  display: inline-flex;
-  align-items: center;
-  white-space: pre;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .copy-token-button {
+  display: inline;
   padding: 0;
   border: 0;
   background: transparent;
@@ -990,8 +958,9 @@
   justify-content: flex-end;
   align-items: center;
   min-height: 42px;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .visually-hidden {

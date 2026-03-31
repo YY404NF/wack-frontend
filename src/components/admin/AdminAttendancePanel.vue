@@ -79,20 +79,20 @@ let detailRequestToken = 0
 const EXPORT_PAGE_SIZE = 500
 
 const sessionColumns = [
-  { key: 'lesson_date', label: '日期', colClass: 'col-pct-12', copyable: false },
-  { key: 'lesson_time', label: '时间', colClass: 'col-pct-12', copyable: false },
-  { key: 'course_name', label: '课程', colClass: 'col-pct-16' },
-  { key: 'teacher_name', label: '教师', colClass: 'col-pct-12' },
-  { key: 'class_summary', label: '班级', colClass: 'col-pct-18', copyable: false },
-  { key: 'student_count', label: '人数', colClass: 'col-pct-10' },
-  { key: 'summary', label: '考勤概况', colClass: 'col-pct-20', copyable: false },
+  { key: 'lesson_date', label: '日期', width: 12, copyable: false },
+  { key: 'lesson_time', label: '时间', width: 12, copyable: false },
+  { key: 'course_name', label: '课程', width: 16 },
+  { key: 'teacher_name', label: '教师', width: 12 },
+  { key: 'class_summary', label: '班级', width: 18, copyable: false, copyValue: (row: Record<string, unknown>) => formatClassSummaryInline(String(row.class_summary ?? ''), '-') },
+  { key: 'student_count', label: '人数', width: 10 },
+  { key: 'summary', label: '考勤概况', width: 20, copyable: false },
 ] as const
 
 const detailColumns = [
-  { key: 'student_id', label: '学号', colClass: 'col-pct-20' },
-  { key: 'real_name', label: '姓名', colClass: 'col-pct-18' },
-  { key: 'class_name', label: '班级', colClass: 'col-pct-34', copyable: false },
-  { key: 'status', label: '状态', colClass: 'col-pct-14', copyable: false },
+  { key: 'student_id', label: '学号', width: 20 },
+  { key: 'real_name', label: '姓名', width: 18 },
+  { key: 'class_name', label: '班级', width: 34, copyable: false },
+  { key: 'status', label: '状态', width: 14, copyable: false },
 ] as const
 
 watch(
@@ -156,7 +156,7 @@ const classOptions = computed(() =>
   Array.from(
     new Set(
       sessionRows.value
-        .map((item) => item.class_summary.trim())
+        .map((item) => formatClassSummaryInline(item.class_summary, ''))
         .filter((item) => item.length > 0),
     ),
   ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
@@ -188,7 +188,7 @@ const filteredSessions = computed(() => {
     if (teacherKeyword && !item.teacher_name.toLowerCase().includes(teacherKeyword)) {
       return false
     }
-    if (sessionClassName.value && item.class_summary !== sessionClassName.value) {
+    if (sessionClassName.value && formatClassSummaryInline(item.class_summary, '') !== sessionClassName.value) {
       return false
     }
     if (countKeyword && String(item.student_count) !== countKeyword) {
@@ -555,6 +555,14 @@ function normalizeClassName(value?: string | null) {
   return value?.trim() || '未绑定班级'
 }
 
+function formatClassSummaryInline(value?: string | null, fallback = '-') {
+  const items = String(value ?? '')
+    .split(/[、,，]\s*/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+  return items.length > 0 ? items.join('、') : fallback
+}
+
 function formatStatus(status?: number | null) {
   if (status === null || status === undefined) {
     return '未查'
@@ -573,11 +581,11 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
     <div v-if="!activeSession" key="attendance-list" class="attendance-page">
         <AdminDataList
           :rows="paginatedSessions as unknown as Array<Record<string, unknown>>"
-          :columns="sessionColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          :columns="sessionColumns as unknown as Array<{ key: string; label: string; width?: number }>"
           row-key="course_group_lesson_id"
           empty-text="暂无考勤记录"
           :show-actions="true"
-          action-col-class="col-pct-12"
+          :action-col-width="12"
           :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: filteredSessions.length }"
           :all-items="sessionRows.length"
           :active-filter-keys="[
@@ -628,7 +636,7 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
             {{ lessonTimeLabel(Number((row as AttendanceSessionSummary).section)) }}
           </template>
           <template #cell-class_summary="{ value }">
-            {{ value || '-' }}
+            {{ formatClassSummaryInline(typeof value === 'string' ? value : '', '-') }}
           </template>
           <template #cell-summary="{ row }">
             {{ sessionSummaryText(row as AttendanceSessionSummary) }}
@@ -697,11 +705,11 @@ function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
         <section class="workspace-card course-subpage-main">
           <AdminDataList
             :rows="detailRows as unknown as Array<Record<string, unknown>>"
-            :columns="detailColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+            :columns="detailColumns as unknown as Array<{ key: string; label: string; width?: number }>"
             row-key="id"
             empty-text="暂无课次考勤明细"
             :show-actions="true"
-            action-col-class="col-pct-14"
+            :action-col-width="14"
             :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
             :all-items="detailTotalItems"
             :active-filter-keys="[

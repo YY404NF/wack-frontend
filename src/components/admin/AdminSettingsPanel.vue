@@ -35,8 +35,8 @@ const termForm = reactive({
 })
 
 const termColumns = [
-  { key: 'name', label: '学期', colClass: 'col-pct-30' },
-  { key: 'term_start_date', label: '开学时间（周一）', colClass: 'col-pct-30' },
+  { key: 'name', label: '学期', width: 30 },
+  { key: 'term_start_date', label: '开学时间（周一）', width: 30 },
 ] as const
 
 const isEditingTerm = computed(() => editingTermId.value !== null)
@@ -206,18 +206,15 @@ function loadMoreTerms() {
         <section class="settings-terms-card">
           <div class="section-heading">
             <h2>学期设置</h2>
-            <div class="inline-actions">
-              <button class="primary-button" type="button" @click="openCreateTermModal">创建学期</button>
-            </div>
           </div>
 
           <AdminDataList
             :rows="visibleTerms as unknown as Array<Record<string, unknown>>"
-            :columns="termColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+            :columns="termColumns as unknown as Array<{ key: string; label: string; width?: number }>"
             row-key="id"
             empty-text="暂无学期数据"
             :show-actions="true"
-            action-col-class="col-pct-20"
+            :action-col-width="20"
             table-class="user-manage-table"
             :lazy-load="{ hasMore: hasMoreTerms, loading: false, buttonText: '滚动到底部继续加载学期' }"
             :current-items="visibleTerms.length"
@@ -233,6 +230,11 @@ function loadMoreTerms() {
                 :options="termNameOptions"
                 aria-label="按学期名称筛选"
               />
+            </template>
+            <template #filter-actions>
+              <button class="primary-button compact-button filter-action-push" type="button" @click="openCreateTermModal">
+                创建学期
+              </button>
             </template>
             <template #actions="{ row }">
               <div class="inline-actions user-actions">

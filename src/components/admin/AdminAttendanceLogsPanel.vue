@@ -15,17 +15,17 @@ const emit = defineEmits<{
 }>()
 
 const attendanceLogColumns = [
-  { key: 'lesson_date', label: '日期', colClass: 'col-pct-10' },
-  { key: 'section', label: '时间', colClass: 'col-pct-10', copyValue: (row: Record<string, unknown>) => formatSection(Number(row.section)) },
-  { key: 'course_name', label: '课程', colClass: 'col-pct-14' },
-  { key: 'teacher_name', label: '教师', colClass: 'col-pct-10' },
-  { key: 'student_id', label: '学号', colClass: 'col-pct-12' },
-  { key: 'real_name', label: '姓名', colClass: 'col-pct-10' },
-  { key: 'class_name', label: '班级', colClass: 'col-pct-14' },
-  { key: 'old_status', label: '原状态', colClass: 'col-pct-8', copyValue: (row: Record<string, unknown>) => formatStatus(row.old_status, '未查') },
-  { key: 'new_status', label: '新状态', colClass: 'col-pct-8', copyValue: (row: Record<string, unknown>) => formatStatus(row.new_status) },
-  { key: 'operator_name', label: '操作用户', colClass: 'col-pct-10' },
-  { key: 'operated_at', label: '操作时间', colClass: 'col-pct-14', copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
+  { key: 'lesson_date', label: '日期', width: 10 },
+  { key: 'section', label: '时间', width: 10, copyValue: (row: Record<string, unknown>) => formatSection(Number(row.section)) },
+  { key: 'course_name', label: '课程', width: 14 },
+  { key: 'teacher_name', label: '教师', width: 10 },
+  { key: 'student_id', label: '学号', width: 12 },
+  { key: 'real_name', label: '姓名', width: 10 },
+  { key: 'class_name', label: '班级', width: 14 },
+  { key: 'old_status', label: '原状态', width: 8, copyValue: (row: Record<string, unknown>) => formatStatus(row.old_status, '未查') },
+  { key: 'new_status', label: '新状态', width: 8, copyValue: (row: Record<string, unknown>) => formatStatus(row.new_status) },
+  { key: 'operator_name', label: '操作用户', width: 10 },
+  { key: 'operated_at', label: '操作时间', width: 14, copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
 ] as const
 
 const termOptions = computed(() => sortTermsForSelect(props.courseTerms))
@@ -119,7 +119,7 @@ function formatStatus(value: unknown, emptyLabel = '-') {
   <section class="workspace-card user-manage-panel">
     <AdminDataList
       :rows="attendanceLogs as unknown as Array<Record<string, unknown>>"
-      :columns="attendanceLogColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+      :columns="attendanceLogColumns as unknown as Array<{ key: string; label: string; width?: number }>"
       row-key="id"
       empty-text="暂无考勤日志"
       :pagination="{ page: attendanceLogsPage, pageSize: attendanceLogsPageSize, totalPages: attendanceLogsTotalPages, pageOptions: attendanceLogsPageOptions, totalItems: attendanceLogsTotalItems }"

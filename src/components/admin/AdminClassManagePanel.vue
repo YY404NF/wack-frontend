@@ -37,14 +37,14 @@ const majorOptions = computed(() =>
 const selectedClassIdSet = computed(() => new Set(props.selectedClassIds))
 const areAllClassesSelected = computed(() => props.classes.length > 0 && props.classes.every((item) => selectedClassIdSet.value.has(item.id)))
 const classColumns = [
-  { key: 'grade', label: '年级', colClass: 'col-pct-14' },
-  { key: 'major_name', label: '专业名称', colClass: 'col-pct-24' },
-  { key: 'class_name', label: '班级名称', colClass: 'col-pct-24' },
-  { key: 'student_count', label: '人数', colClass: 'col-pct-18' },
+  { key: 'grade', label: '年级', width: 12 },
+  { key: 'major_name', label: '专业名称', width: 20 },
+  { key: 'class_name', label: '班级名称', width: 20 },
+  { key: 'student_count', label: '人数', width: 10 },
 ] as const
 const classStudentColumns = [
-  { key: 'student_id', label: '学号', colClass: 'col-pct-30' },
-  { key: 'real_name', label: '姓名', colClass: 'col-pct-30' },
+  { key: 'student_id', label: '学号', width: 30 },
+  { key: 'real_name', label: '姓名', width: 30 },
 ] as const
 const CLASS_STUDENT_BATCH_SIZE = 20
 const visibleClassStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
@@ -177,12 +177,6 @@ function downloadSampleCsv() {
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div v-if="!classStudentModalOpen" class="section-heading section-heading-titleless">
-      <div class="inline-actions">
-        <button class="primary-button" type="button" @click="emit('openCreateClassModal')">创建班级</button>
-      </div>
-    </div>
-
     <Transition name="modal-float" appear>
     <div v-if="classModalOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
@@ -254,13 +248,14 @@ function downloadSampleCsv() {
       <div v-if="!classStudentModalOpen" key="class-list">
         <AdminDataList
           :rows="classes as unknown as Array<Record<string, unknown>>"
-          :columns="classColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+          :columns="classColumns as unknown as Array<{ key: string; label: string; width?: number }>"
           row-key="id"
+          table-class="class-manage-table"
           empty-text="暂无符合条件的班级"
           :show-selection="true"
           :selected-row-keys="selectedClassIds"
           :show-actions="true"
-          action-col-class="col-pct-20"
+          :action-col-width="24"
           :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
           :all-items="classAllItems"
           :selected-items="selectedClassIds.length"
@@ -297,6 +292,9 @@ function downloadSampleCsv() {
             </button>
             <button class="ghost-button compact-button danger-button" type="button" :disabled="classDeleting || selectedClassIds.length === 0" @click="emit('openBulkDeleteClassModal')">
               批量删除
+            </button>
+            <button class="primary-button compact-button filter-action-push" type="button" @click="emit('openCreateClassModal')">
+              创建班级
             </button>
           </template>
           <template #actions="{ row }">
@@ -336,12 +334,12 @@ function downloadSampleCsv() {
             </div>
             <AdminDataList
               :rows="visibleClassStudents as unknown as Array<Record<string, unknown>>"
-              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
               row-key="id"
               table-class="class-student-manage-table"
               empty-text="暂无班级学生"
               :show-actions="true"
-              action-col-class="col-pct-20"
+              :action-col-width="20"
               :lazy-load="{ hasMore: visibleClassStudents.length < filteredClassStudents.length, loading: false, buttonText: '滚动到底部继续加载班级学生' }"
               :current-items="visibleClassStudents.length"
               :total-items="filteredClassStudents.length"
@@ -373,12 +371,12 @@ function downloadSampleCsv() {
             </div>
             <AdminDataList
               :rows="visibleUnboundStudents as unknown as Array<Record<string, unknown>>"
-              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+              :columns="classStudentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
               row-key="id"
               table-class="class-student-manage-table"
               empty-text="暂无未绑定学生"
               :show-actions="true"
-              action-col-class="col-pct-20"
+              :action-col-width="20"
               :lazy-load="{ hasMore: visibleUnboundStudents.length < filteredUnboundStudents.length, loading: false, buttonText: '滚动到底部继续加载未绑定学生' }"
               :current-items="visibleUnboundStudents.length"
               :total-items="filteredUnboundStudents.length"

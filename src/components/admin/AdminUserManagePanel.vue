@@ -51,12 +51,12 @@ const pendingStatusTarget = ref<{ loginId: string; realName: string; status: num
 const pendingBulkStatus = ref<number | null>(null)
 
 const userColumns = [
-  { key: 'login_id', label: '登录账号', colClass: 'col-pct-13' },
-  { key: 'real_name', label: '姓名', colClass: 'col-pct-7' },
-  { key: 'role', label: '角色', colClass: 'col-pct-7', copyValue: (row: Record<string, unknown>) => roleName(Number(row.role)) },
-  { key: 'managed_class_id', label: '负责班级', colClass: 'col-pct-12', copyValue: (row: Record<string, unknown>) => Number(row.role) === 3 ? managedClassName((row.managed_class_id as number | null | undefined) ?? null) : '-' },
-  { key: 'status', label: '状态', colClass: 'col-pct-7', copyValue: (row: Record<string, unknown>) => Number(row.status) === 1 ? '正常' : '冻结' },
-  { key: 'last_login_at', label: '上次登录时间', colClass: 'col-pct-18', copyValue: (row: Record<string, unknown>) => formatLastLogin((row.last_login_at as string | null | undefined) ?? null) },
+  { key: 'login_id', label: '登录账号', width: 13 },
+  { key: 'real_name', label: '姓名', width: 7 },
+  { key: 'role', label: '角色', width: 7, copyValue: (row: Record<string, unknown>) => roleName(Number(row.role)) },
+  { key: 'managed_class_id', label: '负责班级', width: 12, copyValue: (row: Record<string, unknown>) => Number(row.role) === 3 ? managedClassName((row.managed_class_id as number | null | undefined) ?? null) : '-' },
+  { key: 'status', label: '状态', width: 7, copyValue: (row: Record<string, unknown>) => Number(row.status) === 1 ? '正常' : '冻结' },
+  { key: 'last_login_at', label: '上次登录时间', width: 18, copyValue: (row: Record<string, unknown>) => formatLastLogin((row.last_login_at as string | null | undefined) ?? null) },
 ] as const
 
 function formatLastLogin(value?: string | null) {
@@ -134,10 +134,6 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
 
 <template>
   <section class="workspace-card user-manage-panel">
-    <div class="section-heading section-heading-titleless">
-      <button class="primary-button" type="button" @click="emit('openCreateUserModal')">创建用户</button>
-    </div>
-
     <Transition name="modal-float" appear>
     <div v-if="singleStatusConfirmOpen" class="modal-backdrop">
       <article class="modal-card modal-card-narrow">
@@ -285,9 +281,9 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
 
     <AdminDataList
       table-class="user-manage-table"
-      action-col-class="col-pct-33"
+      :action-col-width="33"
       :rows="users as unknown as Array<Record<string, unknown>>"
-      :columns="userColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+      :columns="userColumns as unknown as Array<{ key: string; label: string; width?: number }>"
       row-key="login_id"
       empty-text="暂无符合条件的用户"
       :show-selection="true"
@@ -347,6 +343,9 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
         </button>
         <button class="ghost-button compact-button success-button" type="button" :disabled="userStatusUpdating || !canBulkUnfreezeUsers" @click="openBulkStatusConfirm(1)">
           批量解冻
+        </button>
+        <button class="primary-button compact-button filter-action-push" type="button" @click="emit('openCreateUserModal')">
+          创建用户
         </button>
       </template>
       <template #cell-role="{ row }">

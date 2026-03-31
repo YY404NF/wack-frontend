@@ -42,9 +42,9 @@ const classOptions = computed(() =>
 )
 
 const studentColumns = [
-  { key: 'student_id', label: '学号', colClass: 'col-pct-24' },
-  { key: 'real_name', label: '姓名', colClass: 'col-pct-18' },
-  { key: 'class_name', label: '所属班级', colClass: 'col-pct-38', copyable: false },
+  { key: 'student_id', label: '学号', width: 20 },
+  { key: 'real_name', label: '姓名', width: 14 },
+  { key: 'class_name', label: '所属班级', width: 24, copyable: false },
 ] as const
 
 const filteredClassOptions = computed(() => {
@@ -218,13 +218,14 @@ function asStudentItem(row: Record<string, unknown>) {
 
     <AdminDataList
       :rows="students as unknown as Array<Record<string, unknown>>"
-      :columns="studentColumns as unknown as Array<{ key: string; label: string; colClass?: string }>"
+      :columns="studentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
       row-key="id"
+      table-class="student-manage-table"
       empty-text="暂无学生数据"
       :show-selection="true"
       :selected-row-keys="selectedStudentIds"
       :show-actions="true"
-      action-col-class="col-pct-20"
+      :action-col-width="24"
       :pagination="{ page: studentPage, pageSize: studentPageSize, totalPages: studentTotalPages, pageOptions: studentPageOptions, totalItems: studentTotalItems }"
       :all-items="studentAllItems"
       :selected-items="selectedStudentIds.length"
@@ -258,17 +259,8 @@ function asStudentItem(row: Record<string, unknown>) {
           创建学生
         </button>
       </template>
-      <template #cell-class_name="{ row, copyText }">
-        <template v-if="row.class_name">
-          <div class="copy-token-group">
-            <button class="copy-token-button" type="button" @click.stop="copyText(`${row.grade}级`)">{{ row.grade }}级</button>
-            <span class="copy-token-separator" aria-hidden="true">&nbsp;&nbsp;</span>
-            <button class="copy-token-button" type="button" @click.stop="copyText(String(row.major_name ?? ''))">{{ row.major_name }}</button>
-            <span class="copy-token-separator" aria-hidden="true">&nbsp;&nbsp;</span>
-            <button class="copy-token-button" type="button" @click.stop="copyText(String(row.class_name))">{{ row.class_name }}</button>
-          </div>
-        </template>
-        <template v-else>未绑定班级</template>
+      <template #cell-class_name="{ row }">
+        {{ row.class_name || '未绑定班级' }}
       </template>
       <template #actions="{ row }">
         <div class="inline-actions user-actions">

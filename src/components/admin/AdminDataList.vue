@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, ref, useSlots, watch } from 'vue'
 type ListColumn = {
   key: string
   label: string
-  colClass?: string
+  width?: number
   headerClass?: string
   cellClass?: string
   copyable?: boolean
@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
   rowKey: string | ((row: Record<string, unknown>) => string | number)
   wrapperClass?: string
   tableClass?: string
-  actionColClass?: string
+  actionColWidth?: number
   emptyText?: string
   showSelection?: boolean
   selectedRowKeys?: Array<string | number>
@@ -108,6 +108,10 @@ const resolvedSearchCount = computed(() => props.pagination?.totalItems ?? props
 const resolvedTotalCount = computed(() => props.allItems ?? resolvedSearchCount.value)
 const showSummaryStats = computed(() => props.rows.length > 0)
 const shouldShowSearchSummary = computed(() => props.hasSearchCondition)
+const COLUMN_UNIT_PX = 11
+const DEFAULT_DATA_COL_UNITS = 14
+const DEFAULT_ACTION_COL_UNITS = 20
+const SELECTION_COL_PX = 44
 const pageTokens = computed(() => {
   if (!props.pagination) {
     return []
@@ -147,6 +151,43 @@ const pageTokens = computed(() => {
   pushRange(tokens, total - 2, total)
   return tokens
 })
+
+function normalizeWidthUnits(value: unknown, fallback: number) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback
+  }
+  return Math.max(1, Math.round(parsed))
+}
+
+function resolveColumnWidthPx(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
+  return normalizeWidthUnits(width, fallback) * COLUMN_UNIT_PX
+}
+
+function resolveColumnStyle(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
+  const resolvedWidth = `${resolveColumnWidthPx(width, fallback)}px`
+  return {
+    width: resolvedWidth,
+    minWidth: resolvedWidth,
+    maxWidth: resolvedWidth,
+  }
+}
+
+const resolvedTableMinWidth = computed(() => {
+  let width = props.showSelection ? SELECTION_COL_PX : 0
+  for (const column of props.columns) {
+    width += resolveColumnWidthPx(column.width, DEFAULT_DATA_COL_UNITS)
+  }
+  if (props.showActions) {
+    width += resolveColumnWidthPx(props.actionColWidth, DEFAULT_ACTION_COL_UNITS)
+  }
+  return Math.max(720, width)
+})
+
+const rootStyle = computed(() => ({
+  '--admin-list-col-unit': `${COLUMN_UNIT_PX}px`,
+  '--admin-data-list-min-width': `${resolvedTableMinWidth.value}px`,
+}))
 
 watch(
   () => props.pagination?.page,
@@ -239,6 +280,13 @@ function cellCopyText(column: ListColumn, row: Record<string, unknown>) {
   return normalizeCopyValue(row[column.key])
 }
 
+function cellTitleText(column: ListColumn, row: Record<string, unknown>) {
+  if (column.copyValue) {
+    return column.copyValue(row)
+  }
+  return normalizeCopyValue(row[column.key])
+}
+
 function requestLazyLoad() {
   if (!props.lazyLoad?.hasMore || props.lazyLoad.loading || loadingMore.value) {
     return
@@ -299,6 +347,7 @@ onBeforeUnmount(() => {
   <div
     class="admin-data-list"
     :class="{ 'admin-data-list-with-pagination': !!pagination, 'admin-data-list-empty': rows.length === 0 }"
+    :style="rootStyle"
     tabindex="0"
     @keydown="handleRootKeydown"
   >
@@ -309,8 +358,8 @@ onBeforeUnmount(() => {
       <table :class="['data-table', tableClass]">
         <colgroup>
           <col v-if="showSelection" class="selection-column" />
-          <col v-for="column in columns" :key="column.key" :class="column.colClass" />
-          <col v-if="showActions" :class="actionColClass" />
+          <col v-for="column in columns" :key="column.key" :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)" />
+          <col v-if="showActions" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)" />
         </colgroup>
         <thead>
           <tr>
@@ -321,10 +370,11 @@ onBeforeUnmount(() => {
               v-for="column in columns"
               :key="column.key"
               :class="column.headerClass"
+              :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
             >
               {{ column.label }}
             </th>
-            <th v-if="showActions" class="actions-column">{{ actionsLabel }}</th>
+            <th v-if="showActions" class="actions-column" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)">{{ actionsLabel }}</th>
           </tr>
           <tr
             v-if="hasFilterRow"
@@ -338,6 +388,7 @@ onBeforeUnmount(() => {
                 slots[`filter-${column.key}`] ? 'table-filter-cell' : 'table-filter-spacer',
                 slots[`filter-${column.key}`] && isFilterCellActive(column.key) ? 'table-filter-cell-active' : '',
               ]"
+              :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
               :aria-hidden="slots[`filter-${column.key}`] ? undefined : 'true'"
             >
               <slot
@@ -348,6 +399,7 @@ onBeforeUnmount(() => {
             <th
               v-if="showActions"
               :class="slots['filter-actions'] ? 'table-filter-cell table-filter-actions-cell' : 'table-filter-spacer table-filter-actions-cell'"
+              :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)"
               :aria-hidden="slots['filter-actions'] ? undefined : 'true'"
             >
               <div v-if="slots['filter-actions']" class="table-filter-actions">
@@ -374,6 +426,8 @@ onBeforeUnmount(() => {
             v-for="column in columns"
             :key="column.key"
             :class="column.cellClass"
+            :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
+            :title="cellTitleText(column, row)"
           >
             <slot
               :name="`cell-${column.key}`"
@@ -385,14 +439,15 @@ onBeforeUnmount(() => {
                 v-if="cellCopyText(column, row)"
                 class="copyable-inline-button data-list-copy-cell"
                 type="button"
+                :title="cellTitleText(column, row)"
                 @click.stop="copyText(cellCopyText(column, row))"
               >
                 {{ row[column.key] }}
               </button>
-              <div v-else class="data-list-copy-cell">{{ row[column.key] }}</div>
+              <div v-else class="data-list-copy-cell" :title="cellTitleText(column, row)">{{ row[column.key] }}</div>
             </slot>
           </td>
-            <td v-if="showActions" class="actions-column">
+            <td v-if="showActions" class="actions-column" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)">
               <slot v-if="row" name="actions" :row="row" />
             </td>
           </tr>
