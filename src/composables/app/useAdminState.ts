@@ -853,7 +853,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [courseFilters.term, courseFilters.courseName, courseFilters.teacherName, courseFilters.classId] as const,
+    () => [courseFilters.term, courseFilters.grade, courseFilters.courseName, courseFilters.teacherName, courseFilters.className, courseFilters.studentCount] as const,
     () => {
       coursePage.value = 1
     },
@@ -904,7 +904,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [coursePage.value, coursePageSize.value, courseFilters.term, courseFilters.courseName, courseFilters.teacherName, courseFilters.classId] as const,
+    () => [coursePage.value, coursePageSize.value, courseFilters.term, courseFilters.grade, courseFilters.courseName, courseFilters.teacherName, courseFilters.className, courseFilters.studentCount] as const,
     () => {
       if (isAdmin.value && deps.activeTab.value === 'course-manage') {
         void loadRoleData('course-manage')

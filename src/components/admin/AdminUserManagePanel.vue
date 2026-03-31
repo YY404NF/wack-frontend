@@ -53,7 +53,7 @@ const pendingBulkStatus = ref<number | null>(null)
 const userColumns = [
   { key: 'login_id', label: '登录账号', width: 13 },
   { key: 'real_name', label: '姓名', width: 7 },
-  { key: 'role', label: '角色', width: 7, copyValue: (row: Record<string, unknown>) => roleName(Number(row.role)) },
+  { key: 'role', label: '角色', width: 5, copyValue: (row: Record<string, unknown>) => roleName(Number(row.role)) },
   { key: 'managed_class_id', label: '负责班级', width: 12, copyValue: (row: Record<string, unknown>) => Number(row.role) === 3 ? managedClassName((row.managed_class_id as number | null | undefined) ?? null) : '-' },
   { key: 'status', label: '状态', width: 7, copyValue: (row: Record<string, unknown>) => Number(row.status) === 1 ? '正常' : '冻结' },
   { key: 'last_login_at', label: '上次登录时间', width: 18, copyValue: (row: Record<string, unknown>) => formatLastLogin((row.last_login_at as string | null | undefined) ?? null) },

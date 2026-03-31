@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 
 import { api, type CourseItem, type FreeTimeEditorItem, type MetaTermItem, type UserItem } from '../../api'
 import { buildFreeTimeCellKey, createFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
-import { selectDefaultTermId, selectDefaultTermName } from '../../utils/terms'
+import { parseAcademicTermName, selectDefaultTermId, selectDefaultTermName } from '../../utils/terms'
 
 type CourseForm = {
   termId: number | ''
@@ -102,7 +102,9 @@ export function useAdminEditors(deps: UseAdminEditorsDeps) {
 
   function openCreateCourseModal() {
     deps.resetCourseForm()
+    const defaultTermName = selectDefaultTermName(deps.courseTerms.value) || getCurrentAcademicTerm()
     deps.courseForm.termId = selectDefaultTermId(deps.courseTerms.value) ?? ''
+    deps.courseForm.grade = parseAcademicTermName(defaultTermName)?.startYear ?? deps.courseForm.grade
     deps.courseModalOpen.value = true
   }
 

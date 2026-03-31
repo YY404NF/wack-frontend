@@ -40,9 +40,11 @@ type UserFilters = {
 
 type CourseFilters = {
   term: string
+  grade: string
   courseName: string
   teacherName: string
-  classId: string
+  className: string
+  studentCount: string
 }
 
 type ClassFilters = {
@@ -304,9 +306,11 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         page: deps.coursePage.value,
         page_size: deps.coursePageSize.value,
         term: deps.courseFilters.term,
+        grade: deps.courseFilters.grade,
         course_name: deps.courseFilters.courseName,
         teacher_name: deps.courseFilters.teacherName,
-        class_id: deps.courseFilters.classId === '' ? '' : Number(deps.courseFilters.classId),
+        class_name: deps.courseFilters.className,
+        student_count: deps.courseFilters.studentCount,
       }),
       api.listCourses({ page: 1, page_size: 1 }),
       api.listMetaTerms(),

@@ -37,10 +37,10 @@ const majorOptions = computed(() =>
 const selectedClassIdSet = computed(() => new Set(props.selectedClassIds))
 const areAllClassesSelected = computed(() => props.classes.length > 0 && props.classes.every((item) => selectedClassIdSet.value.has(item.id)))
 const classColumns = [
-  { key: 'grade', label: '年级', width: 12 },
-  { key: 'major_name', label: '专业名称', width: 20 },
-  { key: 'class_name', label: '班级名称', width: 20 },
-  { key: 'student_count', label: '人数', width: 10 },
+  { key: 'grade', label: '年级', width: 7 },
+  { key: 'major_name', label: '专业名称', width: 6 },
+  { key: 'class_name', label: '班级名称', width: 8 },
+  { key: 'student_count', label: '人数', width: 3 },
 ] as const
 const classStudentColumns = [
   { key: 'student_id', label: '学号', width: 30 },
@@ -245,7 +245,7 @@ function downloadSampleCsv() {
     </Transition>
 
     <Transition name="subpage-fade" mode="out-in" appear>
-      <div v-if="!classStudentModalOpen" key="class-list">
+      <div v-if="!classStudentModalOpen" key="class-list" class="class-manage-page">
         <AdminDataList
           :rows="classes as unknown as Array<Record<string, unknown>>"
           :columns="classColumns as unknown as Array<{ key: string; label: string; width?: number }>"

@@ -21,11 +21,11 @@ const attendanceLogColumns = [
   { key: 'teacher_name', label: '教师', width: 10 },
   { key: 'student_id', label: '学号', width: 12 },
   { key: 'real_name', label: '姓名', width: 10 },
-  { key: 'class_name', label: '班级', width: 14 },
+  { key: 'class_name', label: '班级', width: 17 },
   { key: 'old_status', label: '原状态', width: 8, copyValue: (row: Record<string, unknown>) => formatStatus(row.old_status, '未查') },
   { key: 'new_status', label: '新状态', width: 8, copyValue: (row: Record<string, unknown>) => formatStatus(row.new_status) },
-  { key: 'operator_name', label: '操作用户', width: 10 },
-  { key: 'operated_at', label: '操作时间', width: 14, copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
+  { key: 'operator_name', label: '操作用户', width: 8 },
+  { key: 'operated_at', label: '操作时间', width: 17, copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
 ] as const
 
 const termOptions = computed(() => sortTermsForSelect(props.courseTerms))

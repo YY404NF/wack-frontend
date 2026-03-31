@@ -25,14 +25,16 @@ function normalizeCourseGroupDetail(detail: CourseGroupDetail | null | undefined
 }
 
 export const coursesApi = {
-  listCourses(query: { page?: number; page_size?: number; term?: string; course_name?: string; teacher_name?: string; class_id?: number | '' } = {}) {
+  listCourses(query: { page?: number; page_size?: number; term?: string; grade?: string; course_name?: string; teacher_name?: string; class_name?: string; student_count?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
     if (query.term?.trim()) params.set('term', query.term.trim())
+    if (query.grade?.trim()) params.set('grade', query.grade.trim())
     if (query.course_name?.trim()) params.set('keyword', query.course_name.trim())
     if (query.teacher_name?.trim()) params.set('teacher_name', query.teacher_name.trim())
-    if (typeof query.class_id === 'number' && query.class_id > 0) params.set('class_id', String(query.class_id))
+    if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
+    if (query.student_count?.trim()) params.set('student_count', query.student_count.trim())
     return request<PageResult<CourseItem>>(`${apiPaths.admin.courses}?${params.toString()}`).then((page) => ({
       ...page,
       items: page.items ?? [],
@@ -91,12 +93,12 @@ export const coursesApi = {
   listCourseGroupStudents(courseId: number, groupId: number) {
     return request<CourseGroupDetail['students'] | null>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/students`).then((items) => asArray(items))
   },
-  listAvailableCourseGroupClasses(courseId: number, groupId: number, query: { keyword?: string; page?: number; page_size?: number } = {}) {
+  listAvailableCourseGroupClasses(courseId: number, groupId: number, query: { class_name?: string; page?: number; page_size?: number } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
-    if (query.keyword?.trim()) {
-      params.set('keyword', query.keyword.trim())
+    if (query.class_name?.trim()) {
+      params.set('class_name', query.class_name.trim())
     }
     const suffix = params.toString() ? `?${params.toString()}` : ''
     return request<PageResult<AvailableCourseGroupClassItem>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-classes${suffix}`).then((page) => ({
@@ -115,13 +117,13 @@ export const coursesApi = {
       method: 'DELETE',
     })
   },
-  listAvailableCourseGroupStudents(courseId: number, groupId: number, query: { keyword?: string; page?: number; page_size?: number } = {}) {
+  listAvailableCourseGroupStudents(courseId: number, groupId: number, query: { student_no?: string; student_name?: string; class_name?: string; page?: number; page_size?: number } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
-    if (query.keyword?.trim()) {
-      params.set('keyword', query.keyword.trim())
-    }
+    if (query.student_no?.trim()) params.set('student_no', query.student_no.trim())
+    if (query.student_name?.trim()) params.set('student_name', query.student_name.trim())
+    if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     const suffix = params.toString() ? `?${params.toString()}` : ''
     return request<PageResult<AvailableCourseGroupStudentItem>>(`${apiPaths.admin.courses}/${courseId}/groups/${groupId}/available-students${suffix}`).then((page) => ({
       ...page,

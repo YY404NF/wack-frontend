@@ -3,6 +3,19 @@ type TermLike = {
   term_start_date?: string
 }
 
+export function parseAcademicTermName(name: string) {
+  const matched = name.match(/^(\d{4})-(\d{4})-(1|2)$/)
+  if (!matched) {
+    return null
+  }
+
+  return {
+    startYear: Number(matched[1]),
+    endYear: Number(matched[2]),
+    termNo: Number(matched[3]),
+  }
+}
+
 function termStartTime(term: TermLike) {
   if (!term.term_start_date) {
     return Number.NEGATIVE_INFINITY

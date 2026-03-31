@@ -18,9 +18,11 @@ export type AdminUserFilters = {
 
 export type AdminCourseFilters = {
   term: string
+  grade: string
   courseName: string
   teacherName: string
-  classId: string
+  className: string
+  studentCount: string
 }
 
 export type AdminCourseForm = {

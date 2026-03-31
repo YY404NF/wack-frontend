@@ -79,20 +79,20 @@ let detailRequestToken = 0
 const EXPORT_PAGE_SIZE = 500
 
 const sessionColumns = [
-  { key: 'lesson_date', label: '日期', width: 12, copyable: false },
-  { key: 'lesson_time', label: '时间', width: 12, copyable: false },
-  { key: 'course_name', label: '课程', width: 16 },
-  { key: 'teacher_name', label: '教师', width: 12 },
+  { key: 'lesson_date', label: '日期', width: 10, copyable: false },
+  { key: 'lesson_time', label: '时间', width: 8, copyable: false },
+  { key: 'course_name', label: '课程', width: 13 },
+  { key: 'teacher_name', label: '教师', width: 9 },
   { key: 'class_summary', label: '班级', width: 18, copyable: false, copyValue: (row: Record<string, unknown>) => formatClassSummaryInline(String(row.class_summary ?? ''), '-') },
-  { key: 'student_count', label: '人数', width: 10 },
-  { key: 'summary', label: '考勤概况', width: 20, copyable: false },
+  { key: 'student_count', label: '人数', width: 5 },
+  { key: 'summary', label: '考勤概况', width: 16, copyable: false },
 ] as const
 
 const detailColumns = [
-  { key: 'student_id', label: '学号', width: 20 },
-  { key: 'real_name', label: '姓名', width: 18 },
-  { key: 'class_name', label: '班级', width: 34, copyable: false },
-  { key: 'status', label: '状态', width: 14, copyable: false },
+  { key: 'student_id', label: '学号', width: 9 },
+  { key: 'real_name', label: '姓名', width: 6 },
+  { key: 'class_name', label: '班级', width: 9, copyable: false },
+  { key: 'status', label: '状态', width: 3, copyable: false },
 ] as const
 
 watch(

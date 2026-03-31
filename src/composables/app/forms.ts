@@ -15,6 +15,7 @@ import type {
   AdminUserPasswordForm,
 } from '../../components/admin/form-types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
+import { parseAcademicTermName } from '../../utils/terms'
 
 export function createLoginForm(): { studentId: string; password: string } {
   return {
@@ -88,16 +89,18 @@ export function createUserFilters(): AdminUserFilters {
 export function createCourseFilters(): AdminCourseFilters {
   return {
     term: '',
+    grade: '',
     courseName: '',
     teacherName: '',
-    classId: '',
+    className: '',
+    studentCount: '',
   }
 }
 
 export function createCourseForm(): AdminCourseForm {
   return {
     termId: '',
-    grade: new Date().getFullYear(),
+    grade: parseAcademicTermName(getCurrentAcademicTerm())?.startYear ?? new Date().getFullYear(),
     courseName: '',
     teacherName: '',
   }

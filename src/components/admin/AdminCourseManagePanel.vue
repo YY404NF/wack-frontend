@@ -14,10 +14,16 @@ import {
 import { formatClassNameListMultiline, sectionLabels, weekdayLabels } from '../../constants'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminCourseManageProps } from './types'
 
 type CourseManageView = 'courses' | 'groups' | 'lessons' | 'students'
+type CourseGroupLessonRow = CourseGroupLessonItem & {
+  session_no: number
+  location: string
+}
+type CourseWeekPreset = 'all' | 'odd' | 'even' | 'first-half' | 'second-half'
 
 const props = defineProps<AdminCourseManageProps & {
   courseManageRouteView?: CourseManageView
@@ -58,32 +64,38 @@ const currentView = ref<CourseManageView>('courses')
 const syncingRouteState = ref(false)
 const selectedCourseIdSet = computed(() => new Set(props.selectedCourseIds))
 const areAllCoursesSelected = computed(() => props.courses.length > 0 && props.courses.every((item) => selectedCourseIdSet.value.has(item.id)))
+const classNameOptions = computed(() =>
+  Array.from(new Set(props.allClasses.map((item) => item.class_name.trim()).filter((item) => item.length > 0))).sort((left, right) =>
+    left.localeCompare(right, 'zh-Hans-CN'),
+  ),
+)
 const courseColumns = [
-  { key: 'course_name', label: '课程名称', width: 14 },
-  { key: 'teacher_name', label: '授课教师', width: 10 },
-  { key: 'class_names', label: '班级', width: 20, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '人数', width: 8 },
+  { key: 'grade', label: '年级', width: 3 },
+  { key: 'course_name', label: '课程名称', width: 8 },
+  { key: 'teacher_name', label: '教师', width: 3 },
+  { key: 'class_names', label: '上课班级', width: 8, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'student_count', label: '上课人数', width: 4 },
 ] as const
 const groupColumns = [
-  { key: 'id', label: '课程组', width: 14, copyable: false },
-  { key: 'class_names', label: '上课班级', width: 34, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '学生', width: 12 },
-  { key: 'lesson_count', label: '课次', width: 12 },
+  { key: 'class_names', label: '上课班级', width: 20, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
+  { key: 'student_count', label: '上课人数', width: 5 },
+  { key: 'lesson_count', label: '课次', width: 4 },
 ] as const
 const lessonColumns = [
-  { key: 'week_no', label: '周次', width: 18, copyable: false },
-  { key: 'weekday', label: '星期', width: 14, copyable: false },
-  { key: 'section', label: '时间节', width: 20, copyable: false },
-  { key: 'location', label: '地点', width: 20, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
+  { key: 'session_no', label: '课次', width: 6, copyable: false },
+  { key: 'week_no', label: '上课周', width: 8, copyable: false },
+  { key: 'weekday', label: '星期', width: 6, copyable: false },
+  { key: 'section', label: '时间节', width: 10, copyable: false },
+  { key: 'location', label: '地点', width: 9, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
 ] as const
 const candidateClassColumns = [
-  { key: 'class_display', label: '班级', width: 68, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
-  { key: 'student_count', label: '人数', width: 12 },
+  { key: 'class_name', label: '班级名称', width: 8 },
+  { key: 'student_count', label: '人数', width: 4 },
 ] as const
 const candidateStudentColumns = [
-  { key: 'student_no', label: '学号', width: 24 },
-  { key: 'student_name', label: '姓名', width: 18 },
-  { key: 'class_display', label: '所属班级', width: 38, copyValue: (row: Record<string, unknown>) => String(row.class_display ?? '') },
+  { key: 'student_no', label: '学号', width: 10 },
+  { key: 'student_name', label: '姓名', width: 8 },
+  { key: 'class_name', label: '所属班级', width: 9 },
 ] as const
 
 const termOptions = computed(() => {
@@ -114,28 +126,36 @@ const courseGroups = ref<CourseGroupItem[]>([])
 const courseGroupsLoading = ref(false)
 const courseGroupActionLoading = ref(false)
 const courseGroupsError = ref('')
+const selectedCourseGroupIds = ref<number[]>([])
 const activeCourseGroupId = ref<number | null>(null)
 const activeCourseGroupDetail = ref<CourseGroupDetail | null>(null)
 const visibleCourseGroupCount = ref(GROUP_BATCH_SIZE)
 const visibleLessonCount = ref(LESSON_BATCH_SIZE)
+const lessonSessionNoFilter = ref('')
 const lessonWeekFilter = ref('')
+const lessonWeekdayFilter = ref('')
+const lessonSectionFilter = ref('')
+const lessonLocationFilter = ref('')
 const sessionModalOpen = ref(false)
 const editingSessionId = ref<number | null>(null)
 const sessionHistoryHint = ref('')
 const actionToast = ref('')
 const selectedLessonIds = ref<number[]>([])
+const bulkDeleteCourseGroupModalOpen = ref(false)
 const bulkDeleteLessonModalOpen = ref(false)
 const selectedCreateSessionWeeks = ref<number[]>([])
-const selectedCreateSessionPreset = ref<'all' | 'odd' | 'even' | null>(null)
+const selectedCreateSessionPreset = ref<CourseWeekPreset | null>(null)
 const deleteCourseGroupModalOpen = ref(false)
 const pendingDeleteCourseGroupId = ref<number | null>(null)
 const pendingDeleteCourseGroupName = ref('')
 const removeCourseGroupMemberModalOpen = ref(false)
 const pendingRemoveCourseGroupMember = ref<{ type: 'class' | 'student'; id: number; name: string } | null>(null)
-const courseGroupClassKeyword = ref('')
-const courseGroupStudentKeyword = ref('')
-const courseGroupClassRows = ref<Array<Record<string, unknown>>>([])
-const courseGroupStudentRows = ref<Array<Record<string, unknown>>>([])
+const courseGroupClassNameFilter = ref('')
+const courseGroupStudentNoFilter = ref('')
+const courseGroupStudentNameFilter = ref('')
+const courseGroupStudentClassNameFilter = ref('')
+const courseGroupClassRows = ref<AvailableCourseGroupClassItem[]>([])
+const courseGroupStudentRows = ref<AvailableCourseGroupStudentItem[]>([])
 const courseGroupClassPage = ref(1)
 const courseGroupStudentPage = ref(1)
 const courseGroupClassHasMore = ref(false)
@@ -153,7 +173,6 @@ const courseGroupSessionForm = ref({
 let actionToastTimer: ReturnType<typeof setTimeout> | null = null
 const safeCourses = computed(() => props.courses.filter((item): item is CourseItem => !!item))
 const safeCourseGroups = computed(() => courseGroups.value.filter((item): item is CourseGroupItem => !!item))
-const safeVisibleLessons = computed(() => visibleCourseGroupLessons.value.filter((item): item is CourseGroupLessonItem => !!item))
 
 const showActionToast = (message: string) => {
   if (!message) {
@@ -174,20 +193,50 @@ const activeCourseGroup = computed(() => {
   return safeCourseGroups.value.find((item) => item.id === activeCourseGroupId.value) ?? null
 })
 
+const selectedCourseGroupIdSet = computed(() => new Set(selectedCourseGroupIds.value))
+const areAllCourseGroupsSelected = computed(
+  () => safeCourseGroups.value.length > 0 && safeCourseGroups.value.every((item) => selectedCourseGroupIdSet.value.has(item.id)),
+)
 const visibleCourseGroups = computed(() => safeCourseGroups.value.slice(0, visibleCourseGroupCount.value))
+const courseGroupLessonRows = computed<CourseGroupLessonRow[]>(() =>
+  (activeCourseGroupDetail.value?.sessions ?? [])
+    .filter((item): item is CourseGroupLessonItem => !!item)
+    .map((item, index) => ({
+      ...item,
+      session_no: index + 1,
+      location: `${item.building_name}-${item.room_name}`,
+    })),
+)
 const filteredCourseGroupLessons = computed(() => {
-  const list = activeCourseGroupDetail.value?.sessions ?? []
-  if (!lessonWeekFilter.value) {
-    return list
-  }
-  return list.filter((item) => String(item.week_no) === lessonWeekFilter.value)
+  const sessionNoKeyword = lessonSessionNoFilter.value.trim()
+  const locationKeyword = lessonLocationFilter.value.trim().toLowerCase()
+
+  return courseGroupLessonRows.value.filter((item) => {
+    if (sessionNoKeyword && String(item.session_no) !== sessionNoKeyword) {
+      return false
+    }
+    if (lessonWeekFilter.value && String(item.week_no) !== lessonWeekFilter.value) {
+      return false
+    }
+    if (lessonWeekdayFilter.value && String(item.weekday) !== lessonWeekdayFilter.value) {
+      return false
+    }
+    if (lessonSectionFilter.value && String(item.section) !== lessonSectionFilter.value) {
+      return false
+    }
+    if (locationKeyword && !item.location.toLowerCase().includes(locationKeyword)) {
+      return false
+    }
+    return true
+  })
 })
-const visibleCourseGroupLessons = computed(() => filteredCourseGroupLessons.value.filter((item): item is CourseGroupLessonItem => !!item).slice(0, visibleLessonCount.value))
+const visibleCourseGroupLessons = computed(() => filteredCourseGroupLessons.value.slice(0, visibleLessonCount.value))
 const selectedLessonIdSet = computed(() => new Set(selectedLessonIds.value))
+const safeFilteredLessons = computed(() => filteredCourseGroupLessons.value.filter((item): item is CourseGroupLessonRow => !!item))
 const areAllVisibleLessonsSelected = computed(
   () =>
-    safeVisibleLessons.value.length > 0 &&
-    safeVisibleLessons.value.every((item) => selectedLessonIdSet.value.has(item.id)),
+    safeFilteredLessons.value.length > 0 &&
+    safeFilteredLessons.value.every((item) => selectedLessonIdSet.value.has(item.id)),
 )
 const activeCourseGroupStudents = computed(() => {
   const students = activeCourseGroupDetail.value?.students
@@ -243,10 +292,6 @@ const courseGroupStudentEntries = computed(() => {
     }))
   return [...classEntries, ...otherStudentEntries]
 })
-const lessonWeekOptions = computed(() => {
-  const weeks = Array.from(new Set((activeCourseGroupDetail.value?.sessions ?? []).map((item) => item.week_no)))
-  return weeks.sort((left, right) => left - right)
-})
 const allSessionWeeks = computed(() => Array.from({ length: 16 }, (_, index) => index + 1))
 
 const parentCourseSummary = computed(() => {
@@ -256,9 +301,9 @@ const parentCourseSummary = computed(() => {
   }
   return [
     { label: '课程名称', value: course.course_name },
-    { label: '授课教师', value: course.teacher_name },
+    { label: '教师', value: course.teacher_name },
+    { label: '年级', value: `${course.grade}` },
     { label: '学期', value: course.term },
-    { label: '年级', value: `${course.grade}级` },
   ]
 })
 
@@ -268,10 +313,7 @@ const activeCourseGroupSummary = computed(() => {
     return []
   }
   return [
-    { label: '课程组', value: `课程组 ${group.id}` },
     { label: '上课班级', value: formatClassNameListMultiline(group.class_names) },
-    { label: '上课学生', value: `${group.student_count} 人` },
-    { label: '课次数量', value: `${group.lesson_count} 节` },
   ]
 })
 
@@ -279,6 +321,7 @@ watch(
   () => courseGroups.value.length,
   () => {
     visibleCourseGroupCount.value = GROUP_BATCH_SIZE
+    selectedCourseGroupIds.value = selectedCourseGroupIds.value.filter((id) => courseGroups.value.some((item) => item.id === id))
   },
 )
 
@@ -295,7 +338,14 @@ watch(sessionHistoryHint, (message) => {
 })
 
 watch(
-  () => [activeCourseGroupDetail.value?.sessions.length ?? 0, lessonWeekFilter.value],
+  () => [
+    courseGroupLessonRows.value.length,
+    lessonSessionNoFilter.value,
+    lessonWeekFilter.value,
+    lessonWeekdayFilter.value,
+    lessonSectionFilter.value,
+    lessonLocationFilter.value,
+  ],
   () => {
     visibleLessonCount.value = LESSON_BATCH_SIZE
     selectedLessonIds.value = []
@@ -310,7 +360,7 @@ watch(
 )
 
 watch(
-  () => courseGroupClassKeyword.value,
+  () => courseGroupClassNameFilter.value,
   async () => {
     if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
       return
@@ -320,7 +370,11 @@ watch(
 )
 
 watch(
-  () => courseGroupStudentKeyword.value,
+  () => [
+    courseGroupStudentNoFilter.value,
+    courseGroupStudentNameFilter.value,
+    courseGroupStudentClassNameFilter.value,
+  ],
   async () => {
     if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
       return
@@ -440,29 +494,6 @@ function asCourseGroupItem(row: Record<string, unknown>) {
   return row as unknown as CourseGroupItem
 }
 
-function asCourseGroupLessonRow(session: CourseGroupLessonItem) {
-  return {
-    ...session,
-    location: `${session.building_name}-${session.room_name}`,
-  }
-}
-
-function asCandidateClassRow(item: AvailableCourseGroupClassItem) {
-  return {
-    ...item,
-    class_id: item.id,
-    class_display: `${item.grade}级  ${item.major_name}  ${item.class_name}`,
-  }
-}
-
-function asCandidateStudentRow(item: AvailableCourseGroupStudentItem) {
-  return {
-    ...item,
-    student_id: item.id,
-    class_display: `${item.grade}级  ${item.major_name}  ${item.class_name}`,
-  }
-}
-
 async function loadCourseGroupDetail(courseId: number, groupId: number) {
   activeCourseGroupId.value = groupId
   activeCourseGroupDetail.value = await api.getCourseGroup(courseId, groupId)
@@ -474,6 +505,7 @@ async function refreshCourseGroups(targetGroupId = activeCourseGroupId.value) {
   }
   const groups = (await api.listCourseGroups(courseGroupWorkspaceCourse.value.id)).filter((item): item is CourseGroupItem => !!item)
   courseGroups.value = groups
+  selectedCourseGroupIds.value = selectedCourseGroupIds.value.filter((id) => groups.some((item) => item.id === id))
   const nextGroupId = targetGroupId !== null && groups.some((item) => item.id === targetGroupId) ? targetGroupId : groups[0]?.id ?? null
   if (nextGroupId !== null) {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, nextGroupId)
@@ -488,13 +520,23 @@ async function openCourseGroupPage(item: CourseItem, targetView: CourseManageVie
   courseGroupsError.value = ''
   courseGroupWorkspaceCourse.value = item
   currentView.value = 'groups'
+  lessonSessionNoFilter.value = ''
   lessonWeekFilter.value = ''
+  lessonWeekdayFilter.value = ''
+  lessonSectionFilter.value = ''
+  lessonLocationFilter.value = ''
   if (targetView === 'groups') {
     syncCourseManageRoute('groups', item.id, null)
   }
   try {
     await refreshCourseGroups(targetGroupId)
     if (targetView === 'lessons' || targetView === 'students') {
+      if (targetView === 'students') {
+        courseGroupClassNameFilter.value = ''
+        courseGroupStudentNoFilter.value = ''
+        courseGroupStudentNameFilter.value = ''
+        courseGroupStudentClassNameFilter.value = ''
+      }
       currentView.value = targetView
       if (targetView === 'students') {
         await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
@@ -519,14 +561,20 @@ function closeCourseGroupWorkspace() {
   courseGroupsLoading.value = false
   courseGroupActionLoading.value = false
   courseGroupsError.value = ''
+  selectedCourseGroupIds.value = []
   activeCourseGroupId.value = null
   activeCourseGroupDetail.value = null
   visibleCourseGroupCount.value = GROUP_BATCH_SIZE
   visibleLessonCount.value = LESSON_BATCH_SIZE
+  lessonSessionNoFilter.value = ''
   lessonWeekFilter.value = ''
+  lessonWeekdayFilter.value = ''
+  lessonSectionFilter.value = ''
+  lessonLocationFilter.value = ''
   sessionModalOpen.value = false
   editingSessionId.value = null
   sessionHistoryHint.value = ''
+  bulkDeleteCourseGroupModalOpen.value = false
   selectedLessonIds.value = []
   bulkDeleteLessonModalOpen.value = false
   selectedCreateSessionWeeks.value = []
@@ -536,8 +584,10 @@ function closeCourseGroupWorkspace() {
   pendingDeleteCourseGroupName.value = ''
   removeCourseGroupMemberModalOpen.value = false
   pendingRemoveCourseGroupMember.value = null
-  courseGroupClassKeyword.value = ''
-  courseGroupStudentKeyword.value = ''
+  courseGroupClassNameFilter.value = ''
+  courseGroupStudentNoFilter.value = ''
+  courseGroupStudentNameFilter.value = ''
+  courseGroupStudentClassNameFilter.value = ''
   courseGroupClassRows.value = []
   courseGroupStudentRows.value = []
   courseGroupClassPage.value = 1
@@ -556,7 +606,11 @@ async function openCourseGroupLessons(group: CourseGroupItem) {
   try {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
     currentView.value = 'lessons'
+    lessonSessionNoFilter.value = ''
     lessonWeekFilter.value = ''
+    lessonWeekdayFilter.value = ''
+    lessonSectionFilter.value = ''
+    lessonLocationFilter.value = ''
     syncCourseManageRoute('lessons', courseGroupWorkspaceCourse.value.id, group.id)
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '加载课次失败'
@@ -573,6 +627,10 @@ async function openCourseGroupStudents(group: CourseGroupItem) {
   courseGroupsError.value = ''
   try {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
+    courseGroupClassNameFilter.value = ''
+    courseGroupStudentNoFilter.value = ''
+    courseGroupStudentNameFilter.value = ''
+    courseGroupStudentClassNameFilter.value = ''
     currentView.value = 'students'
     await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
     syncCourseManageRoute('students', courseGroupWorkspaceCourse.value.id, group.id)
@@ -599,6 +657,33 @@ async function createCourseGroup() {
   }
 }
 
+function toggleCourseGroupSelection(groupId: number) {
+  if (selectedCourseGroupIds.value.includes(groupId)) {
+    selectedCourseGroupIds.value = selectedCourseGroupIds.value.filter((item) => item !== groupId)
+    return
+  }
+  selectedCourseGroupIds.value = [...selectedCourseGroupIds.value, groupId]
+}
+
+function toggleCourseGroupPageSelection() {
+  if (areAllCourseGroupsSelected.value) {
+    selectedCourseGroupIds.value = []
+    return
+  }
+  selectedCourseGroupIds.value = safeCourseGroups.value.map((item) => item.id)
+}
+
+function openBulkDeleteCourseGroupModal() {
+  if (selectedCourseGroupIds.value.length === 0) {
+    return
+  }
+  bulkDeleteCourseGroupModalOpen.value = true
+}
+
+function closeBulkDeleteCourseGroupModal() {
+  bulkDeleteCourseGroupModalOpen.value = false
+}
+
 function openDeleteCourseGroupModal(group: CourseGroupItem) {
   pendingDeleteCourseGroupId.value = group.id
   pendingDeleteCourseGroupName.value = `课程组 ${group.id}`
@@ -623,6 +708,40 @@ async function deleteCourseGroup() {
     closeDeleteCourseGroupModal()
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : '删除课程组失败'
+  } finally {
+    courseGroupActionLoading.value = false
+  }
+}
+
+async function bulkDeleteCourseGroups() {
+  if (!courseGroupWorkspaceCourse.value || selectedCourseGroupIds.value.length === 0) {
+    return
+  }
+  courseGroupActionLoading.value = true
+  courseGroupsError.value = ''
+  const targetIds = [...selectedCourseGroupIds.value]
+  const failedIds: number[] = []
+  const failed: string[] = []
+  let deletedCount = 0
+  try {
+    for (const groupId of targetIds) {
+      try {
+        await api.deleteCourseGroup(courseGroupWorkspaceCourse.value.id, groupId)
+        deletedCount += 1
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '删除失败'
+        failedIds.push(groupId)
+        failed.push(`课程组 ${groupId}（${message}）`)
+      }
+    }
+    if (deletedCount > 0) {
+      await refreshCourseGroups(activeCourseGroupId.value)
+    }
+    selectedCourseGroupIds.value = failedIds
+    closeBulkDeleteCourseGroupModal()
+    if (failed.length > 0) {
+      courseGroupsError.value = `部分删除失败：${failed.join('；')}`
+    }
   } finally {
     courseGroupActionLoading.value = false
   }
@@ -657,12 +776,12 @@ function toggleLessonSelection(lessonId: number) {
 
 function toggleLessonPageSelection() {
   if (areAllVisibleLessonsSelected.value) {
-    const visibleIds = new Set(visibleCourseGroupLessons.value.map((item) => item.id))
+    const visibleIds = new Set(filteredCourseGroupLessons.value.map((item) => item.id))
     selectedLessonIds.value = selectedLessonIds.value.filter((item) => !visibleIds.has(item))
     return
   }
   selectedLessonIds.value = Array.from(
-    new Set([...selectedLessonIds.value, ...visibleCourseGroupLessons.value.map((item) => item.id)]),
+    new Set([...selectedLessonIds.value, ...filteredCourseGroupLessons.value.map((item) => item.id)]),
   )
 }
 
@@ -717,6 +836,26 @@ function selectEvenSessionWeeks() {
   }
   selectedCreateSessionPreset.value = 'even'
   selectedCreateSessionWeeks.value = allSessionWeeks.value.filter((weekNo) => weekNo % 2 === 0)
+}
+
+function selectFirstHalfSessionWeeks() {
+  if (selectedCreateSessionPreset.value === 'first-half') {
+    selectedCreateSessionPreset.value = null
+    selectedCreateSessionWeeks.value = []
+    return
+  }
+  selectedCreateSessionPreset.value = 'first-half'
+  selectedCreateSessionWeeks.value = allSessionWeeks.value.filter((weekNo) => weekNo <= 8)
+}
+
+function selectSecondHalfSessionWeeks() {
+  if (selectedCreateSessionPreset.value === 'second-half') {
+    selectedCreateSessionPreset.value = null
+    selectedCreateSessionWeeks.value = []
+    return
+  }
+  selectedCreateSessionPreset.value = 'second-half'
+  selectedCreateSessionWeeks.value = allSessionWeeks.value.filter((weekNo) => weekNo >= 9)
 }
 
 function toggleCreateSessionWeek(weekNo: number) {
@@ -839,17 +978,22 @@ async function resetCourseGroupStudentCandidates() {
 }
 
 async function loadMoreCourseGroupClasses() {
-  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !courseGroupClassHasMore.value && courseGroupClassPage.value > 1 || courseGroupClassLoading.value) {
+  if (
+    !courseGroupWorkspaceCourse.value ||
+    activeCourseGroupId.value === null ||
+    (!courseGroupClassHasMore.value && courseGroupClassPage.value > 1) ||
+    courseGroupClassLoading.value
+  ) {
     return
   }
   courseGroupClassLoading.value = true
   try {
     const page = await api.listAvailableCourseGroupClasses(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, {
-      keyword: courseGroupClassKeyword.value,
+      class_name: courseGroupClassNameFilter.value,
       page: courseGroupClassPage.value,
       page_size: CANDIDATE_PAGE_SIZE,
     })
-    const incoming = (page.items ?? []).map((item) => asCandidateClassRow(item))
+    const incoming = page.items ?? []
     courseGroupClassRows.value = courseGroupClassPage.value === 1 ? incoming : [...courseGroupClassRows.value, ...incoming]
     const loadedCount = courseGroupClassRows.value.length
     courseGroupClassHasMore.value = loadedCount < (page.total ?? 0)
@@ -865,17 +1009,24 @@ async function loadMoreCourseGroupClasses() {
 }
 
 async function loadMoreCourseGroupStudents() {
-  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null || !courseGroupStudentHasMore.value && courseGroupStudentPage.value > 1 || courseGroupStudentLoading.value) {
+  if (
+    !courseGroupWorkspaceCourse.value ||
+    activeCourseGroupId.value === null ||
+    (!courseGroupStudentHasMore.value && courseGroupStudentPage.value > 1) ||
+    courseGroupStudentLoading.value
+  ) {
     return
   }
   courseGroupStudentLoading.value = true
   try {
     const page = await api.listAvailableCourseGroupStudents(courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, {
-      keyword: courseGroupStudentKeyword.value,
+      student_no: courseGroupStudentNoFilter.value,
+      student_name: courseGroupStudentNameFilter.value,
+      class_name: courseGroupStudentClassNameFilter.value,
       page: courseGroupStudentPage.value,
       page_size: CANDIDATE_PAGE_SIZE,
     })
-    const incoming = (page.items ?? []).map((item) => asCandidateStudentRow(item))
+    const incoming = page.items ?? []
     courseGroupStudentRows.value = courseGroupStudentPage.value === 1 ? incoming : [...courseGroupStudentRows.value, ...incoming]
     const loadedCount = courseGroupStudentRows.value.length
     courseGroupStudentHasMore.value = loadedCount < (page.total ?? 0)
@@ -1024,7 +1175,7 @@ function toggleCourseGroupClassExpanded(key: string) {
         <article class="modal-card modal-card-narrow">
           <div class="wide-modal-header">
             <div class="wide-modal-header-top">
-              <h3 class="wide-modal-header-title">{{ isEditingCourse ? '编辑课程' : '创建课程' }}</h3>
+              <h3 class="wide-modal-header-title">{{ isEditingCourse ? '编辑课程信息' : '创建课程' }}</h3>
               <div class="wide-modal-header-actions">
                 <button class="ghost-button compact-button" type="button" @click="emit('closeCourseModal')">关闭</button>
               </div>
@@ -1033,9 +1184,6 @@ function toggleCourseGroupClassExpanded(key: string) {
 
           <div>
             <aside class="split-modal-side">
-              <div class="course-section-heading">
-                <h4>基本信息</h4>
-              </div>
               <form class="form-grid single-column-form" @submit.prevent="emit('saveCourse')">
                 <label class="field">
                   <span>学期</span>
@@ -1052,7 +1200,7 @@ function toggleCourseGroupClassExpanded(key: string) {
                   <input v-model="courseForm.courseName" />
                 </label>
                 <label class="field">
-                  <span>授课教师</span>
+                  <span>教师</span>
                   <input v-model="courseForm.teacherName" />
                 </label>
               </form>
@@ -1119,6 +1267,25 @@ function toggleCourseGroupClassExpanded(key: string) {
           <div class="inline-actions">
             <button class="ghost-button" type="button" @click="closeDeleteCourseGroupModal">取消</button>
             <button class="ghost-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="deleteCourseGroup">
+              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ courseGroupActionLoading ? '删除中...' : '确认删除' }}</span>
+            </button>
+          </div>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="bulkDeleteCourseGroupModalOpen" class="modal-backdrop modal-backdrop-contained">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>确认批量删除课程组</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeBulkDeleteCourseGroupModal">关闭</button>
+          </div>
+          <p class="hint">确定删除已选中的 {{ selectedCourseGroupIds.length }} 个课程组吗？</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" @click="closeBulkDeleteCourseGroupModal">取消</button>
+            <button class="ghost-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="bulkDeleteCourseGroups">
               <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
               <span>{{ courseGroupActionLoading ? '删除中...' : '确认删除' }}</span>
             </button>
@@ -1226,15 +1393,20 @@ function toggleCourseGroupClassExpanded(key: string) {
         :all-items="courseAllItems"
         :selected-items="selectedCourseIds.length"
         :active-filter-keys="[
+          ...(courseFilters.grade.trim() ? ['grade'] : []),
           ...(courseFilters.courseName.trim() ? ['course_name'] : []),
           ...(courseFilters.teacherName.trim() ? ['teacher_name'] : []),
-          ...(courseFilters.classId.trim() ? ['class_names'] : []),
+          ...(courseFilters.className.trim() ? ['class_names'] : []),
+          ...(courseFilters.studentCount.trim() ? ['student_count'] : []),
         ]"
-        :has-search-condition="!!(courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.classId.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
+        :has-search-condition="!!(courseFilters.grade.trim() || courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.className.trim() || courseFilters.studentCount.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
         @update-page="emit('updateCoursePage', $event)"
         @update-page-size="emit('updateCoursePageSize', $event)"
         @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
       >
+        <template #filter-grade>
+          <input v-model="courseFilters.grade" type="number" inputmode="numeric" aria-label="按年级筛选课程" />
+        </template>
         <template #filter-course_name>
           <input v-model="courseFilters.courseName" aria-label="按课程名称筛选课程" />
         </template>
@@ -1242,7 +1414,14 @@ function toggleCourseGroupClassExpanded(key: string) {
           <input v-model="courseFilters.teacherName" aria-label="按授课教师筛选课程" />
         </template>
         <template #filter-class_names>
-          <input v-model="courseFilters.classId" aria-label="按班级筛选课程" />
+          <AppInputSelect
+            v-model="courseFilters.className"
+            :options="classNameOptions"
+            aria-label="按班级筛选课程"
+          />
+        </template>
+        <template #filter-student_count>
+          <input v-model="courseFilters.studentCount" type="number" inputmode="numeric" aria-label="按上课人数筛选课程" />
         </template>
         <template #filter-actions>
           <button class="ghost-button compact-button" :class="{ selected: areAllCoursesSelected }" type="button" @click="emit('toggleCoursePageSelection')">
@@ -1293,14 +1472,7 @@ function toggleCourseGroupClassExpanded(key: string) {
         </div>
       </aside>
 
-      <section class="workspace-card course-subpage-main">
-        <div class="section-heading">
-          <strong>课程组列表</strong>
-          <div class="inline-actions">
-            <button class="primary-button" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroup">创建课程组</button>
-          </div>
-        </div>
-
+      <section class="workspace-card course-subpage-main course-groups-main">
         <p v-if="courseGroupsLoading" class="hint">正在加载课程组数据...</p>
         <AdminDataList
           v-else
@@ -1309,12 +1481,29 @@ function toggleCourseGroupClassExpanded(key: string) {
           row-key="id"
           table-class="course-group-table"
           empty-text="当前课程还没有课程组"
+          :show-selection="true"
+          :selected-row-keys="selectedCourseGroupIds"
           :show-actions="true"
           :action-col-width="28"
+          :selected-items="selectedCourseGroupIds.length"
+          :current-items="visibleCourseGroups.length"
+          :total-items="courseGroups.length"
+          :all-items="courseGroups.length"
           :lazy-load="{ hasMore: visibleCourseGroups.length < courseGroups.length, loading: false, buttonText: '滚动到底部继续加载课程组' }"
+          @toggle-row-selection="toggleCourseGroupSelection(Number($event))"
           @load-more="loadMoreCourseGroups"
         >
-          <template #cell-id="{ value }">课程组 {{ value }}</template>
+          <template #filter-actions>
+            <button class="ghost-button compact-button" :class="{ selected: areAllCourseGroupsSelected }" type="button" @click="toggleCourseGroupPageSelection">
+              全选
+            </button>
+            <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading || selectedCourseGroupIds.length === 0" @click="openBulkDeleteCourseGroupModal">
+              批量删除
+            </button>
+            <button class="primary-button compact-button filter-action-push" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroup">
+              创建课程组
+            </button>
+          </template>
           <template #cell-class_names="{ value }">
             {{ Array.isArray(value) && value.length > 0 ? value.join('、') : '未绑定班级' }}
           </template>
@@ -1359,14 +1548,10 @@ function toggleCourseGroupClassExpanded(key: string) {
 
       <section class="workspace-card course-subpage-main course-lessons-main">
         <div class="course-lesson-list-card">
-          <div class="section-heading">
-            <strong>课次列表</strong>
-          </div>
-
           <p v-if="courseGroupsLoading" class="hint">正在加载课次数据...</p>
           <AdminDataList
             v-else
-            :rows="visibleCourseGroupLessons.map(asCourseGroupLessonRow)"
+            :rows="visibleCourseGroupLessons as unknown as Array<Record<string, unknown>>"
             :columns="lessonColumns as unknown as Array<{ key: string; label: string; width?: number }>"
             row-key="id"
             table-class="course-group-table"
@@ -1379,18 +1564,39 @@ function toggleCourseGroupClassExpanded(key: string) {
             :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
             :current-items="visibleCourseGroupLessons.length"
             :total-items="filteredCourseGroupLessons.length"
-            :all-items="activeCourseGroupDetail?.sessions?.length ?? 0"
-            :active-filter-keys="lessonWeekFilter ? ['week_no'] : []"
-            :has-search-condition="!!lessonWeekFilter"
+            :all-items="courseGroupLessonRows.length"
+            :active-filter-keys="[
+              ...(lessonSessionNoFilter ? ['session_no'] : []),
+              ...(lessonWeekFilter ? ['week_no'] : []),
+              ...(lessonWeekdayFilter ? ['weekday'] : []),
+              ...(lessonSectionFilter ? ['section'] : []),
+              ...(lessonLocationFilter.trim() ? ['location'] : []),
+            ]"
+            :has-search-condition="!!(lessonSessionNoFilter || lessonWeekFilter || lessonWeekdayFilter || lessonSectionFilter || lessonLocationFilter.trim())"
             @toggle-row-selection="toggleLessonSelection(Number($event))"
             @toggle-page-selection="toggleLessonPageSelection"
             @load-more="loadMoreCourseGroupLessons"
           >
+            <template #filter-session_no>
+              <input v-model="lessonSessionNoFilter" type="number" inputmode="numeric" aria-label="按课次筛选课次列表" />
+            </template>
             <template #filter-week_no>
-              <select v-model="lessonWeekFilter" aria-label="按周次筛选课次">
-                <option value="">全部周次</option>
-                <option v-for="weekNo in lessonWeekOptions" :key="weekNo" :value="String(weekNo)">第 {{ weekNo }} 周</option>
+              <input v-model="lessonWeekFilter" type="number" inputmode="numeric" aria-label="按上课周筛选课次" />
+            </template>
+            <template #filter-weekday>
+              <select v-model="lessonWeekdayFilter" aria-label="按星期筛选课次">
+                <option value="">全部</option>
+                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="day[0]">{{ day[1] }}</option>
               </select>
+            </template>
+            <template #filter-section>
+              <select v-model="lessonSectionFilter" aria-label="按时间节筛选课次">
+                <option value="">全部</option>
+                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="slot[0]">{{ slot[1] }}</option>
+              </select>
+            </template>
+            <template #filter-location>
+              <input v-model="lessonLocationFilter" aria-label="按地点筛选课次" />
             </template>
             <template #filter-actions>
               <button class="ghost-button compact-button" :class="{ selected: areAllVisibleLessonsSelected }" type="button" @click="toggleLessonPageSelection">
@@ -1443,6 +1649,8 @@ function toggleCourseGroupClassExpanded(key: string) {
               <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'all' }" type="button" @click="selectAllSessionWeeks">全周</button>
               <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'odd' }" type="button" @click="selectOddSessionWeeks">单周</button>
               <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'even' }" type="button" @click="selectEvenSessionWeeks">双周</button>
+              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'first-half' }" type="button" @click="selectFirstHalfSessionWeeks">上半学期</button>
+              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'second-half' }" type="button" @click="selectSecondHalfSessionWeeks">下半学期</button>
             </div>
             <div class="course-lesson-week-grid">
               <button
@@ -1497,12 +1705,6 @@ function toggleCourseGroupClassExpanded(key: string) {
 
       <section class="course-student-main-column">
         <section class="workspace-card course-group-current-students-card">
-          <div class="section-heading">
-            <div>
-              <strong>上课学生列表</strong>
-            </div>
-          </div>
-
           <div class="course-group-student-groups">
             <article
               v-for="entry in courseGroupStudentEntries"
@@ -1565,11 +1767,8 @@ function toggleCourseGroupClassExpanded(key: string) {
         <section class="workspace-card course-group-candidates-card">
           <div class="course-group-editor-grid">
             <section class="course-group-editor-block">
-              <div class="section-heading section-heading-titleless">
-                <strong>班级列表</strong>
-              </div>
               <AdminDataList
-                :rows="courseGroupClassRows"
+                :rows="courseGroupClassRows as unknown as Array<Record<string, unknown>>"
                 :columns="candidateClassColumns as unknown as Array<{ key: string; label: string; width?: number }>"
                 row-key="id"
                 table-class="course-group-candidate-table"
@@ -1577,27 +1776,28 @@ function toggleCourseGroupClassExpanded(key: string) {
                 :show-actions="true"
                 :action-col-width="20"
                 :lazy-load="{ hasMore: courseGroupClassHasMore, loading: courseGroupClassLoading, buttonText: '滚动到底部继续加载班级' }"
-                :active-filter-keys="courseGroupClassKeyword.trim() ? ['class_display'] : []"
-                :has-search-condition="!!courseGroupClassKeyword.trim()"
+                :active-filter-keys="courseGroupClassNameFilter.trim() ? ['class_name'] : []"
+                :has-search-condition="!!courseGroupClassNameFilter.trim()"
                 @load-more="loadMoreCourseGroupClasses"
               >
-                <template #filter-class_display>
-                  <input v-model="courseGroupClassKeyword" placeholder="搜索班级 / 专业 / 年级" />
+                <template #filter-class_name>
+                  <AppInputSelect
+                    v-model="courseGroupClassNameFilter"
+                    :options="classNameOptions"
+                    aria-label="按班级名称筛选可添加班级"
+                  />
                 </template>
                 <template #actions="{ row }">
                   <div class="inline-actions user-actions">
-                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupClass(Number(row.class_id ?? row.id))">添加</button>
+                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupClass(Number(row.id))">添加</button>
                   </div>
                 </template>
               </AdminDataList>
             </section>
 
             <section class="course-group-editor-block">
-              <div class="section-heading section-heading-titleless">
-                <strong>学生列表</strong>
-              </div>
               <AdminDataList
-                :rows="courseGroupStudentRows"
+                :rows="courseGroupStudentRows as unknown as Array<Record<string, unknown>>"
                 :columns="candidateStudentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
                 row-key="id"
                 table-class="course-group-candidate-table"
@@ -1605,16 +1805,30 @@ function toggleCourseGroupClassExpanded(key: string) {
                 :show-actions="true"
                 :action-col-width="20"
                 :lazy-load="{ hasMore: courseGroupStudentHasMore, loading: courseGroupStudentLoading, buttonText: '滚动到底部继续加载学生' }"
-                :active-filter-keys="courseGroupStudentKeyword.trim() ? ['student_no'] : []"
-                :has-search-condition="!!courseGroupStudentKeyword.trim()"
+                :active-filter-keys="[
+                  ...(courseGroupStudentNoFilter.trim() ? ['student_no'] : []),
+                  ...(courseGroupStudentNameFilter.trim() ? ['student_name'] : []),
+                  ...(courseGroupStudentClassNameFilter.trim() ? ['class_name'] : []),
+                ]"
+                :has-search-condition="!!(courseGroupStudentNoFilter.trim() || courseGroupStudentNameFilter.trim() || courseGroupStudentClassNameFilter.trim())"
                 @load-more="loadMoreCourseGroupStudents"
               >
                 <template #filter-student_no>
-                  <input v-model="courseGroupStudentKeyword" placeholder="搜索学号 / 姓名 / 班级" />
+                  <input v-model="courseGroupStudentNoFilter" inputmode="numeric" aria-label="按学号筛选可添加学生" />
+                </template>
+                <template #filter-student_name>
+                  <input v-model="courseGroupStudentNameFilter" aria-label="按姓名筛选可添加学生" />
+                </template>
+                <template #filter-class_name>
+                  <AppInputSelect
+                    v-model="courseGroupStudentClassNameFilter"
+                    :options="classNameOptions"
+                    aria-label="按所属班级筛选可添加学生"
+                  />
                 </template>
                 <template #actions="{ row }">
                   <div class="inline-actions user-actions">
-                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupStudent(Number(row.student_id ?? row.id))">添加</button>
+                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupStudent(Number(row.id))">添加</button>
                   </div>
                 </template>
               </AdminDataList>

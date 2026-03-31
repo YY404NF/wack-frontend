@@ -42,9 +42,9 @@ const classOptions = computed(() =>
 )
 
 const studentColumns = [
-  { key: 'student_id', label: '学号', width: 20 },
-  { key: 'real_name', label: '姓名', width: 14 },
-  { key: 'class_name', label: '所属班级', width: 24, copyable: false },
+  { key: 'student_id', label: '学号', width: 8 },
+  { key: 'real_name', label: '姓名', width: 4 },
+  { key: 'class_name', label: '所属班级', width: 6, copyable: false },
 ] as const
 
 const filteredClassOptions = computed(() => {

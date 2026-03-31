@@ -110,8 +110,10 @@ const showSummaryStats = computed(() => props.rows.length > 0)
 const shouldShowSearchSummary = computed(() => props.hasSearchCondition)
 const COLUMN_UNIT_PX = 11
 const DEFAULT_DATA_COL_UNITS = 14
-const DEFAULT_ACTION_COL_UNITS = 20
 const SELECTION_COL_PX = 44
+const totalWidthUnits = computed(() => {
+  return Math.max(1, props.columns.reduce((sum, column) => sum + normalizeWidthUnits(column.width, DEFAULT_DATA_COL_UNITS), 0))
+})
 const pageTokens = computed(() => {
   if (!props.pagination) {
     return []
@@ -164,12 +166,20 @@ function resolveColumnWidthPx(width?: number, fallback = DEFAULT_DATA_COL_UNITS)
   return normalizeWidthUnits(width, fallback) * COLUMN_UNIT_PX
 }
 
-function resolveColumnStyle(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
-  const resolvedWidth = `${resolveColumnWidthPx(width, fallback)}px`
+function resolveColumnShare(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
+  return `${(normalizeWidthUnits(width, fallback) / totalWidthUnits.value) * 100}%`
+}
+
+function resolveColumnColStyle(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
   return {
-    width: resolvedWidth,
-    minWidth: resolvedWidth,
-    maxWidth: resolvedWidth,
+    width: resolveColumnShare(width, fallback),
+  }
+}
+
+function resolveColumnCellStyle(width?: number, fallback = DEFAULT_DATA_COL_UNITS) {
+  return {
+    width: resolveColumnShare(width, fallback),
+    minWidth: `${resolveColumnWidthPx(width, fallback)}px`,
   }
 }
 
@@ -178,10 +188,7 @@ const resolvedTableMinWidth = computed(() => {
   for (const column of props.columns) {
     width += resolveColumnWidthPx(column.width, DEFAULT_DATA_COL_UNITS)
   }
-  if (props.showActions) {
-    width += resolveColumnWidthPx(props.actionColWidth, DEFAULT_ACTION_COL_UNITS)
-  }
-  return Math.max(720, width)
+  return width
 })
 
 const rootStyle = computed(() => ({
@@ -358,8 +365,8 @@ onBeforeUnmount(() => {
       <table :class="['data-table', tableClass]">
         <colgroup>
           <col v-if="showSelection" class="selection-column" />
-          <col v-for="column in columns" :key="column.key" :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)" />
-          <col v-if="showActions" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)" />
+          <col v-for="column in columns" :key="column.key" :style="resolveColumnColStyle(column.width, DEFAULT_DATA_COL_UNITS)" />
+          <col v-if="showActions" class="actions-column-col" />
         </colgroup>
         <thead>
           <tr>
@@ -370,11 +377,11 @@ onBeforeUnmount(() => {
               v-for="column in columns"
               :key="column.key"
               :class="column.headerClass"
-              :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
+              :style="resolveColumnCellStyle(column.width, DEFAULT_DATA_COL_UNITS)"
             >
               {{ column.label }}
             </th>
-            <th v-if="showActions" class="actions-column" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)">{{ actionsLabel }}</th>
+            <th v-if="showActions" class="actions-column">{{ actionsLabel }}</th>
           </tr>
           <tr
             v-if="hasFilterRow"
@@ -388,7 +395,7 @@ onBeforeUnmount(() => {
                 slots[`filter-${column.key}`] ? 'table-filter-cell' : 'table-filter-spacer',
                 slots[`filter-${column.key}`] && isFilterCellActive(column.key) ? 'table-filter-cell-active' : '',
               ]"
-              :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
+              :style="resolveColumnCellStyle(column.width, DEFAULT_DATA_COL_UNITS)"
               :aria-hidden="slots[`filter-${column.key}`] ? undefined : 'true'"
             >
               <slot
@@ -399,7 +406,6 @@ onBeforeUnmount(() => {
             <th
               v-if="showActions"
               :class="slots['filter-actions'] ? 'table-filter-cell table-filter-actions-cell' : 'table-filter-spacer table-filter-actions-cell'"
-              :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)"
               :aria-hidden="slots['filter-actions'] ? undefined : 'true'"
             >
               <div v-if="slots['filter-actions']" class="table-filter-actions">
@@ -426,7 +432,7 @@ onBeforeUnmount(() => {
             v-for="column in columns"
             :key="column.key"
             :class="column.cellClass"
-            :style="resolveColumnStyle(column.width, DEFAULT_DATA_COL_UNITS)"
+            :style="resolveColumnCellStyle(column.width, DEFAULT_DATA_COL_UNITS)"
             :title="cellTitleText(column, row)"
           >
             <slot
@@ -447,7 +453,7 @@ onBeforeUnmount(() => {
               <div v-else class="data-list-copy-cell" :title="cellTitleText(column, row)">{{ row[column.key] }}</div>
             </slot>
           </td>
-            <td v-if="showActions" class="actions-column" :style="resolveColumnStyle(actionColWidth, DEFAULT_ACTION_COL_UNITS)">
+            <td v-if="showActions" class="actions-column">
               <slot v-if="row" name="actions" :row="row" />
             </td>
           </tr>

@@ -5,7 +5,7 @@ import AdminDataList from './AdminDataList.vue'
 import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminSettingsProps } from './types'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
-import { sortTermsForSelect } from '../../utils/terms'
+import { parseAcademicTermName, sortTermsForSelect } from '../../utils/terms'
 
 const props = defineProps<AdminSettingsProps>()
 
@@ -29,18 +29,31 @@ const termFilters = reactive({
   name: '',
 })
 const termForm = reactive({
-  startYear: new Date().getFullYear(),
-  termNo: 1,
+  startYear: new Date().getFullYear() as number | '',
+  termNo: 1 as number | '',
   termStartDate: '',
 })
 
 const termColumns = [
   { key: 'name', label: '学期', width: 30 },
-  { key: 'term_start_date', label: '开学时间（周一）', width: 30 },
+  { key: 'term_start_date', label: '开学日期（第1周-周一）', width: 30 },
 ] as const
 
 const isEditingTerm = computed(() => editingTermId.value !== null)
-const termPreviewName = computed(() => `${termForm.startYear}-${termForm.startYear + 1}-${termForm.termNo}`)
+const normalizedStartYear = computed(() => {
+  const parsed = Number(termForm.startYear)
+  return Number.isInteger(parsed) ? parsed : null
+})
+const normalizedTermNo = computed(() => {
+  const parsed = Number(termForm.termNo)
+  return parsed === 1 || parsed === 2 ? parsed : null
+})
+const termPreviewName = computed(() => {
+  if (normalizedStartYear.value === null || normalizedTermNo.value === null) {
+    return ''
+  }
+  return `${normalizedStartYear.value}-${normalizedStartYear.value + 1}-${normalizedTermNo.value}`
+})
 
 watch(
   () => props.courseTerms,
@@ -64,15 +77,6 @@ const activeTermFilterKeys = computed(() => [
   ...(termFilters.name.trim() ? ['name'] : []),
 ])
 const hasTermSearchCondition = computed(() => activeTermFilterKeys.value.length > 0)
-const termNoInput = computed({
-  get: () => String(termForm.termNo),
-  set: (value: string) => {
-    const parsed = Number(value.trim())
-    if (parsed === 1 || parsed === 2) {
-      termForm.termNo = parsed
-    }
-  },
-})
 
 watch(
   () => termFilters.name,
@@ -81,19 +85,8 @@ watch(
   },
 )
 
-function parseTermName(name: string) {
-  const matched = name.match(/^(\d{4})-(\d{4})-(1|2)$/)
-  if (!matched) {
-    return null
-  }
-  return {
-    startYear: Number(matched[1]),
-    termNo: Number(matched[3]),
-  }
-}
-
 function resetTermForm() {
-  const parsed = parseTermName(getCurrentAcademicTerm())
+  const parsed = parseAcademicTermName(getCurrentAcademicTerm())
   termForm.startYear = parsed?.startYear ?? new Date().getFullYear()
   termForm.termNo = parsed?.termNo ?? 1
   termForm.termStartDate = ''
@@ -107,7 +100,7 @@ function openCreateTermModal() {
 }
 
 function openEditTermModal(item: MetaTermItem) {
-  const parsed = parseTermName(item.name)
+  const parsed = parseAcademicTermName(item.name)
   termForm.startYear = parsed?.startYear ?? new Date().getFullYear()
   termForm.termNo = parsed?.termNo ?? 1
   termForm.termStartDate = item.term_start_date
@@ -133,8 +126,12 @@ function isMondayDate(value: string) {
 
 async function saveTerm() {
   termFormError.value = ''
+  if (!isEditingTerm.value && (normalizedStartYear.value === null || normalizedTermNo.value === null)) {
+    termFormError.value = '请输入有效的学期'
+    return
+  }
   if (!isMondayDate(termForm.termStartDate)) {
-    termFormError.value = '开学日期必须是周一'
+    termFormError.value = '开学日期（第1周-周一）必须是周一'
     return
   }
   termSaving.value = true
@@ -238,7 +235,7 @@ function loadMoreTerms() {
             </template>
             <template #actions="{ row }">
               <div class="inline-actions user-actions">
-                <button class="ghost-button compact-button" type="button" @click="openEditTermModal(asMetaTermItem(row))">编辑学期</button>
+                <button class="ghost-button compact-button" type="button" @click="openEditTermModal(asMetaTermItem(row))">编辑</button>
               </div>
             </template>
           </AdminDataList>
@@ -254,31 +251,33 @@ function loadMoreTerms() {
             <button class="ghost-button compact-button modal-close" type="button" @click="closeTermModal">关闭</button>
           </div>
           <form class="form-grid single-column-form" @submit.prevent="saveTerm">
-            <template v-if="!isEditingTerm">
-              <label class="field">
-                <span>学年开始年</span>
-                <input v-model.number="termForm.startYear" type="number" min="2000" />
-              </label>
-              <label class="field">
-                <span>学期</span>
-                <AppInputSelect
-                  v-model="termNoInput"
-                  :options="['1', '2']"
-                  aria-label="选择学期"
-                  :allow-custom="false"
-                />
-              </label>
-            </template>
             <label class="field">
-              <span>学期名称</span>
+              <span>学期</span>
+              <div v-if="!isEditingTerm" class="term-segment-field" aria-label="学期">
+                <input v-model.number="termForm.startYear" type="number" min="2000" max="2999" aria-label="学年开始年" />
+                <span class="term-segment-separator" aria-hidden="true">-</span>
+                <input
+                  class="readonly-field-input term-segment-static-input"
+                  :value="normalizedStartYear === null ? '' : normalizedStartYear + 1"
+                  aria-label="学年结束年"
+                  readonly
+                  tabindex="-1"
+                />
+                <span class="term-segment-separator" aria-hidden="true">-</span>
+                <select v-model.number="termForm.termNo" aria-label="学期序号">
+                  <option :value="1">1</option>
+                  <option :value="2">2</option>
+                </select>
+              </div>
               <input
+                v-else
                 class="readonly-field-input"
-                :value="isEditingTerm ? localTerms.find((item) => item.id === editingTermId)?.name ?? '' : termPreviewName"
+                :value="localTerms.find((item) => item.id === editingTermId)?.name ?? ''"
                 readonly
               />
             </label>
             <label class="field">
-              <span>开学时间（周一）</span>
+              <span>开学日期（第1周-周一）</span>
               <input v-model="termForm.termStartDate" type="date" @input="termFormError = ''" />
             </label>
             <p v-if="termFormError" class="hint form-error-text">{{ termFormError }}</p>
