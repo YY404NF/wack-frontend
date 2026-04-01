@@ -95,21 +95,25 @@
 
 .overview-rank-item,
 .overview-session-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(92, 82, 75, 0.06);
 }
 
-.overview-rank-leading {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+.overview-session-item-button {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.overview-session-item-button:hover {
+  background: rgba(207, 90, 46, 0.1);
+}
+
+.overview-session-item-button:focus-visible {
+  outline: 2px solid rgba(207, 90, 46, 0.35);
+  outline-offset: 2px;
 }
 
 .overview-rank-index {
@@ -125,39 +129,80 @@
   flex: 0 0 auto;
 }
 
-.overview-rank-item strong,
-.overview-session-item strong {
+.overview-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: start;
+  row-gap: 4px;
+}
+
+.overview-entry-two-column {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.overview-entry-lead {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.overview-entry-title,
+.overview-entry-subtitle {
+  min-width: 0;
+}
+
+.overview-entry-title {
   display: block;
   color: var(--text);
+  line-height: 1.4;
+  white-space: normal;
 }
 
-.overview-rank-item p,
-.overview-session-item p {
-  margin: 4px 0 0;
+.overview-entry-title-left,
+.overview-entry-subtitle-left {
+  grid-column: 2;
+}
+
+.overview-entry-title-right,
+.overview-entry-subtitle-right {
+  grid-column: 3;
+  text-align: right;
+  justify-self: end;
+}
+
+.overview-entry-two-column > .overview-entry-title-left,
+.overview-entry-two-column > .overview-entry-subtitle-left {
+  grid-column: 1;
+}
+
+.overview-entry-two-column > .overview-entry-title-right,
+.overview-entry-two-column > .overview-entry-subtitle-right {
+  grid-column: 2;
+}
+
+.overview-entry-title-left,
+.overview-entry-title-right {
+  grid-row: 1;
+}
+
+.overview-entry-subtitle-left,
+.overview-entry-subtitle-right {
+  display: block;
+  grid-row: 2;
+  margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: normal;
 }
 
-.overview-rank-meta,
-.overview-session-meta {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-  text-align: right;
-}
-
-.overview-rank-meta strong,
-.overview-session-meta strong {
-  white-space: nowrap;
-}
-
-.overview-session-meta .status-badge {
-  white-space: nowrap;
-}
-
-.overview-rank-meta small,
-.overview-session-meta small {
-  color: var(--muted);
+.overview-abnormal-status .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
 }
 
 .stat-card {

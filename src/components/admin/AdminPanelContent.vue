@@ -65,6 +65,7 @@ const emit = defineEmits<{
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
   openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
+  openAttendanceDetail: [sessionId: number]
   updateAttendanceRoute: [payload: { sessionId?: number | null }]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
@@ -126,6 +127,7 @@ function forwardUserStatus(studentId: string, status: number) {
       v-if="activeTab === 'overview'"
       key="overview"
       :overview-data="overviewData"
+      @open-attendance-detail="emit('openAttendanceDetail', $event)"
     />
 
     <AdminAttendancePanel

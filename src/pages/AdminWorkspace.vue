@@ -57,6 +57,7 @@ const emit = defineEmits<{
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
   openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
+  openAttendanceDetail: [sessionId: number]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -281,6 +282,12 @@ function handleAttendanceRouteChange(payload: { sessionId?: number | null }) {
   void syncAttendanceRouteToQuery(payload)
 }
 
+async function handleOverviewAttendanceDetail(sessionId: number) {
+  attendanceRouteSessionId.value = sessionId
+  await syncAttendanceRouteToQuery({ sessionId }, 'replace')
+  emit('update:activeTab', 'attendance')
+}
+
 function handlePathSegmentClick(target?: 'courses' | 'groups' | 'class-manage-root' | 'attendance-root') {
   if (!target) {
     return
@@ -439,6 +446,7 @@ function closeAboutModal() {
           @bulk-delete-classes="emit('bulkDeleteClasses')"
           @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
           @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
+          @open-attendance-detail="handleOverviewAttendanceDetail"
           @update-attendance-route="handleAttendanceRouteChange"
           @open-create-user-modal="emit('openCreateUserModal')"
           @open-edit-user-modal="emit('openEditUserModal', $event)"

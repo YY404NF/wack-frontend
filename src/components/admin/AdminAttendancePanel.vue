@@ -79,7 +79,7 @@ let detailRequestToken = 0
 const EXPORT_PAGE_SIZE = 500
 
 const sessionColumns = [
-  { key: 'lesson_date', label: '日期', width: 10, copyable: false },
+  { key: 'lesson_date', label: '日期', width: 8, copyable: false },
   { key: 'lesson_time', label: '时间', width: 8, copyable: false },
   { key: 'course_name', label: '课程', width: 13 },
   { key: 'teacher_name', label: '教师', width: 9 },
