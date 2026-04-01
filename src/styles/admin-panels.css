@@ -105,12 +105,25 @@
   border: 0;
   text-align: left;
   cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 
+.overview-rank-item-button {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.overview-rank-item-button:hover,
 .overview-session-item-button:hover {
   background: rgba(207, 90, 46, 0.1);
 }
 
+.overview-rank-item-button:focus-visible,
 .overview-session-item-button:focus-visible {
   outline: 2px solid rgba(207, 90, 46, 0.35);
   outline-offset: 2px;
@@ -344,6 +357,10 @@
   background: rgba(92, 82, 75, 0.06);
 }
 
+.data-table tbody tr.data-row-highlighted td {
+  animation: admin-row-breathe 1.8s ease-in-out 1;
+}
+
 .data-table th {
   color: var(--muted);
   font-size: 0.9rem;
@@ -351,6 +368,20 @@
   z-index: 2;
   background: var(--paper-strong);
   background-clip: padding-box;
+}
+
+@keyframes admin-row-breathe {
+  0% {
+    background: rgba(92, 82, 75, 0.06);
+  }
+
+  45% {
+    background: rgba(207, 90, 46, 0.24);
+  }
+
+  100% {
+    background: rgba(92, 82, 75, 0.06);
+  }
 }
 
 .data-table thead tr:first-child th {
@@ -716,13 +747,26 @@
   height: 100%;
 }
 
+.attendance-detail-view {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.attendance-detail-view > .course-subpage-grid {
+  min-height: 0;
+  height: 100%;
+}
+
 .attendance-page {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
 }
 
 .attendance-page > .admin-data-list,
-.attendance-detail-layout > .course-subpage-main > .admin-data-list {
+.attendance-detail-layout > .course-subpage-main > .admin-data-list,
+.attendance-detail-view > .course-subpage-grid > .course-subpage-main > .admin-data-list {
   min-height: 0;
   height: 100%;
 }
@@ -908,7 +952,7 @@
 }
 
 .pagination-ellipsis {
-  min-width: 12px;
+  min-width: 20px;
   color: var(--muted);
   text-align: center;
 }

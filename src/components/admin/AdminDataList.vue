@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useSlots, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useSlots, watch } from 'vue'
 
 type ListColumn = {
   key: string
@@ -46,6 +46,8 @@ const props = withDefaults(defineProps<{
   selectedItems?: number | null
   activeFilterKeys?: string[]
   hasSearchCondition?: boolean
+  highlightRowKey?: string | number | null
+  highlightToken?: number
 }>(), {
   emptyText: '暂无数据',
   showSelection: false,
@@ -61,6 +63,8 @@ const props = withDefaults(defineProps<{
   selectedItems: null,
   activeFilterKeys: () => [],
   hasSearchCondition: false,
+  highlightRowKey: null,
+  highlightToken: 0,
 })
 
 const emit = defineEmits<{
@@ -75,8 +79,12 @@ const slots = useSlots()
 const copyToast = ref('')
 const loadingMore = ref(false)
 const jumpPageInput = ref('')
+const tableWrapRef = ref<HTMLElement | null>(null)
+const highlightedRowKey = ref<string | number | null>(null)
+const pendingHighlightRowKey = ref<string | number | null>(null)
 let copyToastTimer: number | null = null
 let lazyLoadTimer: number | null = null
+let highlightTimer: number | null = null
 
 const selectedKeySet = computed(() => new Set(props.selectedRowKeys))
 const visibleSelectableRows = computed(() => props.rows.filter((row) => props.isRowSelectable(row)))
@@ -120,12 +128,10 @@ const pageTokens = computed(() => {
   }
   const total = props.pagination.totalPages
   const current = props.pagination.page
-  const appendEllipsis = (tokens: Array<{ type: 'page' | 'ellipsis'; value: number }>, count: number) => {
-    for (let index = 0; index < Math.min(3, Math.max(1, count)); index += 1) {
-      tokens.push({ type: 'ellipsis', value: index })
-    }
+  const appendEllipsis = (tokens: Array<{ type: 'page'; value: number } | { type: 'ellipsis'; text: string }>, count: number) => {
+    tokens.push({ type: 'ellipsis', text: '·'.repeat(Math.min(3, Math.max(1, count))) })
   }
-  const pushRange = (tokens: Array<{ type: 'page' | 'ellipsis'; value: number }>, start: number, end: number) => {
+  const pushRange = (tokens: Array<{ type: 'page'; value: number } | { type: 'ellipsis'; text: string }>, start: number, end: number) => {
     for (let page = start; page <= end; page += 1) {
       tokens.push({ type: 'page', value: page })
     }
@@ -133,7 +139,7 @@ const pageTokens = computed(() => {
   if (total <= 9) {
     return Array.from({ length: total }, (_, index) => ({ type: 'page' as const, value: index + 1 }))
   }
-  const tokens: Array<{ type: 'page' | 'ellipsis'; value: number }> = []
+  const tokens: Array<{ type: 'page'; value: number } | { type: 'ellipsis'; text: string }> = []
   if (current <= 5) {
     pushRange(tokens, 1, 6)
     appendEllipsis(tokens, total - 9)
@@ -195,6 +201,7 @@ const rootStyle = computed(() => ({
   '--admin-list-col-unit': `${COLUMN_UNIT_PX}px`,
   '--admin-data-list-min-width': `${resolvedTableMinWidth.value}px`,
 }))
+const rowKeySignature = computed(() => props.rows.map((row) => String(resolveRowKey(row))).join('|'))
 
 watch(
   () => props.pagination?.page,
@@ -202,6 +209,33 @@ watch(
     jumpPageInput.value = page ? String(page) : ''
   },
   { immediate: true },
+)
+
+watch(
+  () => [props.highlightRowKey, props.highlightToken] as const,
+  ([rowKey, token], previousValue) => {
+    const [previousRowKey, previousToken] = previousValue ?? [null, -1]
+    if (rowKey === null || rowKey === undefined) {
+      pendingHighlightRowKey.value = null
+      return
+    }
+    if (rowKey === previousRowKey && token === previousToken) {
+      return
+    }
+    pendingHighlightRowKey.value = rowKey
+    void tryApplyPendingHighlight()
+  },
+  { immediate: true },
+)
+
+watch(
+  rowKeySignature,
+  () => {
+    if (pendingHighlightRowKey.value === null) {
+      return
+    }
+    void tryApplyPendingHighlight()
+  },
 )
 
 function resolveRowKey(row: Record<string, unknown>) {
@@ -322,6 +356,87 @@ function handleTableScroll(event: Event) {
   }
 }
 
+async function applyRowHighlight(rowKey: string | number) {
+  await nextTick()
+  await waitForLayoutFrame()
+  const wrapper = tableWrapRef.value
+  if (!wrapper) {
+    return false
+  }
+  const rows = Array.from(wrapper.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row-key]'))
+  const targetRow = rows.find((row) => row.dataset.rowKey === String(rowKey))
+  if (!targetRow) {
+    return false
+  }
+  targetRow.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+  await waitForScrollToSettle(wrapper)
+  highlightedRowKey.value = rowKey
+  if (highlightTimer !== null) {
+    window.clearTimeout(highlightTimer)
+  }
+  highlightTimer = window.setTimeout(() => {
+    if (highlightedRowKey.value === rowKey) {
+      highlightedRowKey.value = null
+    }
+    highlightTimer = null
+  }, 1820)
+  return true
+}
+
+function waitForLayoutFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function waitForScrollToSettle(element: HTMLElement) {
+  return new Promise<void>((resolve) => {
+    let lastTop = element.scrollTop
+    let lastLeft = element.scrollLeft
+    let stableFrames = 0
+    let frameCount = 0
+
+    const check = () => {
+      frameCount += 1
+      const nextTop = element.scrollTop
+      const nextLeft = element.scrollLeft
+      const topDelta = Math.abs(nextTop - lastTop)
+      const leftDelta = Math.abs(nextLeft - lastLeft)
+
+      if (topDelta < 1 && leftDelta < 1) {
+        stableFrames += 1
+      } else {
+        stableFrames = 0
+      }
+
+      lastTop = nextTop
+      lastLeft = nextLeft
+
+      if (stableFrames >= 4 || frameCount >= 45) {
+        resolve()
+        return
+      }
+
+      requestAnimationFrame(check)
+    }
+
+    requestAnimationFrame(check)
+  })
+}
+
+async function tryApplyPendingHighlight() {
+  const rowKey = pendingHighlightRowKey.value
+  if (rowKey === null || rowKey === undefined) {
+    return
+  }
+  const applied = await applyRowHighlight(rowKey)
+  if (applied) {
+    pendingHighlightRowKey.value = null
+  }
+}
+
 function handleRootKeydown(event: KeyboardEvent) {
   if (!props.pagination) {
     return
@@ -347,6 +462,9 @@ onBeforeUnmount(() => {
   if (lazyLoadTimer !== null) {
     window.clearTimeout(lazyLoadTimer)
   }
+  if (highlightTimer !== null) {
+    window.clearTimeout(highlightTimer)
+  }
 })
 </script>
 
@@ -361,7 +479,7 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <div v-if="copyToast" class="toast-banner admin-data-list-copy-toast">{{ copyToast }}</div>
     </Teleport>
-    <div :class="['table-wrap', wrapperClass]" @scroll="handleTableScroll">
+    <div ref="tableWrapRef" :class="['table-wrap', wrapperClass]" @scroll="handleTableScroll">
       <table :class="['data-table', tableClass]">
         <colgroup>
           <col v-if="showSelection" class="selection-column" />
@@ -418,7 +536,12 @@ onBeforeUnmount(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="resolveRowKey(row)">
+          <tr
+            v-for="row in rows"
+            :key="resolveRowKey(row)"
+            :data-row-key="String(resolveRowKey(row))"
+            :class="{ 'data-row-highlighted': highlightedRowKey !== null && String(highlightedRowKey) === String(resolveRowKey(row)) }"
+          >
             <td v-if="showSelection" class="selection-column">
               <input
                 type="checkbox"
@@ -486,7 +609,7 @@ onBeforeUnmount(() => {
 
     <div v-if="pagination" class="pagination-bar">
       <div class="pagination-pages">
-        <template v-for="(token, index) in pageTokens" :key="`${token.type}-${token.value}-${index}`">
+        <template v-for="(token, index) in pageTokens" :key="token.type === 'page' ? `${token.type}-${token.value}-${index}` : `${token.type}-${token.text}-${index}`">
           <button
             v-if="token.type === 'page'"
             class="ghost-button compact-button pagination-button"
@@ -496,12 +619,12 @@ onBeforeUnmount(() => {
           >
             {{ token.value }}
           </button>
-          <span v-else class="pagination-ellipsis" aria-hidden="true">·</span>
+          <span v-else class="pagination-ellipsis" aria-hidden="true">{{ token.text }}</span>
         </template>
       </div>
       <div class="pagination-controls">
         <label class="pagination-jump">
-          <span>跳转到</span>
+          <span>跳转到第</span>
           <input
             v-model="jumpPageInput"
             inputmode="numeric"
@@ -515,6 +638,7 @@ onBeforeUnmount(() => {
           <select :value="pagination.pageSize" @change="onPageSizeChange">
             <option v-for="size in pagination.pageOptions" :key="size" :value="size">{{ size }}</option>
           </select>
+          <span>项</span>
         </label>
         <div v-if="slots['footer-trailing']" class="pagination-trailing">
           <slot name="footer-trailing" />

@@ -9,6 +9,9 @@ export interface PageResult<T> {
   page: number
   page_size: number
   total: number
+  focus_found?: boolean
+  focus_page?: number | null
+  focus_row_key?: number | null
 }
 
 export interface SessionUser {
@@ -306,6 +309,8 @@ export interface OverviewStudentRankingItem {
 }
 
 export interface OverviewRecentSessionItem {
+  course_id: number
+  course_group_id: number
   course_group_lesson_id: number
   course_name: string
   teacher_name: string
@@ -325,6 +330,9 @@ export interface OverviewRecentSessionItem {
 
 export interface OverviewRecentAbnormalItem {
   attendance_record_id: number
+  course_id: number
+  course_group_id: number
+  course_group_lesson_id: number
   student_ref_id: number
   student_id: string
   real_name: string
@@ -465,6 +473,9 @@ export interface AdminAttendanceSessionPageResult {
   page: number
   page_size: number
   total: number
+  focus_found?: boolean
+  focus_page?: number | null
+  focus_row_key?: number | null
 }
 
 export interface SubmitAttendanceStatusesResult {

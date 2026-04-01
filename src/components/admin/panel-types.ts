@@ -65,6 +65,8 @@ export type AdminCourseManageProps = {
   selectedCourseIds: number[]
   selectedCourseCount: number
   deletingCourseName: string
+  courseFocusRowKey?: number | null
+  courseFocusToken?: number
 }
 
 export type AdminCourseCalendarProps = {
@@ -103,6 +105,8 @@ export type AdminClassManageProps = {
   selectedClassIds: number[]
   selectedClassCount: number
   deletingClassName: string
+  classFocusRowKey?: number | null
+  classFocusToken?: number
 }
 
 export type AdminStudentManageProps = {
@@ -125,6 +129,8 @@ export type AdminStudentManageProps = {
   selectedStudentIds: number[]
   selectedStudentCount: number
   deletingStudentName: string
+  studentFocusRowKey?: number | null
+  studentFocusToken?: number
 }
 
 export type AdminFreeTimeCalendarProps = {

@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import {
   api,
@@ -19,6 +20,7 @@ import {
 import type { AppTab, StatusCode } from '../../constants'
 import { createClassForm, createCourseForm, createStudentForm } from './forms'
 import { selectDefaultTermName } from '../../utils/terms'
+import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
 
 type UserForm = {
   studentId: string
@@ -105,6 +107,8 @@ type StudentForm = {
 }
 
 export type AdminFlowDeps = {
+  router: Router
+  route: RouteLocationNormalizedLoaded
   activeTab: Ref<AppTab>
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
@@ -144,6 +148,12 @@ export type AdminFlowDeps = {
   deletingCourseId: Ref<number | null>
   deletingClassId: Ref<number | null>
   deletingStudentId: Ref<number | null>
+  courseFocusRowKey: Ref<number | null>
+  courseFocusToken: Ref<number>
+  classFocusRowKey: Ref<number | null>
+  classFocusToken: Ref<number>
+  studentFocusRowKey: Ref<number | null>
+  studentFocusToken: Ref<number>
   userSaving: Ref<boolean>
   passwordResetting: Ref<boolean>
   profileSaving: Ref<boolean>
@@ -211,6 +221,16 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   function isLatestRequest(key: keyof typeof requestTokens, token: number) {
     return requestTokens[key] === token
+  }
+
+  async function clearAdminFocusQuery() {
+    const nextQuery = omitAdminFocusQuery(deps.route.query)
+    await deps.router.replace({
+      name: deps.route.name || undefined,
+      params: deps.route.params,
+      query: nextQuery,
+      hash: deps.route.hash,
+    })
   }
 
   async function loadOverviewData() {
@@ -301,6 +321,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadCourseManageData() {
     const requestToken = nextRequestToken('courseManage')
+    const focusCourseId = readAdminQueryNumber(deps.route.query, 'focus_course_id')
     const [coursePageResult, courseAllResult, terms, classes] = await Promise.all([
       api.listCourses({
         page: deps.coursePage.value,
@@ -311,6 +332,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         teacher_name: deps.courseFilters.teacherName,
         class_name: deps.courseFilters.className,
         student_count: deps.courseFilters.studentCount,
+        focus_course_id: focusCourseId ?? undefined,
       }),
       api.listCourses({ page: 1, page_size: 1 }),
       api.listMetaTerms(),
@@ -322,13 +344,22 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.courseRows.value = coursePageResult.items ?? []
     deps.courseTerms.value = terms
     deps.classes.value = classes as unknown as ClassItem[]
+    deps.coursePage.value = coursePageResult.page ?? deps.coursePage.value
     deps.courseTotalItems.value = coursePageResult.total ?? 0
     deps.courseAllItems.value = courseAllResult.total ?? 0
     deps.courseTotalPages.value = Math.max(1, Math.ceil((coursePageResult.total ?? 0) / deps.coursePageSize.value))
+    if (focusCourseId !== null) {
+      if (coursePageResult.focus_found && typeof coursePageResult.focus_row_key === 'number') {
+        deps.courseFocusRowKey.value = coursePageResult.focus_row_key
+        deps.courseFocusToken.value += 1
+      }
+      await clearAdminFocusQuery()
+    }
   }
 
   async function loadClassManageData() {
     const requestToken = nextRequestToken('classManage')
+    const focusClassId = readAdminQueryNumber(deps.route.query, 'focus_class_id')
     const [classPageResult, classAllResult, students] = await Promise.all([
       api.listClasses({
         page: deps.classPage.value,
@@ -336,6 +367,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         grade: deps.classFilters.grade,
         major_name: deps.classFilters.majorName,
         class_name: deps.classFilters.className,
+        focus_class_id: focusClassId ?? undefined,
       }),
       api.listClasses({ page: 1, page_size: 1 }),
       api.listStudentOptions({ binding: 'unbound' }),
@@ -345,13 +377,22 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     }
     deps.classRows.value = classPageResult.items ?? []
     deps.students.value = students as unknown as StudentItem[]
+    deps.classPage.value = classPageResult.page ?? deps.classPage.value
     deps.classTotalItems.value = classPageResult.total ?? 0
     deps.classAllItems.value = classAllResult.total ?? 0
     deps.classTotalPages.value = Math.max(1, Math.ceil((classPageResult.total ?? 0) / deps.classPageSize.value))
+    if (focusClassId !== null) {
+      if (classPageResult.focus_found && typeof classPageResult.focus_row_key === 'number') {
+        deps.classFocusRowKey.value = classPageResult.focus_row_key
+        deps.classFocusToken.value += 1
+      }
+      await clearAdminFocusQuery()
+    }
   }
 
   async function loadStudentManageData() {
     const requestToken = nextRequestToken('studentManage')
+    const focusStudentRefId = readAdminQueryNumber(deps.route.query, 'focus_student_ref_id')
     const [studentPageResult, studentAllResult, classes] = await Promise.all([
       api.listStudents({
         page: deps.studentPage.value,
@@ -359,6 +400,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         student_id: deps.studentFilters.studentId,
         real_name: deps.studentFilters.realName,
         class_name: deps.studentFilters.className,
+        focus_student_ref_id: focusStudentRefId ?? undefined,
       }),
       api.listStudents({ page: 1, page_size: 1 }),
       api.listClassOptions(),
@@ -368,9 +410,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     }
     deps.studentRows.value = studentPageResult.items ?? []
     deps.classes.value = classes as unknown as ClassItem[]
+    deps.studentPage.value = studentPageResult.page ?? deps.studentPage.value
     deps.studentTotalItems.value = studentPageResult.total ?? 0
     deps.studentAllItems.value = studentAllResult.total ?? 0
     deps.studentTotalPages.value = Math.max(1, Math.ceil((studentPageResult.total ?? 0) / deps.studentPageSize.value))
+    if (focusStudentRefId !== null) {
+      if (studentPageResult.focus_found && typeof studentPageResult.focus_row_key === 'number') {
+        deps.studentFocusRowKey.value = studentPageResult.focus_row_key
+        deps.studentFocusToken.value += 1
+      }
+      await clearAdminFocusQuery()
+    }
   }
 
   async function loadUserManageData() {

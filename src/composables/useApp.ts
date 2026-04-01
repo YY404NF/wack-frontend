@@ -111,6 +111,8 @@ export function useApp() {
   })
 
   adminState = useAdminState({
+    router,
+    route,
     me,
     activeTab: appRouting.activeTab,
     passwordForm,

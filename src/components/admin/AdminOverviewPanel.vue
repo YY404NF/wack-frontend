@@ -2,11 +2,15 @@
 import { computed, ref } from 'vue'
 
 import { attendanceStatusBadgeClass, sectionLabels, statusLabels, weekdayLabels } from '../../constants'
+import type { AdminAttendanceDetailTarget } from './shared-types'
 import type { AdminOverviewProps } from './types'
 
 const props = defineProps<AdminOverviewProps>()
 const emit = defineEmits<{
-  openAttendanceDetail: [sessionId: number]
+  openCourse: [courseId: number]
+  openClass: [classId: number]
+  openStudent: [studentRefId: number]
+  openAttendanceDetail: [target: AdminAttendanceDetailTarget]
 }>()
 
 const courseRankAsc = ref(false)
@@ -120,8 +124,33 @@ function handleListScroll(event: Event, target: 'course' | 'class' | 'student' |
   }
 }
 
-function openRecentSessionDetail(sessionId: number) {
-  emit('openAttendanceDetail', sessionId)
+function openCourseDetail(courseId: number) {
+  emit('openCourse', courseId)
+}
+
+function openClassDetail(classId: number) {
+  emit('openClass', classId)
+}
+
+function openStudentDetail(studentRefId: number) {
+  emit('openStudent', studentRefId)
+}
+
+function openRecentSessionDetail(item: (typeof recentSessions.value)[number]) {
+  emit('openAttendanceDetail', {
+    sessionId: item.course_group_lesson_id,
+    courseId: item.course_id,
+    groupId: item.course_group_id,
+  })
+}
+
+function openRecentAbnormalDetail(item: (typeof recentAbnormalStudents.value)[number]) {
+  emit('openAttendanceDetail', {
+    sessionId: item.course_group_lesson_id,
+    courseId: item.course_id,
+    groupId: item.course_group_id,
+    focusStudentRefId: item.student_ref_id,
+  })
 }
 </script>
 
@@ -136,13 +165,19 @@ function openRecentSessionDetail(sessionId: number) {
           </button>
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'course')">
-          <div v-for="item in visibleCourseRankings" :key="item.course_id" class="overview-rank-item overview-entry overview-entry-with-lead">
+          <button
+            v-for="item in visibleCourseRankings"
+            :key="item.course_id"
+            class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead"
+            type="button"
+            @click="openCourseDetail(item.course_id)"
+          >
             <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.course_name }} · {{ item.teacher_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.grade }}级</p>
             <small class="overview-entry-subtitle overview-entry-subtitle-right">{{ item.arrived_count }} / {{ item.total_count }}</small>
-          </div>
+          </button>
           <p v-if="courseRankings.length === 0" class="empty-hint">当前学期暂无课程出勤数据</p>
         </div>
       </article>
@@ -155,13 +190,19 @@ function openRecentSessionDetail(sessionId: number) {
           </button>
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'class')">
-          <div v-for="item in visibleClassRankings" :key="item.class_id" class="overview-rank-item overview-entry overview-entry-with-lead">
+          <button
+            v-for="item in visibleClassRankings"
+            :key="item.class_id"
+            class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead"
+            type="button"
+            @click="openClassDetail(item.class_id)"
+          >
             <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.class_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.major_name }} · {{ item.grade }}级</p>
             <small class="overview-entry-subtitle overview-entry-subtitle-right">{{ item.arrived_count }} / {{ item.total_count }}</small>
-          </div>
+          </button>
           <p v-if="classRankings.length === 0" class="empty-hint">当前学期暂无班级出勤数据</p>
         </div>
       </article>
@@ -174,13 +215,19 @@ function openRecentSessionDetail(sessionId: number) {
           </button>
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'student')">
-          <div v-for="item in visibleStudentRankings" :key="item.student_ref_id" class="overview-rank-item overview-entry overview-entry-with-lead">
+          <button
+            v-for="item in visibleStudentRankings"
+            :key="item.student_ref_id"
+            class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead"
+            type="button"
+            @click="openStudentDetail(item.student_ref_id)"
+          >
             <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.real_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.student_id }} · {{ item.class_name || '其他学生' }}</p>
             <small class="overview-entry-subtitle overview-entry-subtitle-right">{{ item.arrived_count }} / {{ item.total_count }}</small>
-          </div>
+          </button>
           <p v-if="studentRankings.length === 0" class="empty-hint">当前学期暂无个人出勤数据</p>
         </div>
       </article>
@@ -195,7 +242,7 @@ function openRecentSessionDetail(sessionId: number) {
             :key="item.course_group_lesson_id"
             class="overview-session-item overview-session-item-button overview-entry overview-entry-two-column"
             type="button"
-            @click="openRecentSessionDetail(item.course_group_lesson_id)"
+            @click="openRecentSessionDetail(item)"
           >
             <strong class="overview-entry-title overview-entry-title-left">{{ sessionLeftTitleText(item) }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ sessionRightTitleText(item) }}</strong>
@@ -211,7 +258,13 @@ function openRecentSessionDetail(sessionId: number) {
           <strong>最近迟到、缺勤、请假的学生</strong>
         </div>
         <div class="overview-session-list" @scroll.passive="handleListScroll($event, 'abnormal')">
-          <div v-for="item in visibleRecentAbnormalStudents" :key="item.attendance_record_id" class="overview-session-item overview-entry overview-entry-with-lead">
+          <button
+            v-for="item in visibleRecentAbnormalStudents"
+            :key="item.attendance_record_id"
+            class="overview-session-item overview-session-item-button overview-entry overview-entry-with-lead"
+            type="button"
+            @click="openRecentAbnormalDetail(item)"
+          >
             <div class="overview-entry-lead overview-abnormal-status">
               <span class="status-badge" :class="attendanceStatusBadgeClass(item.status)">
                 {{ abnormalStatusText(item) }}
@@ -221,7 +274,7 @@ function openRecentSessionDetail(sessionId: number) {
             <strong class="overview-entry-title overview-entry-title-right">{{ abnormalRightTitleText(item) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ abnormalLeftSubtitleText(item) }}</p>
             <small class="overview-entry-subtitle overview-entry-subtitle-right">{{ abnormalRightSubtitleText(item) }}</small>
-          </div>
+          </button>
           <p v-if="recentAbnormalStudents.length === 0" class="empty-hint">当前学期暂无异常考勤记录</p>
         </div>
       </article>

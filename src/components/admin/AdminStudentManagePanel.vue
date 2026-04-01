@@ -229,6 +229,8 @@ function asStudentItem(row: Record<string, unknown>) {
       :pagination="{ page: studentPage, pageSize: studentPageSize, totalPages: studentTotalPages, pageOptions: studentPageOptions, totalItems: studentTotalItems }"
       :all-items="studentAllItems"
       :selected-items="selectedStudentIds.length"
+      :highlight-row-key="studentFocusRowKey ?? null"
+      :highlight-token="studentFocusToken ?? 0"
       :active-filter-keys="[
         ...(studentFilters.studentId.trim() ? ['student_id'] : []),
         ...(studentFilters.realName.trim() ? ['real_name'] : []),

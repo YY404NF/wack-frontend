@@ -63,7 +63,7 @@ const LESSON_BATCH_SIZE = 20
 const CANDIDATE_PAGE_SIZE = 20
 const currentTerm = getCurrentAcademicTerm()
 
-const currentView = ref<CourseManageView>('courses')
+const currentView = ref<CourseManageView>(props.courseManageRouteView ?? 'courses')
 const syncingRouteState = ref(false)
 const selectedCourseIdSet = computed(() => new Set(props.selectedCourseIds))
 const areAllCoursesSelected = computed(() => props.courses.length > 0 && props.courses.every((item) => selectedCourseIdSet.value.has(item.id)))
@@ -566,12 +566,17 @@ async function refreshCourseGroups(targetGroupId = activeCourseGroupId.value) {
   activeCourseGroupDetail.value = null
 }
 
-async function openCourseGroupPage(item: CourseItem, targetView: CourseManageView = 'groups', targetGroupId: number | null = null, targetLessonId: number | null = null) {
+async function openCourseGroupPage(
+  item: CourseItem,
+  targetView: CourseManageView = 'groups',
+  targetGroupId: number | null = null,
+  targetLessonId: number | null = null,
+) {
   courseGroupsLoading.value = true
   courseGroupsError.value = ''
   courseGroupWorkspaceCourse.value = item
-  currentView.value = 'groups'
-  activeAttendanceLessonId.value = null
+  currentView.value = targetView
+  activeAttendanceLessonId.value = targetView === 'attendance-detail' ? targetLessonId : null
   lessonSessionNoFilter.value = ''
   lessonWeekFilter.value = ''
   lessonWeekdayFilter.value = ''
@@ -588,9 +593,6 @@ async function openCourseGroupPage(item: CourseItem, targetView: CourseManageVie
         courseGroupStudentNoFilter.value = ''
         courseGroupStudentNameFilter.value = ''
         courseGroupStudentClassNameFilter.value = ''
-      }
-      if (targetView === 'attendance-detail') {
-        activeAttendanceLessonId.value = targetLessonId
       }
       currentView.value = targetView
       if (targetView === 'students') {
@@ -1514,6 +1516,8 @@ function pad(value: number) {
         :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions, totalItems: courseTotalItems }"
         :all-items="courseAllItems"
         :selected-items="selectedCourseIds.length"
+        :highlight-row-key="courseFocusRowKey ?? null"
+        :highlight-token="courseFocusToken ?? 0"
         :active-filter-keys="[
           ...(courseFilters.grade.trim() ? ['grade'] : []),
           ...(courseFilters.courseName.trim() ? ['course_name'] : []),
@@ -1746,35 +1750,38 @@ function pad(value: number) {
       </section>
     </div>
 
-    <AdminCourseLessonAttendanceDetail
-      v-else-if="currentView === 'attendance-detail' && activeCourseGroupLesson && activeCourseGroup && courseGroupWorkspaceCourse"
-      key="attendance-detail"
-      :session-id="activeCourseGroupLesson.id"
-      :session-date="activeLessonDate"
-      :session-time="activeLessonTime"
-      :location="activeLessonLocation"
-      :class-summary="formatClassNameListMultiline(activeCourseGroup.class_names)"
-      :student-count="activeCourseGroup.student_count"
-      :course-name="courseGroupWorkspaceCourse.course_name"
-      :teacher-name="courseGroupWorkspaceCourse.teacher_name"
-      :grade="courseGroupWorkspaceCourse.grade"
-      :term="courseGroupWorkspaceCourse.term"
-    />
+    <div v-else-if="currentView === 'attendance-detail'" key="attendance-detail">
+      <AdminCourseLessonAttendanceDetail
+        v-if="activeCourseGroupLesson && activeCourseGroup && courseGroupWorkspaceCourse"
+        :session-id="activeCourseGroupLesson.id"
+        :session-date="activeLessonDate"
+        :session-time="activeLessonTime"
+        :location="activeLessonLocation"
+        :class-summary="formatClassNameListMultiline(activeCourseGroup.class_names)"
+        :student-count="activeCourseGroup.student_count"
+        :course-name="courseGroupWorkspaceCourse.course_name"
+        :teacher-name="courseGroupWorkspaceCourse.teacher_name"
+        :grade="courseGroupWorkspaceCourse.grade"
+        :term="courseGroupWorkspaceCourse.term"
+      />
 
-    <div v-else-if="currentView === 'attendance-detail'" key="attendance-detail-empty" class="course-subpage-grid">
-      <aside class="workspace-card course-context-card">
-        <div class="settings-profile-summary-list">
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课次</strong>
+      <template v-else>
+        <div class="course-subpage-grid">
+          <aside class="workspace-card course-context-card">
+            <div class="settings-profile-summary-list">
+              <div class="workspace-card nested-context-card">
+                <div class="section-heading section-heading-compact">
+                  <strong>课次</strong>
+                </div>
+                <p class="hint">{{ courseGroupsLoading ? '正在加载课次考勤明细...' : '未找到对应课次。' }}</p>
+              </div>
             </div>
-            <p class="hint">未找到对应课次。</p>
-          </div>
+          </aside>
+          <section class="workspace-card course-subpage-main">
+            <p class="hint">{{ courseGroupsLoading ? '正在加载课次考勤明细...' : '未找到对应课次。' }}</p>
+          </section>
         </div>
-      </aside>
-      <section class="workspace-card course-subpage-main">
-        <p class="hint">未找到对应课次。</p>
-      </section>
+      </template>
     </div>
 
     <div v-else key="students" class="course-student-manage-layout">

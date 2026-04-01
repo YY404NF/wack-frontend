@@ -101,6 +101,8 @@ export type AdminWorkspaceProps = {
   selectedCourseIds: number[]
   selectedCourseCount: number
   deletingCourseName: string
+  courseFocusRowKey?: number | null
+  courseFocusToken?: number
   courseManageRouteView?: AdminCourseManageRouteView
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
@@ -136,6 +138,8 @@ export type AdminWorkspaceProps = {
   selectedClassIds: number[]
   selectedClassCount: number
   deletingClassName: string
+  classFocusRowKey?: number | null
+  classFocusToken?: number
   studentForm: AdminStudentForm
   studentFilters: AdminStudentFilters
   studentModalOpen: boolean
@@ -153,6 +157,8 @@ export type AdminWorkspaceProps = {
   selectedStudentIds: number[]
   selectedStudentCount: number
   deletingStudentName: string
+  studentFocusRowKey?: number | null
+  studentFocusToken?: number
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number
   attendanceLogsPageSize: number

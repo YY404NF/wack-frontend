@@ -97,6 +97,7 @@ export const attendanceApi = {
     real_name?: string
     class_name?: string
     status?: string
+    focus_student_ref_id?: number
   } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
@@ -105,6 +106,9 @@ export const attendanceApi = {
     if (query.real_name?.trim()) params.set('real_name', query.real_name.trim())
     if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
+    if (typeof query.focus_student_ref_id === 'number' && query.focus_student_ref_id > 0) {
+      params.set('focus_student_ref_id', String(query.focus_student_ref_id))
+    }
     return request<AdminAttendanceSessionPageResult>(`${apiPaths.admin.attendanceSessions}/${sessionId}?${params.toString()}`).then((payload) => ({
       ...payload,
       attendance_records: payload.attendance_records ?? [],

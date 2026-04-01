@@ -11,6 +11,7 @@ export const studentsApi = {
     student_id?: string
     real_name?: string
     class_name?: string
+    focus_student_ref_id?: number
   } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
@@ -29,6 +30,9 @@ export const studentsApi = {
     }
     if (query.class_name?.trim()) {
       params.set('class_name', query.class_name.trim())
+    }
+    if (typeof query.focus_student_ref_id === 'number' && query.focus_student_ref_id > 0) {
+      params.set('focus_student_ref_id', String(query.focus_student_ref_id))
     }
     return request<PageResult<StudentItem>>(`${apiPaths.admin.students}?${params.toString()}`).then((page) => ({
       ...page,

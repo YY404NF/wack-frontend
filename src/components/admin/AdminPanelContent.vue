@@ -3,7 +3,7 @@ import { defineAsyncComponent } from 'vue'
 import type { AppTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
-import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
+import type { AdminAttendanceDetailTarget, AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
 
 const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
 const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
@@ -66,7 +66,10 @@ const emit = defineEmits<{
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
   openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
-  openAttendanceDetail: [sessionId: number]
+  openAttendanceDetail: [target: AdminAttendanceDetailTarget]
+  openOverviewCourse: [courseId: number]
+  openOverviewClass: [classId: number]
+  openOverviewStudent: [studentRefId: number]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -127,6 +130,9 @@ function forwardUserStatus(studentId: string, status: number) {
       v-if="activeTab === 'overview'"
       key="overview"
       :overview-data="overviewData"
+      @open-course="emit('openOverviewCourse', $event)"
+      @open-class="emit('openOverviewClass', $event)"
+      @open-student="emit('openOverviewStudent', $event)"
       @open-attendance-detail="emit('openAttendanceDetail', $event)"
     />
 
@@ -192,6 +198,8 @@ function forwardUserStatus(studentId: string, status: number) {
       :selected-course-ids="selectedCourseIds"
       :selected-course-count="selectedCourseCount"
       :deleting-course-name="deletingCourseName"
+      :course-focus-row-key="courseFocusRowKey"
+      :course-focus-token="courseFocusToken"
       :course-manage-route-view="courseManageRouteView"
       :course-manage-route-course-id="courseManageRouteCourseId"
       :course-manage-route-group-id="courseManageRouteGroupId"
@@ -246,6 +254,8 @@ function forwardUserStatus(studentId: string, status: number) {
       :selected-class-ids="selectedClassIds"
       :selected-class-count="selectedClassCount"
       :deleting-class-name="deletingClassName"
+      :class-focus-row-key="classFocusRowKey"
+      :class-focus-token="classFocusToken"
       @open-create-class-modal="emit('openCreateClassModal')"
       @open-edit-class-modal="emit('openEditClassModal', $event)"
       @open-class-student-modal="emit('openClassStudentModal', $event)"
@@ -291,6 +301,8 @@ function forwardUserStatus(studentId: string, status: number) {
       :selected-student-ids="selectedStudentIds"
       :selected-student-count="selectedStudentCount"
       :deleting-student-name="deletingStudentName"
+      :student-focus-row-key="studentFocusRowKey"
+      :student-focus-token="studentFocusToken"
       @open-create-student-modal="emit('openCreateStudentModal')"
       @open-edit-student-modal="emit('openEditStudentModal', $event)"
       @close-student-modal="emit('closeStudentModal')"

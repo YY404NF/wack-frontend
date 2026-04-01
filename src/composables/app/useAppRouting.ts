@@ -3,6 +3,7 @@ import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import { adminTabKeys, studentTabKeys, type AppTab } from '../../constants'
 import type { SessionUser } from '../../api'
+import { buildAdminTabLocation, readAdminTab, type AdminTab } from '../../router/admin-routes'
 
 type UseAppRoutingDeps = {
   router: Router
@@ -42,12 +43,9 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
   }
 
   function readTabFromLocation() {
-    if (deps.route.name === 'admin') {
-      const segment = typeof deps.route.params.tab === 'string' ? deps.route.params.tab : ''
-      if ((adminTabKeys as readonly string[]).includes(segment)) {
-        return segment
-      }
-      return null
+    const adminTab = readAdminTab(deps.route)
+    if (adminTab) {
+      return adminTab
     }
 
     if (deps.route.name === 'student') {
@@ -60,7 +58,7 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
 
   async function writeTabToLocation(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
     if (deps.me.value?.role === 1 && (adminTabKeys as readonly string[]).includes(tab)) {
-      await deps.router[mode]({ name: 'admin', params: { tab }, query: deps.route.query })
+      await deps.router[mode](buildAdminTabLocation(tab as AdminTab))
       return
     }
 
@@ -128,8 +126,8 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
       }
 
       const nextTab = resolveTabForRole(role)
-      const expectedRouteName = role === 1 ? 'admin' : 'student'
-      if (routeName !== expectedRouteName || nextTab !== activeTab.value) {
+      const isOnExpectedRoute = role === 1 ? readAdminTab(deps.route) !== null : routeName === 'student'
+      if (!isOnExpectedRoute || nextTab !== activeTab.value) {
         await setActiveTab(nextTab, 'replace')
       }
     },

@@ -198,6 +198,11 @@
   align-items: center;
   justify-content: center;
   color: var(--accent);
+  cursor: pointer;
+}
+
+.admin-path-home:hover {
+  color: color-mix(in srgb, var(--accent) 78%, black);
 }
 
 .admin-path-home-icon {

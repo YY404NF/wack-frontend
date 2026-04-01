@@ -17,6 +17,7 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from '../../components/admin/form-types'
+import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from '../../components/admin/shared-types'
 import type { AppTab } from '../../constants'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './view'
 
@@ -82,10 +83,13 @@ export type AdminWorkspacePropsDeps = {
   courseAllItems: Ref<number>
   selectedCourseIds: Ref<number[]>
   deletingCourseName: Ref<string>
-  courseManageRouteView: Ref<'courses' | 'groups' | 'lessons' | 'students'>
+  courseFocusRowKey: Ref<number | null>
+  courseFocusToken: Ref<number>
+  courseManageRouteView: Ref<AdminCourseManageRouteView>
   courseManageRouteCourseId: Ref<number | null>
   courseManageRouteGroupId: Ref<number | null>
-  courseManagePathCommand: Ref<{ token: number; target: 'courses' | 'groups'; courseId?: number | null } | null>
+  courseManageRouteLessonId: Ref<number | null>
+  courseManagePathCommand: Ref<{ token: number; target: AdminCourseManagePathTarget; courseId?: number | null } | null>
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -111,6 +115,8 @@ export type AdminWorkspacePropsDeps = {
   classAllItems: Ref<number>
   selectedClassIds: Ref<number[]>
   deletingClassName: Ref<string>
+  classFocusRowKey: Ref<number | null>
+  classFocusToken: Ref<number>
   studentModalOpen: Ref<boolean>
   deleteStudentModalOpen: Ref<boolean>
   bulkDeleteStudentModalOpen: Ref<boolean>
@@ -124,6 +130,8 @@ export type AdminWorkspacePropsDeps = {
   studentAllItems: Ref<number>
   selectedStudentIds: Ref<number[]>
   deletingStudentName: Ref<string>
+  studentFocusRowKey: Ref<number | null>
+  studentFocusToken: Ref<number>
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
@@ -203,9 +211,12 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     selectedCourseIds: deps.selectedCourseIds.value,
     selectedCourseCount: deps.selectedCourseIds.value.length,
     deletingCourseName: deps.deletingCourseName.value,
+    courseFocusRowKey: deps.courseFocusRowKey.value,
+    courseFocusToken: deps.courseFocusToken.value,
     courseManageRouteView: deps.courseManageRouteView.value,
     courseManageRouteCourseId: deps.courseManageRouteCourseId.value,
     courseManageRouteGroupId: deps.courseManageRouteGroupId.value,
+    courseManageRouteLessonId: deps.courseManageRouteLessonId.value,
     courseManagePathCommand: deps.courseManagePathCommand.value,
     classForm: deps.classForm,
     classFilters: deps.classFilters,
@@ -232,6 +243,8 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     selectedClassIds: deps.selectedClassIds.value,
     selectedClassCount: deps.selectedClassIds.value.length,
     deletingClassName: deps.deletingClassName.value,
+    classFocusRowKey: deps.classFocusRowKey.value,
+    classFocusToken: deps.classFocusToken.value,
     studentForm: deps.studentForm,
     studentFilters: deps.studentFilters,
     studentModalOpen: deps.studentModalOpen.value,
@@ -249,6 +262,8 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     selectedStudentIds: deps.selectedStudentIds.value,
     selectedStudentCount: deps.selectedStudentIds.value.length,
     deletingStudentName: deps.deletingStudentName.value,
+    studentFocusRowKey: deps.studentFocusRowKey.value,
+    studentFocusToken: deps.studentFocusToken.value,
     attendanceLogFilters: deps.attendanceLogFilters,
     attendanceLogsPage: deps.attendanceLogsPage.value,
     attendanceLogsPageSize: deps.attendanceLogsPageSize.value,

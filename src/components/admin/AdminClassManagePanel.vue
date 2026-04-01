@@ -259,6 +259,8 @@ function downloadSampleCsv() {
           :pagination="{ page: classPage, pageSize: classPageSize, totalPages: classTotalPages, pageOptions: classPageOptions, totalItems: classTotalItems }"
           :all-items="classAllItems"
           :selected-items="selectedClassIds.length"
+          :highlight-row-key="classFocusRowKey ?? null"
+          :highlight-token="classFocusToken ?? 0"
           :active-filter-keys="[
             ...(String(classFilters.grade ?? '').trim() ? ['grade'] : []),
             ...(classFilters.majorName ? ['major_name'] : []),

@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { api, type MetaTermItem } from '../../api'
 import { sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import type { AdminAttendanceDetailTarget } from './shared-types'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceProps } from './types'
 
@@ -31,10 +32,10 @@ type AttendanceSessionSummary = {
 
 const props = defineProps<AdminAttendanceProps>()
 const emit = defineEmits<{
-  openAttendanceDetail: [sessionId: number]
+  openAttendanceDetail: [target: AdminAttendanceDetailTarget]
 }>()
 
-const PAGE_OPTIONS = [10, 20, 50, 100]
+const PAGE_OPTIONS = [100, 200, 500, 1000]
 const TERM_WEEK_COUNT = 16
 const EXPORT_PAGE_SIZE = 500
 
@@ -58,7 +59,7 @@ const sessionTeacherName = ref('')
 const sessionClassName = ref('')
 const sessionStudentCount = ref('')
 const sessionPage = ref(1)
-const sessionPageSize = ref(20)
+const sessionPageSize = ref(100)
 const sessionLoading = ref(false)
 const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
@@ -447,7 +448,7 @@ function formatStatus(status?: number | null) {
         </template>
         <template #actions="{ row }">
           <div class="inline-actions user-actions">
-            <button class="ghost-button compact-button" type="button" @click="emit('openAttendanceDetail', Number((row as AttendanceSessionSummary).course_group_lesson_id))">考勤明细</button>
+            <button class="ghost-button compact-button" type="button" @click="emit('openAttendanceDetail', { sessionId: Number((row as AttendanceSessionSummary).course_group_lesson_id) })">考勤明细</button>
           </div>
         </template>
         <template #empty>

@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { adminRoutes } from './admin-routes'
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -17,11 +19,7 @@ export const router = createRouter({
       name: 'setup',
       component: { template: '<div />' },
     },
-    {
-      path: '/admin/:tab?',
-      name: 'admin',
-      component: { template: '<div />' },
-    },
+    ...adminRoutes,
     {
       path: '/student/:tab?',
       name: 'student',
