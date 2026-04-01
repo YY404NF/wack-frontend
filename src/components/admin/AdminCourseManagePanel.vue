@@ -760,10 +760,18 @@ function openEditSessionModal(session: CourseGroupLessonItem) {
   sessionModalOpen.value = true
 }
 
+function openCreateSessionModal() {
+  editingSessionId.value = null
+  sessionHistoryHint.value = ''
+  resetCreateSessionForm()
+  sessionModalOpen.value = true
+}
+
 function closeSessionModal() {
   sessionModalOpen.value = false
   editingSessionId.value = null
   sessionHistoryHint.value = ''
+  resetCreateSessionForm()
 }
 
 function toggleLessonSelection(lessonId: number) {
@@ -914,11 +922,7 @@ async function saveCourseGroupSession() {
       })
     }
     await refreshCourseGroups(activeCourseGroupId.value)
-    if (editingSessionId.value === null) {
-      resetCreateSessionForm()
-    } else {
-      closeSessionModal()
-    }
+    closeSessionModal()
   } catch (error) {
     courseGroupsError.value = error instanceof Error ? error.message : editingSessionId.value === null ? '创建课次失败' : '编辑课次失败'
   } finally {
@@ -1323,32 +1327,57 @@ function toggleCourseGroupClassExpanded(key: string) {
             <button class="ghost-button compact-button modal-close" type="button" @click="closeSessionModal">关闭</button>
           </div>
           <form class="form-grid single-column-form" @submit.prevent="saveCourseGroupSession">
-            <label class="field">
-              <span>周次</span>
+            <label v-if="editingSessionId !== null" class="field">
+              <span>上课周</span>
               <select v-model.number="courseGroupSessionForm.weekNo">
                 <option v-for="weekNo in 16" :key="weekNo" :value="weekNo">第 {{ weekNo }} 周</option>
               </select>
             </label>
-            <label class="field">
-              <span>星期</span>
-              <select v-model.number="courseGroupSessionForm.weekday">
-                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>时间节</span>
-              <select v-model.number="courseGroupSessionForm.section">
-                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>教学楼</span>
-              <input v-model="courseGroupSessionForm.buildingName" />
-            </label>
-            <label class="field">
-              <span>教室</span>
-              <input v-model="courseGroupSessionForm.roomName" />
-            </label>
+            <div class="course-session-form-row">
+              <label class="field">
+                <span>星期</span>
+                <select v-model.number="courseGroupSessionForm.weekday">
+                  <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>时间节</span>
+                <select v-model.number="courseGroupSessionForm.section">
+                  <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
+                </select>
+              </label>
+            </div>
+            <div class="course-session-form-row">
+              <label class="field">
+                <span>教学楼</span>
+                <input v-model="courseGroupSessionForm.buildingName" />
+              </label>
+              <label class="field">
+                <span>教室</span>
+                <input v-model="courseGroupSessionForm.roomName" />
+              </label>
+            </div>
+            <div v-if="editingSessionId === null" class="course-lesson-week-picker">
+              <div class="inline-actions course-lesson-week-shortcuts">
+                <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'all' }" type="button" @click="selectAllSessionWeeks">全周</button>
+                <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'odd' }" type="button" @click="selectOddSessionWeeks">单周</button>
+                <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'even' }" type="button" @click="selectEvenSessionWeeks">双周</button>
+                <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'first-half' }" type="button" @click="selectFirstHalfSessionWeeks">上半学期</button>
+                <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'second-half' }" type="button" @click="selectSecondHalfSessionWeeks">下半学期</button>
+              </div>
+              <div class="course-lesson-week-grid">
+                <button
+                  v-for="weekNo in allSessionWeeks"
+                  :key="weekNo"
+                  class="ghost-button compact-button"
+                  :class="{ selected: selectedCreateSessionWeeks.includes(weekNo) }"
+                  type="button"
+                  @click="toggleCreateSessionWeek(weekNo)"
+                >
+                  {{ weekNo }}
+                </button>
+              </div>
+            </div>
             <button class="primary-button" type="submit" :disabled="courseGroupActionLoading">
               <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
               <span>{{ courseGroupActionLoading ? '处理中...' : '保存' }}</span>
@@ -1605,6 +1634,9 @@ function toggleCourseGroupClassExpanded(key: string) {
               <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading || selectedLessonIds.length === 0" @click="openBulkDeleteLessonModal">
                 批量删除
               </button>
+              <button class="primary-button compact-button filter-action-push" type="button" :disabled="courseGroupActionLoading" @click="openCreateSessionModal">
+                创建课次
+              </button>
             </template>
             <template #cell-week_no="{ value }">第 {{ value }} 周</template>
             <template #cell-weekday="{ value }">{{ weekdayLabels[Number(value)] }}</template>
@@ -1616,61 +1648,6 @@ function toggleCourseGroupClassExpanded(key: string) {
               </div>
             </template>
           </AdminDataList>
-        </div>
-
-        <div class="course-lesson-create-card">
-          <div class="section-heading">
-            <strong>创建课次</strong>
-          </div>
-          <div class="course-lesson-create-form">
-            <label class="field">
-              <span>星期</span>
-              <select v-model.number="courseGroupSessionForm.weekday">
-                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="Number(day[0])">{{ day[1] }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>时间节</span>
-              <select v-model.number="courseGroupSessionForm.section">
-                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="Number(slot[0])">{{ slot[1] }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>教学楼</span>
-              <input v-model="courseGroupSessionForm.buildingName" />
-            </label>
-            <label class="field">
-              <span>教室</span>
-              <input v-model="courseGroupSessionForm.roomName" />
-            </label>
-          </div>
-          <div class="course-lesson-week-picker">
-            <div class="inline-actions">
-              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'all' }" type="button" @click="selectAllSessionWeeks">全周</button>
-              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'odd' }" type="button" @click="selectOddSessionWeeks">单周</button>
-              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'even' }" type="button" @click="selectEvenSessionWeeks">双周</button>
-              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'first-half' }" type="button" @click="selectFirstHalfSessionWeeks">上半学期</button>
-              <button class="ghost-button compact-button" :class="{ selected: selectedCreateSessionPreset === 'second-half' }" type="button" @click="selectSecondHalfSessionWeeks">下半学期</button>
-            </div>
-            <div class="course-lesson-week-grid">
-              <button
-                v-for="weekNo in allSessionWeeks"
-                :key="weekNo"
-                class="ghost-button compact-button"
-                :class="{ selected: selectedCreateSessionWeeks.includes(weekNo) }"
-                type="button"
-                @click="toggleCreateSessionWeek(weekNo)"
-              >
-                {{ weekNo }}
-              </button>
-            </div>
-          </div>
-          <div class="inline-actions">
-            <button class="primary-button" type="button" :disabled="courseGroupActionLoading" @click="saveCourseGroupSession">
-              <span v-if="courseGroupActionLoading" class="button-spinner" aria-hidden="true"></span>
-              <span>{{ courseGroupActionLoading ? '添加中...' : '添加课次' }}</span>
-            </button>
-          </div>
         </div>
       </section>
     </div>

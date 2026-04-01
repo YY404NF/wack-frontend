@@ -2110,7 +2110,7 @@
 
 .course-lessons-main {
   display: grid;
-  grid-template-columns: minmax(0, 1.52fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: stretch;
 }
@@ -2192,21 +2192,31 @@
   gap: 12px;
 }
 
+.course-session-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .course-lesson-week-picker {
   display: grid;
   gap: 12px;
 }
 
+.course-lesson-week-shortcuts {
+  justify-content: center;
+}
+
 .course-lesson-week-grid {
   display: grid;
-  grid-template-columns: repeat(4, 52px);
-  justify-content: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
   gap: 10px;
 }
 
 .course-lesson-week-grid > .ghost-button.compact-button {
-  width: 52px;
-  min-width: 52px;
+  width: 100%;
+  min-width: 0;
   height: 52px;
   padding: 0;
   border-radius: 999px;
