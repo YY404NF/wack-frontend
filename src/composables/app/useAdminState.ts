@@ -562,6 +562,15 @@ export function useAdminState(deps: UseAdminStateDeps) {
     bulkDeleteStudentModalOpen.value = false
   }
 
+  function clearAdminListFocusState() {
+    courseFocusRowKey.value = null
+    courseFocusToken.value = 0
+    classFocusRowKey.value = null
+    classFocusToken.value = 0
+    studentFocusRowKey.value = null
+    studentFocusToken.value = 0
+  }
+
   function closeAllModals() {
     closeUserModal()
     closeCourseModal()
@@ -825,12 +834,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     courseManageRouteGroupId.value = null
     courseManageRouteLessonId.value = null
     courseManagePathCommand.value = null
-    courseFocusRowKey.value = null
-    courseFocusToken.value = 0
-    classFocusRowKey.value = null
-    classFocusToken.value = 0
-    studentFocusRowKey.value = null
-    studentFocusToken.value = 0
+    clearAdminListFocusState()
     userTotalItems.value = 0
     userAllItems.value = 0
     courseTotalItems.value = 0
@@ -863,6 +867,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
 
   watch(deps.activeTab, (nextTab, previousTab) => {
     if (nextTab !== previousTab && isAdmin.value) {
+      clearAdminListFocusState()
       closeAllModals()
       clearAdminSelections()
       void loadRoleData(nextTab)
