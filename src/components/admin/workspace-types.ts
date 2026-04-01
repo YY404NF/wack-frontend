@@ -29,7 +29,15 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from './form-types'
-import type { AdminRoleName, AdminSlotLabel, AdminStatItem, AdminStatusClass, AdminStatusName } from './shared-types'
+import type {
+  AdminCourseManagePathTarget,
+  AdminCourseManageRouteView,
+  AdminRoleName,
+  AdminSlotLabel,
+  AdminStatItem,
+  AdminStatusClass,
+  AdminStatusName,
+} from './shared-types'
 
 export type AdminWorkspaceProps = {
   me: SessionUser
@@ -93,12 +101,13 @@ export type AdminWorkspaceProps = {
   selectedCourseIds: number[]
   selectedCourseCount: number
   deletingCourseName: string
-  courseManageRouteView?: 'courses' | 'groups' | 'lessons' | 'students'
+  courseManageRouteView?: AdminCourseManageRouteView
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
+  courseManageRouteLessonId?: number | null
   courseManagePathCommand?: {
     token: number
-    target: 'courses' | 'groups'
+    target: AdminCourseManagePathTarget
     courseId?: number | null
   } | null
   classForm: AdminClassForm

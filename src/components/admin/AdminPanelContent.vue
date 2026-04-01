@@ -3,6 +3,7 @@ import { defineAsyncComponent } from 'vue'
 import type { AppTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
+import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
 
 const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
 const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
@@ -18,10 +19,10 @@ defineProps<AdminWorkspaceProps & {
   activeTab: AppTab
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
-  attendanceRouteSessionId?: number | null
+  courseManageRouteLessonId?: number | null
   courseManagePathCommand?: {
     token: number
-    target: 'courses' | 'groups'
+    target: AdminCourseManagePathTarget
     courseId?: number | null
   } | null
 }>()
@@ -66,7 +67,6 @@ const emit = defineEmits<{
   updateAttendanceLogsPageSize: [size: number]
   openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
   openAttendanceDetail: [sessionId: number]
-  updateAttendanceRoute: [payload: { sessionId?: number | null }]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -110,8 +110,8 @@ const emit = defineEmits<{
   updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
-  updateCourseManageView: [view: 'courses' | 'groups' | 'lessons' | 'students']
-  updateCourseManageRoute: [payload: { view: 'courses' | 'groups' | 'lessons' | 'students'; courseId?: number | null; groupId?: number | null }]
+  updateCourseManageView: [view: AdminCourseManageRouteView]
+  updateCourseManageRoute: [payload: { view: AdminCourseManageRouteView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
 }>()
 
 function forwardUserStatus(studentId: string, status: number) {
@@ -135,11 +135,9 @@ function forwardUserStatus(studentId: string, status: number) {
       key="attendance"
       :attendance-results="attendanceResults"
       :course-terms="courseTerms"
-      :attendance-route-session-id="attendanceRouteSessionId"
       :status-name="statusName"
       :status-class="statusClass"
-      @open-attendance-logs="emit('openAttendanceLogs', $event)"
-      @update-attendance-route="emit('updateAttendanceRoute', $event)"
+      @open-attendance-detail="emit('openAttendanceDetail', $event)"
     />
 
     <AdminAttendanceLogsPanel
@@ -197,6 +195,7 @@ function forwardUserStatus(studentId: string, status: number) {
       :course-manage-route-view="courseManageRouteView"
       :course-manage-route-course-id="courseManageRouteCourseId"
       :course-manage-route-group-id="courseManageRouteGroupId"
+      :course-manage-route-lesson-id="courseManageRouteLessonId"
       :course-manage-path-command="courseManagePathCommand"
       @open-create-course-modal="emit('openCreateCourseModal')"
       @open-edit-course-modal="emit('openEditCourseModal', $event)"

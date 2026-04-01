@@ -16,9 +16,11 @@ import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AppInputSelect from '../common/AppInputSelect.vue'
 import AdminDataList from './AdminDataList.vue'
+import AdminCourseLessonAttendanceDetail from './AdminCourseLessonAttendanceDetail.vue'
 import type { AdminCourseManageProps } from './types'
+import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
 
-type CourseManageView = 'courses' | 'groups' | 'lessons' | 'students'
+type CourseManageView = AdminCourseManageRouteView
 type CourseGroupLessonRow = CourseGroupLessonItem & {
   session_no: number
   location: string
@@ -29,9 +31,10 @@ const props = defineProps<AdminCourseManageProps & {
   courseManageRouteView?: CourseManageView
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
+  courseManageRouteLessonId?: number | null
   courseManagePathCommand?: {
     token: number
-    target: 'courses' | 'groups'
+    target: AdminCourseManagePathTarget
     courseId?: number | null
   } | null
 }>()
@@ -52,7 +55,7 @@ const emit = defineEmits<{
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
   updateCourseManageView: [view: CourseManageView]
-  updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null }]
+  updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
 }>()
 
 const GROUP_BATCH_SIZE = 20
@@ -129,6 +132,7 @@ const courseGroupsError = ref('')
 const selectedCourseGroupIds = ref<number[]>([])
 const activeCourseGroupId = ref<number | null>(null)
 const activeCourseGroupDetail = ref<CourseGroupDetail | null>(null)
+const activeAttendanceLessonId = ref<number | null>(null)
 const visibleCourseGroupCount = ref(GROUP_BATCH_SIZE)
 const visibleLessonCount = ref(LESSON_BATCH_SIZE)
 const lessonSessionNoFilter = ref('')
@@ -293,6 +297,7 @@ const courseGroupStudentEntries = computed(() => {
   return [...classEntries, ...otherStudentEntries]
 })
 const allSessionWeeks = computed(() => Array.from({ length: 16 }, (_, index) => index + 1))
+const termStartMap = computed(() => new Map(props.courseTerms.map((item) => [item.name, item.term_start_date])))
 
 const parentCourseSummary = computed(() => {
   const course = courseGroupWorkspaceCourse.value
@@ -315,6 +320,31 @@ const activeCourseGroupSummary = computed(() => {
   return [
     { label: '上课班级', value: formatClassNameListMultiline(group.class_names) },
   ]
+})
+
+const activeCourseGroupLesson = computed(() =>
+  courseGroupLessonRows.value.find((item) => item.id === activeAttendanceLessonId.value) ?? null,
+)
+
+const activeLessonDate = computed(() => {
+  if (!activeCourseGroupLesson.value || !courseGroupWorkspaceCourse.value) {
+    return '-'
+  }
+  return formatLessonDate(courseGroupWorkspaceCourse.value.term, activeCourseGroupLesson.value.week_no, activeCourseGroupLesson.value.weekday) || '-'
+})
+
+const activeLessonTime = computed(() => {
+  if (!activeCourseGroupLesson.value) {
+    return '-'
+  }
+  return sectionLabels[activeCourseGroupLesson.value.section] ?? `第 ${activeCourseGroupLesson.value.section} 节`
+})
+
+const activeLessonLocation = computed(() => {
+  if (!activeCourseGroupLesson.value) {
+    return '-'
+  }
+  return `${activeCourseGroupLesson.value.building_name}-${activeCourseGroupLesson.value.room_name}`
 })
 
 watch(
@@ -384,8 +414,8 @@ watch(
 )
 
 watch(
-  () => [props.courseManageRouteView, props.courseManageRouteCourseId, props.courseManageRouteGroupId],
-  async ([view, routeCourseId, routeGroupId]) => {
+  () => [props.courseManageRouteView, props.courseManageRouteCourseId, props.courseManageRouteGroupId, props.courseManageRouteLessonId],
+  async ([view, routeCourseId, routeGroupId, routeLessonId]) => {
     const normalizedView = view as CourseManageView | undefined
     if (!normalizedView) {
       return
@@ -400,6 +430,7 @@ watch(
       }
       const targetCourseId = Number(routeCourseId)
       const targetGroupId = routeGroupId ? Number(routeGroupId) : null
+      const targetLessonId = routeLessonId ? Number(routeLessonId) : null
       const existingCourse = courseGroupWorkspaceCourse.value?.id === targetCourseId ? courseGroupWorkspaceCourse.value : null
       const matchedCourse = safeCourses.value.find((item) => item.id === targetCourseId) ?? null
       const course = existingCourse ?? matchedCourse ?? await api.getCourseSummary(targetCourseId)
@@ -409,17 +440,29 @@ watch(
       const shouldReloadWorkspace =
         courseGroupWorkspaceCourse.value?.id !== targetCourseId ||
         (normalizedView === 'groups' && currentView.value === 'courses') ||
-        ((normalizedView === 'lessons' || normalizedView === 'students') && activeCourseGroupId.value !== targetGroupId)
+        ((normalizedView === 'lessons' || normalizedView === 'students' || normalizedView === 'attendance-detail') && activeCourseGroupId.value !== targetGroupId)
       if (shouldReloadWorkspace) {
-        await openCourseGroupPage(course, normalizedView, targetGroupId)
+        await openCourseGroupPage(course, normalizedView, targetGroupId, targetLessonId)
         return
       }
       if (normalizedView === 'groups') {
         closeSessionModal()
+        activeAttendanceLessonId.value = null
         currentView.value = 'groups'
         return
       }
-      if (normalizedView === 'lessons' || normalizedView === 'students') {
+      if (normalizedView === 'lessons') {
+        activeAttendanceLessonId.value = null
+        currentView.value = 'lessons'
+        return
+      }
+      if (normalizedView === 'attendance-detail') {
+        activeAttendanceLessonId.value = targetLessonId
+        currentView.value = 'attendance-detail'
+        return
+      }
+      if (normalizedView === 'students') {
+        activeAttendanceLessonId.value = null
         currentView.value = normalizedView
       }
     } finally {
@@ -449,19 +492,27 @@ watch(
     }
     if (target === 'groups' && courseGroupWorkspaceCourse.value) {
       closeSessionModal()
+      activeAttendanceLessonId.value = null
       currentView.value = 'groups'
+      return
+    }
+    if (target === 'lessons' && courseGroupWorkspaceCourse.value) {
+      closeSessionModal()
+      activeAttendanceLessonId.value = null
+      currentView.value = 'lessons'
     }
   },
 )
 
-function syncCourseManageRoute(view: CourseManageView, courseId: number | null = null, groupId: number | null = null) {
+function syncCourseManageRoute(view: CourseManageView, courseId: number | null = null, groupId: number | null = null, lessonId: number | null = null) {
   if (syncingRouteState.value) {
     return
   }
   emit('updateCourseManageRoute', {
     view,
     courseId,
-    groupId: view === 'lessons' || view === 'students' ? groupId : null,
+    groupId: view === 'lessons' || view === 'attendance-detail' || view === 'students' ? groupId : null,
+    lessonId: view === 'attendance-detail' ? lessonId : null,
   })
 }
 
@@ -515,11 +566,12 @@ async function refreshCourseGroups(targetGroupId = activeCourseGroupId.value) {
   activeCourseGroupDetail.value = null
 }
 
-async function openCourseGroupPage(item: CourseItem, targetView: CourseManageView = 'groups', targetGroupId: number | null = null) {
+async function openCourseGroupPage(item: CourseItem, targetView: CourseManageView = 'groups', targetGroupId: number | null = null, targetLessonId: number | null = null) {
   courseGroupsLoading.value = true
   courseGroupsError.value = ''
   courseGroupWorkspaceCourse.value = item
   currentView.value = 'groups'
+  activeAttendanceLessonId.value = null
   lessonSessionNoFilter.value = ''
   lessonWeekFilter.value = ''
   lessonWeekdayFilter.value = ''
@@ -530,12 +582,15 @@ async function openCourseGroupPage(item: CourseItem, targetView: CourseManageVie
   }
   try {
     await refreshCourseGroups(targetGroupId)
-    if (targetView === 'lessons' || targetView === 'students') {
+    if (targetView === 'lessons' || targetView === 'attendance-detail' || targetView === 'students') {
       if (targetView === 'students') {
         courseGroupClassNameFilter.value = ''
         courseGroupStudentNoFilter.value = ''
         courseGroupStudentNameFilter.value = ''
         courseGroupStudentClassNameFilter.value = ''
+      }
+      if (targetView === 'attendance-detail') {
+        activeAttendanceLessonId.value = targetLessonId
       }
       currentView.value = targetView
       if (targetView === 'students') {
@@ -545,6 +600,7 @@ async function openCourseGroupPage(item: CourseItem, targetView: CourseManageVie
         targetView,
         courseGroupWorkspaceCourse.value?.id ?? item.id,
         activeCourseGroupId.value,
+        targetLessonId,
       )
     }
   } catch (error) {
@@ -564,6 +620,7 @@ function closeCourseGroupWorkspace() {
   selectedCourseGroupIds.value = []
   activeCourseGroupId.value = null
   activeCourseGroupDetail.value = null
+  activeAttendanceLessonId.value = null
   visibleCourseGroupCount.value = GROUP_BATCH_SIZE
   visibleLessonCount.value = LESSON_BATCH_SIZE
   lessonSessionNoFilter.value = ''
@@ -605,6 +662,7 @@ async function openCourseGroupLessons(group: CourseGroupItem) {
   courseGroupsError.value = ''
   try {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
+    activeAttendanceLessonId.value = null
     currentView.value = 'lessons'
     lessonSessionNoFilter.value = ''
     lessonWeekFilter.value = ''
@@ -627,6 +685,7 @@ async function openCourseGroupStudents(group: CourseGroupItem) {
   courseGroupsError.value = ''
   try {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
+    activeAttendanceLessonId.value = null
     courseGroupClassNameFilter.value = ''
     courseGroupStudentNoFilter.value = ''
     courseGroupStudentNameFilter.value = ''
@@ -639,6 +698,15 @@ async function openCourseGroupStudents(group: CourseGroupItem) {
   } finally {
     courseGroupsLoading.value = false
   }
+}
+
+function openCourseGroupLessonAttendanceDetail(session: CourseGroupLessonItem) {
+  if (!courseGroupWorkspaceCourse.value || activeCourseGroupId.value === null) {
+    return
+  }
+  activeAttendanceLessonId.value = session.id
+  currentView.value = 'attendance-detail'
+  syncCourseManageRoute('attendance-detail', courseGroupWorkspaceCourse.value.id, activeCourseGroupId.value, session.id)
 }
 
 async function createCourseGroup() {
@@ -1170,6 +1238,31 @@ function toggleCourseGroupClassExpanded(key: string) {
   }
   expandedCourseGroupClassKeys.value = [...expandedCourseGroupClassKeys.value, key]
 }
+
+function formatLessonDate(term: string, weekNo: number, weekday: number) {
+  const termStart = termStartMap.value.get(term)
+  if (!termStart) {
+    return ''
+  }
+  const date = parseDate(termStart)
+  if (!date) {
+    return ''
+  }
+  date.setDate(date.getDate() + (weekNo - 1) * 7 + (weekday - 1))
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function parseDate(value: string) {
+  const [year, month, day] = value.split('-').map((item) => Number(item))
+  if (!year || !month || !day) {
+    return null
+  }
+  return new Date(year, month - 1, day)
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, '0')
+}
 </script>
 
 <template>
@@ -1323,7 +1416,7 @@ function toggleCourseGroupClassExpanded(key: string) {
       <div v-if="sessionModalOpen" class="modal-backdrop modal-backdrop-contained">
         <article class="modal-card modal-card-narrow">
           <div class="modal-header">
-            <h3>{{ editingSessionId === null ? '创建课次' : '编辑课次' }}</h3>
+            <h3>{{ editingSessionId === null ? '创建课次' : '编辑课次信息' }}</h3>
             <button class="ghost-button compact-button modal-close" type="button" @click="closeSessionModal">关闭</button>
           </div>
           <form class="form-grid single-column-form" @submit.prevent="saveCourseGroupSession">
@@ -1588,7 +1681,7 @@ function toggleCourseGroupClassExpanded(key: string) {
             :show-selection="true"
             :selected-row-keys="selectedLessonIds"
             :show-actions="true"
-            :action-col-width="28"
+            :action-col-width="30"
             :selected-items="selectedLessonIds.length"
             :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
             :current-items="visibleCourseGroupLessons.length"
@@ -1643,12 +1736,44 @@ function toggleCourseGroupClassExpanded(key: string) {
             <template #cell-section="{ value }">{{ sectionLabels[Number(value)] }}</template>
             <template #actions="{ row }">
               <div class="inline-actions user-actions">
-                <button class="ghost-button compact-button" type="button" @click="openEditSessionModal(row as unknown as CourseGroupLessonItem)">编辑课次</button>
+                <button class="ghost-button compact-button" type="button" @click="openCourseGroupLessonAttendanceDetail(row as unknown as CourseGroupLessonItem)">考勤明细</button>
+                <button class="ghost-button compact-button" type="button" @click="openEditSessionModal(row as unknown as CourseGroupLessonItem)">编辑</button>
                 <button class="ghost-button compact-button danger-button" type="button" @click="deleteCourseGroupSession(row as unknown as CourseGroupLessonItem)">删除</button>
               </div>
             </template>
           </AdminDataList>
         </div>
+      </section>
+    </div>
+
+    <AdminCourseLessonAttendanceDetail
+      v-else-if="currentView === 'attendance-detail' && activeCourseGroupLesson && activeCourseGroup && courseGroupWorkspaceCourse"
+      key="attendance-detail"
+      :session-id="activeCourseGroupLesson.id"
+      :session-date="activeLessonDate"
+      :session-time="activeLessonTime"
+      :location="activeLessonLocation"
+      :class-summary="formatClassNameListMultiline(activeCourseGroup.class_names)"
+      :student-count="activeCourseGroup.student_count"
+      :course-name="courseGroupWorkspaceCourse.course_name"
+      :teacher-name="courseGroupWorkspaceCourse.teacher_name"
+      :grade="courseGroupWorkspaceCourse.grade"
+      :term="courseGroupWorkspaceCourse.term"
+    />
+
+    <div v-else-if="currentView === 'attendance-detail'" key="attendance-detail-empty" class="course-subpage-grid">
+      <aside class="workspace-card course-context-card">
+        <div class="settings-profile-summary-list">
+          <div class="workspace-card nested-context-card">
+            <div class="section-heading section-heading-compact">
+              <strong>课次</strong>
+            </div>
+            <p class="hint">未找到对应课次。</p>
+          </div>
+        </div>
+      </aside>
+      <section class="workspace-card course-subpage-main">
+        <p class="hint">未找到对应课次。</p>
       </section>
     </div>
 
