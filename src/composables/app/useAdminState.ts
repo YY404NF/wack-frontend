@@ -21,7 +21,7 @@ import {
 } from '../../api'
 import type { AppTab } from '../../constants'
 import type { AdminWorkspaceProps } from '../../components/admin/types'
-import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from '../../components/admin/shared-types'
+import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
 import {
   createAttendanceLogFilters,
   createClassFilters,
@@ -171,7 +171,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const courseManageRouteCourseId = ref<number | null>(null)
   const courseManageRouteGroupId = ref<number | null>(null)
   const courseManageRouteLessonId = ref<number | null>(null)
-  const courseManagePathCommand = ref<{ token: number; target: AdminCourseManagePathTarget; courseId?: number | null } | null>(null)
   const deletingClassId = ref<number | null>(null)
   const deletingClassName = ref('')
   const classFocusRowKey = ref<number | null>(null)
@@ -186,7 +185,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const courseModalOpen = ref(false)
   const classModalOpen = ref(false)
   const studentModalOpen = ref(false)
-  const classStudentModalOpen = ref(false)
   const deleteCourseModalOpen = ref(false)
   const deleteClassModalOpen = ref(false)
   const deleteStudentModalOpen = ref(false)
@@ -410,7 +408,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
   }
 
   function closeClassStudentModal() {
-    classStudentModalOpen.value = false
     classStudentTargetClassId.value = null
     classStudentTargetClass.value = null
     classStudentTargetName.value = ''
@@ -432,7 +429,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
     resetEditingClassStudentForm()
     Object.assign(classStudentFilters, createClassStudentFilters())
     await loadClassStudents(item.id)
-    classStudentModalOpen.value = true
   }
 
   function startEditClassStudent(studentId: number) {
@@ -716,7 +712,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
           courseManageRouteCourseId,
           courseManageRouteGroupId,
           courseManageRouteLessonId,
-          courseManagePathCommand,
           deletingClassId,
           deletingClassName,
           classFocusRowKey,
@@ -731,7 +726,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
           courseModalOpen,
           classModalOpen,
           studentModalOpen,
-          classStudentModalOpen,
           deleteCourseModalOpen,
           deleteClassModalOpen,
           deleteStudentModalOpen,
@@ -872,7 +866,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
     courseManageRouteCourseId.value = null
     courseManageRouteGroupId.value = null
     courseManageRouteLessonId.value = null
-    courseManagePathCommand.value = null
     clearAdminListFocusState()
     userTotalItems.value = 0
     userAllItems.value = 0

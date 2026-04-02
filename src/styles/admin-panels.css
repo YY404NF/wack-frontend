@@ -162,7 +162,7 @@
 .overview-entry-lead {
   grid-column: 1;
   grid-row: 1 / span 2;
-  align-self: start;
+  align-self: center;
 }
 
 .overview-entry-title,

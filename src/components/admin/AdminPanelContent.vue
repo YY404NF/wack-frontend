@@ -3,7 +3,7 @@ import { defineAsyncComponent } from 'vue'
 import type { AppTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
-import type { AdminAttendanceDetailTarget, AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
+import type { AdminAttendanceDetailTarget, AdminClassManageRouteView, AdminCourseManageRouteView } from './shared-types'
 
 const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
 const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
@@ -17,14 +17,10 @@ const AdminSettingsPanel = defineAsyncComponent(() => import('./AdminSettingsPan
 
 defineProps<AdminWorkspaceProps & {
   activeTab: AppTab
+  classManageRouteView?: AdminClassManageRouteView
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
   courseManageRouteLessonId?: number | null
-  courseManagePathCommand?: {
-    token: number
-    target: AdminCourseManagePathTarget
-    courseId?: number | null
-  } | null
 }>()
 
 const emit = defineEmits<{
@@ -115,7 +111,6 @@ const emit = defineEmits<{
   updateSystemSettings: [payload: { current_term_start_date: string }]
   updateAdminStatus: [sessionId: number, studentRefId: number, status: StatusCode]
   changePassword: []
-  updateCourseManageView: [view: AdminCourseManageRouteView]
   updateCourseManageRoute: [payload: { view: AdminCourseManageRouteView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
 }>()
 
@@ -209,7 +204,6 @@ function forwardUserStatus(studentId: string, status: number) {
       :course-manage-route-course-id="courseManageRouteCourseId"
       :course-manage-route-group-id="courseManageRouteGroupId"
       :course-manage-route-lesson-id="courseManageRouteLessonId"
-      :course-manage-path-command="courseManagePathCommand"
       @open-create-course-modal="emit('openCreateCourseModal')"
       @open-edit-course-modal="emit('openEditCourseModal', $event)"
       @close-course-modal="emit('closeCourseModal')"
@@ -224,7 +218,6 @@ function forwardUserStatus(studentId: string, status: number) {
       @toggle-course-selection="emit('toggleCourseSelection', $event)"
       @toggle-course-page-selection="emit('toggleCoursePageSelection')"
       @bulk-delete-courses="emit('bulkDeleteCourses')"
-      @update-course-manage-view="emit('updateCourseManageView', $event)"
       @update-course-manage-route="emit('updateCourseManageRoute', $event)"
     />
 
@@ -234,6 +227,7 @@ function forwardUserStatus(studentId: string, status: number) {
       :classes="classes"
       :all-classes="allClasses"
       :students="students"
+      :class-manage-route-view="classManageRouteView"
       :class-form="classForm"
       :class-filters="classFilters"
       :class-student-form="classStudentForm"
@@ -241,7 +235,6 @@ function forwardUserStatus(studentId: string, status: number) {
       :class-student-filters="classStudentFilters"
       :class-students="classStudents"
       :class-student-target-class="classStudentTargetClass"
-      :class-student-modal-open="classStudentModalOpen"
       :class-student-saving="classStudentSaving"
       :class-student-importing="classStudentImporting"
       :editing-class-student-id="editingClassStudentId"

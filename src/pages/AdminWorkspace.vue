@@ -10,9 +10,19 @@ import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
 import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
 import { api, type ClassItem, type CourseItem, type UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
-import type { AdminAttendanceDetailTarget, AdminCourseManagePathTarget, AdminCourseManageRouteView } from '../components/admin/shared-types'
+import type {
+  AdminAttendanceDetailTarget,
+  AdminClassManageRouteView,
+  AdminCourseManageRouteView,
+} from '../components/admin/shared-types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
-import { buildAdminCourseLocation, buildAdminTabLocation, readAdminCourseRoute } from '../router/admin-routes'
+import {
+  buildAdminClassLocation,
+  buildAdminCourseLocation,
+  buildAdminTabLocation,
+  readAdminClassRoute,
+  readAdminCourseRoute,
+} from '../router/admin-routes'
 
 const props = defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
 const router = useRouter()
@@ -112,29 +122,29 @@ function forwardUserStatus(studentId: string, status: number) {
 
 const aboutCaptchaOpen = ref(false)
 const aboutModalOpen = ref(false)
+const classManageView = ref<AdminClassManageRouteView>('classes')
 const courseManageView = ref<AdminCourseManageRouteView>('courses')
 const courseManageRouteCourseId = ref<number | null>(null)
 const courseManageRouteGroupId = ref<number | null>(null)
 const courseManageRouteLessonId = ref<number | null>(null)
-const courseManagePathCommand = ref<{ token: number; target: AdminCourseManagePathTarget; courseId?: number | null } | null>(null)
 
 const activeTabLabel = computed(() => {
   return adminNavItems.find((item) => item.key === props.activeTab)?.label ?? '当前页面'
 })
 
 const pathSegments = computed(() => {
-  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManagePathTarget | 'class-manage-root' }> = [
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManageRouteView | 'class-manage-root' }> = [
     {
       key: 'root',
       label: activeTabLabel.value,
       clickable:
         (props.activeTab === 'course-manage' && courseManageView.value !== 'courses') ||
-        (props.activeTab === 'class-manage' && props.classStudentModalOpen),
+        (props.activeTab === 'class-manage' && classManageView.value !== 'classes'),
       target: props.activeTab === 'class-manage' ? 'class-manage-root' : 'courses',
     },
   ]
   if (props.activeTab === 'class-manage') {
-    if (props.classStudentModalOpen) {
+    if (classManageView.value === 'students') {
       segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
     }
     return segments
@@ -168,6 +178,9 @@ const pathSegments = computed(() => {
 watch(
   () => props.activeTab,
   (tab) => {
+    if (tab !== 'class-manage') {
+      classManageView.value = 'classes'
+    }
     if (tab === 'course-manage') {
       return
     }
@@ -175,7 +188,6 @@ watch(
     courseManageRouteCourseId.value = null
     courseManageRouteGroupId.value = null
     courseManageRouteLessonId.value = null
-    courseManagePathCommand.value = null
   },
 )
 
@@ -188,6 +200,54 @@ watch(
     if (typeof sessionIdValue === 'string' && /^\d+$/.test(sessionIdValue)) {
       void handleOverviewAttendanceDetail({ sessionId: Number(sessionIdValue) }, 'replace')
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [props.activeTab, route.name, route.params.classId, props.classStudentTargetClass?.id] as const,
+  async ([tab]) => {
+    if (tab !== 'class-manage') {
+      return
+    }
+    const next = readAdminClassRoute(route) ?? {
+      view: 'classes' as AdminClassManageRouteView,
+      classId: null,
+    }
+    classManageView.value = next.view
+
+    if (next.view === 'classes' || !next.classId) {
+      if (props.classStudentTargetClass !== null) {
+        emit('closeClassStudentModal')
+      }
+      return
+    }
+
+    if (props.classStudentTargetClass?.id === next.classId) {
+      return
+    }
+
+    const matchedClass =
+      props.allClasses.find((item) => item.id === next.classId) ??
+      props.classes.find((item) => item.id === next.classId) ??
+      null
+    if (matchedClass) {
+      emit('openClassStudentModal', matchedClass)
+      return
+    }
+
+    try {
+      const page = await api.listClasses({ page: 1, page_size: 1, focus_class_id: next.classId })
+      const targetClass = (page.items ?? []).find((item) => item.id === next.classId) ?? null
+      if (targetClass) {
+        emit('openClassStudentModal', targetClass)
+        return
+      }
+    } catch (error) {
+      console.error(error)
+    }
+
+    await router.replace(buildAdminClassLocation({ view: 'classes', classId: null }))
   },
   { immediate: true },
 )
@@ -208,7 +268,6 @@ watch(
     courseManageRouteCourseId.value = next.courseId
     courseManageRouteGroupId.value = next.groupId
     courseManageRouteLessonId.value = next.lessonId
-    courseManagePathCommand.value = null
   },
   { immediate: true },
 )
@@ -226,8 +285,15 @@ async function syncCourseManageRouteToLocation(
   }, query))
 }
 
-function handleCourseManageViewChange(view: AdminCourseManageRouteView) {
-  courseManageView.value = view
+async function syncClassManageRouteToLocation(
+  payload: { view: AdminClassManageRouteView; classId?: number | null },
+  query: Record<string, string> | undefined = undefined,
+  mode: 'push' | 'replace' = 'push',
+) {
+  await router[mode](buildAdminClassLocation({
+    view: payload.view,
+    classId: payload.classId ?? null,
+  }, query))
 }
 
 function handleCourseManageRouteChange(payload: { view: AdminCourseManageRouteView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }) {
@@ -235,7 +301,6 @@ function handleCourseManageRouteChange(payload: { view: AdminCourseManageRouteVi
   courseManageRouteCourseId.value = payload.courseId ?? null
   courseManageRouteGroupId.value = payload.groupId ?? null
   courseManageRouteLessonId.value = payload.lessonId ?? null
-  courseManagePathCommand.value = null
   void syncCourseManageRouteToLocation(payload)
 }
 
@@ -255,6 +320,22 @@ function openCourseCalendarUser(loginId: string) {
   void router.push(buildAdminTabLocation('user-manage', { focus_login_id: loginId }))
 }
 
+function handleOpenClassStudentRoute(item: ClassItem) {
+  classManageView.value = 'students'
+  void syncClassManageRouteToLocation({
+    view: 'students',
+    classId: item.id,
+  })
+}
+
+function handleCloseClassStudentRoute(mode: 'push' | 'replace' = 'push') {
+  classManageView.value = 'classes'
+  void syncClassManageRouteToLocation({
+    view: 'classes',
+    classId: null,
+  }, undefined, mode)
+}
+
 async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarget, mode: 'push' | 'replace' = 'push') {
   const focusQuery = typeof target.focusStudentRefId === 'number' && target.focusStudentRefId > 0
     ? { focus_student_ref_id: String(target.focusStudentRefId) }
@@ -264,7 +345,6 @@ async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarge
     courseManageRouteCourseId.value = target.courseId
     courseManageRouteGroupId.value = target.groupId
     courseManageRouteLessonId.value = target.sessionId
-    courseManagePathCommand.value = null
     await syncCourseManageRouteToLocation({
       view: 'attendance-detail',
       courseId: target.courseId,
@@ -284,7 +364,6 @@ async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarge
     courseManageRouteCourseId.value = courseId
     courseManageRouteGroupId.value = groupId
     courseManageRouteLessonId.value = target.sessionId
-    courseManagePathCommand.value = null
     await syncCourseManageRouteToLocation({
       view: 'attendance-detail',
       courseId,
@@ -296,13 +375,13 @@ async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarge
   }
 }
 
-function handlePathSegmentClick(target?: AdminCourseManagePathTarget | 'class-manage-root') {
+function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-manage-root') {
   if (!target) {
     return
   }
   if (target === 'class-manage-root') {
-    if (props.activeTab === 'class-manage' && props.classStudentModalOpen) {
-      emit('closeClassStudentModal')
+    if (props.activeTab === 'class-manage' && classManageView.value === 'students') {
+      handleCloseClassStudentRoute()
     }
     return
   }
@@ -310,11 +389,6 @@ function handlePathSegmentClick(target?: AdminCourseManagePathTarget | 'class-ma
     return
   }
   if (target === 'courses') {
-    courseManagePathCommand.value = {
-      token: Date.now(),
-      target: 'courses',
-      courseId: courseManageRouteCourseId.value,
-    }
     courseManageView.value = 'courses'
     courseManageRouteGroupId.value = null
     courseManageRouteLessonId.value = null
@@ -322,11 +396,6 @@ function handlePathSegmentClick(target?: AdminCourseManagePathTarget | 'class-ma
     return
   }
   if (target === 'groups' && courseManageRouteCourseId.value) {
-    courseManagePathCommand.value = {
-      token: Date.now(),
-      target: 'groups',
-      courseId: courseManageRouteCourseId.value,
-    }
     courseManageView.value = 'groups'
     courseManageRouteGroupId.value = null
     courseManageRouteLessonId.value = null
@@ -337,11 +406,6 @@ function handlePathSegmentClick(target?: AdminCourseManagePathTarget | 'class-ma
     return
   }
   if (target === 'lessons' && courseManageRouteCourseId.value && courseManageRouteGroupId.value) {
-    courseManagePathCommand.value = {
-      token: Date.now(),
-      target: 'lessons',
-      courseId: courseManageRouteCourseId.value,
-    }
     courseManageView.value = 'lessons'
     courseManageRouteLessonId.value = null
     void syncCourseManageRouteToLocation({
@@ -428,11 +492,11 @@ function closeAboutModal() {
 
         <AdminPanelContent
           v-bind="$props"
+          :class-manage-route-view="classManageView"
           :course-manage-route-view="courseManageView"
           :course-manage-route-course-id="courseManageRouteCourseId"
           :course-manage-route-group-id="courseManageRouteGroupId"
           :course-manage-route-lesson-id="courseManageRouteLessonId"
-          :course-manage-path-command="courseManagePathCommand"
           @open-create-course-modal="emit('openCreateCourseModal')"
           @open-edit-course-modal="emit('openEditCourseModal', $event)"
           @close-course-modal="emit('closeCourseModal')"
@@ -451,9 +515,9 @@ function closeAboutModal() {
           @open-attendance-logs="emit('openAttendanceLogs', $event)"
           @open-create-class-modal="emit('openCreateClassModal')"
           @open-edit-class-modal="emit('openEditClassModal', $event)"
-          @open-class-student-modal="emit('openClassStudentModal', $event)"
+          @open-class-student-modal="handleOpenClassStudentRoute"
           @close-class-modal="emit('closeClassModal')"
-          @close-class-student-modal="emit('closeClassStudentModal')"
+          @close-class-student-modal="handleCloseClassStudentRoute"
           @open-delete-class-modal="emit('openDeleteClassModal', $event)"
           @close-delete-class-modal="emit('closeDeleteClassModal')"
           @open-bulk-delete-class-modal="emit('openBulkDeleteClassModal')"
@@ -513,7 +577,6 @@ function closeAboutModal() {
           @create-user="emit('createUser')"
           @set-user-status="forwardUserStatus"
           @update-system-settings="emit('updateSystemSettings', $event)"
-          @update-course-manage-view="handleCourseManageViewChange"
           @update-course-manage-route="handleCourseManageRouteChange"
           @open-profile-modal="emit('openProfileModal')"
           @close-profile-modal="emit('closeProfileModal')"

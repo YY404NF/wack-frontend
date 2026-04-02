@@ -108,7 +108,7 @@ export function createCourseForm(): AdminCourseForm {
 export function createClassForm(): AdminClassForm {
   return {
     className: '',
-    grade: new Date().getFullYear(),
+    grade: parseAcademicTermName(getCurrentAcademicTerm())?.startYear ?? new Date().getFullYear(),
     majorName: '',
   }
 }

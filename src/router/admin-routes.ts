@@ -7,7 +7,7 @@ import type {
 } from 'vue-router'
 
 import type { AppTab } from '../constants'
-import type { AdminCourseManageRouteView } from '../components/admin/shared-types'
+import type { AdminClassManageRouteView, AdminCourseManageRouteView } from '../components/admin/shared-types'
 
 export type AdminTab = Extract<
   AppTab,
@@ -25,6 +25,7 @@ export type AdminTab = Extract<
 type AdminRouteMeta = {
   adminTab: AdminTab
   adminCourseView?: AdminCourseManageRouteView
+  adminClassView?: AdminClassManageRouteView
 }
 
 type AdminCourseRouteState = {
@@ -32,6 +33,11 @@ type AdminCourseRouteState = {
   courseId: number | null
   groupId: number | null
   lessonId: number | null
+}
+
+type AdminClassRouteState = {
+  view: AdminClassManageRouteView
+  classId: number | null
 }
 
 export const adminFocusQueryKeys = ['focus_course_id', 'focus_class_id', 'focus_student_ref_id'] as const
@@ -52,6 +58,7 @@ export const adminRouteNames = {
   courseStudents: 'admin-course-students',
   courseAttendanceDetail: 'admin-course-attendance-detail',
   classManage: 'admin-class-manage',
+  classStudents: 'admin-class-students',
   studentManage: 'admin-student-manage',
   userManage: 'admin-user-manage',
   settings: 'admin-settings',
@@ -76,6 +83,13 @@ function adminMeta(adminTab: AdminTab, adminCourseView?: AdminCourseManageRouteV
   return {
     adminTab,
     adminCourseView,
+  }
+}
+
+function adminClassMeta(adminTab: AdminTab, adminClassView?: AdminClassManageRouteView): AdminRouteMeta {
+  return {
+    adminTab,
+    adminClassView,
   }
 }
 
@@ -168,6 +182,18 @@ export function buildAdminCourseLocation(state: AdminCourseRouteState, query?: L
   return buildAdminTabLocation('course-manage', query)
 }
 
+export function buildAdminClassLocation(state: AdminClassRouteState, query?: LocationQueryRaw): RouteLocationRaw {
+  if (state.view === 'students' && state.classId) {
+    return {
+      name: adminRouteNames.classStudents,
+      params: { classId: String(state.classId) },
+      query,
+    }
+  }
+
+  return buildAdminTabLocation('class-manage', query)
+}
+
 export function readAdminQueryNumber(query: LocationQuery, key: AdminFocusQueryKey): number | null {
   return readPositiveInt(query[key])
 }
@@ -210,6 +236,26 @@ export function readAdminCourseRoute(route: RouteLocationNormalizedLoaded): Admi
   }
 }
 
+export function readAdminClassRoute(route: RouteLocationNormalizedLoaded): AdminClassRouteState | null {
+  const adminTab = readAdminTab(route)
+  if (adminTab !== 'class-manage') {
+    return null
+  }
+
+  const view = route.meta.adminClassView
+  if (view !== 'students') {
+    return {
+      view: 'classes',
+      classId: null,
+    }
+  }
+
+  return {
+    view,
+    classId: readPositiveInt(route.params.classId),
+  }
+}
+
 export function resolveLegacyAdminLocation(to: { params: Record<string, unknown>; query: Record<string, unknown> }): RouteLocationRaw {
   const legacyTab = readFirstString(to.params.legacyTab)
 
@@ -249,7 +295,7 @@ export function resolveLegacyAdminLocation(to: { params: Record<string, unknown>
       return buildAdminTabLocation('course-manage')
     }
     case 'class-manage':
-      return buildAdminTabLocation('class-manage')
+      return buildAdminClassLocation({ view: 'classes', classId: null })
     case 'student':
       return buildAdminTabLocation('student')
     case 'user-manage':
@@ -326,7 +372,13 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin/classes',
     name: adminRouteNames.classManage,
     component: EmptyRouteComponent,
-    meta: adminMeta('class-manage'),
+    meta: adminClassMeta('class-manage', 'classes'),
+  },
+  {
+    path: '/admin/classes/:classId(\\d+)/students',
+    name: adminRouteNames.classStudents,
+    component: EmptyRouteComponent,
+    meta: adminClassMeta('class-manage', 'students'),
   },
   {
     path: '/admin/students',

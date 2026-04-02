@@ -30,7 +30,6 @@ import type {
   AdminUserPasswordForm,
 } from './form-types'
 import type {
-  AdminCourseManagePathTarget,
   AdminCourseManageRouteView,
   AdminRoleName,
   AdminSlotLabel,
@@ -110,11 +109,6 @@ export type AdminWorkspaceProps = {
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
   courseManageRouteLessonId?: number | null
-  courseManagePathCommand?: {
-    token: number
-    target: AdminCourseManagePathTarget
-    courseId?: number | null
-  } | null
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -122,7 +116,6 @@ export type AdminWorkspaceProps = {
   classStudentFilters: AdminClassStudentFilters
   classStudents: ClassStudentItem[]
   classStudentTargetClass: ClassItem | null
-  classStudentModalOpen: boolean
   classStudentSaving: boolean
   classStudentImporting: boolean
   editingClassStudentId: number | null

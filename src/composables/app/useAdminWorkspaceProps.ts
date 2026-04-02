@@ -17,7 +17,7 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from '../../components/admin/form-types'
-import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from '../../components/admin/shared-types'
+import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
 import type { AppTab } from '../../constants'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './view'
 
@@ -93,7 +93,6 @@ export type AdminWorkspacePropsDeps = {
   courseManageRouteCourseId: Ref<number | null>
   courseManageRouteGroupId: Ref<number | null>
   courseManageRouteLessonId: Ref<number | null>
-  courseManagePathCommand: Ref<{ token: number; target: AdminCourseManagePathTarget; courseId?: number | null } | null>
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm
@@ -102,7 +101,6 @@ export type AdminWorkspacePropsDeps = {
   classStudentTargetClass: Ref<ClassItem | null>
   studentForm: AdminStudentForm
   studentFilters: AdminStudentFilters
-  classStudentModalOpen: Ref<boolean>
   classStudentSaving: Ref<boolean>
   classStudentImporting: Ref<boolean>
   editingClassStudentId: Ref<number | null>
@@ -225,14 +223,12 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     courseManageRouteCourseId: deps.courseManageRouteCourseId.value,
     courseManageRouteGroupId: deps.courseManageRouteGroupId.value,
     courseManageRouteLessonId: deps.courseManageRouteLessonId.value,
-    courseManagePathCommand: deps.courseManagePathCommand.value,
     classForm: deps.classForm,
     classFilters: deps.classFilters,
     classStudentForm: deps.classStudentForm,
     editingClassStudentForm: deps.editingClassStudentForm,
     classStudentFilters: deps.classStudentFilters,
     classStudentTargetClass: deps.classStudentTargetClass.value,
-    classStudentModalOpen: deps.classStudentModalOpen.value,
     classStudentSaving: deps.classStudentSaving.value,
     classStudentImporting: deps.classStudentImporting.value,
     editingClassStudentId: deps.editingClassStudentId.value,

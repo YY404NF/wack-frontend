@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 
 import {
   api,
@@ -12,14 +12,14 @@ import {
   type CourseItem,
 } from '../../api'
 import { formatClassNameListMultiline, sectionLabels, weekdayLabels } from '../../constants'
-import { getCurrentAcademicTerm } from '../../utils/free-time'
-import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
-import AppDigitInput from '../common/AppDigitInput.vue'
-import AppInputSelect from '../common/AppInputSelect.vue'
-import AdminDataList from './AdminDataList.vue'
 import AdminCourseLessonAttendanceDetail from './AdminCourseLessonAttendanceDetail.vue'
 import type { AdminCourseManageProps } from './types'
-import type { AdminCourseManagePathTarget, AdminCourseManageRouteView } from './shared-types'
+import type { AdminCourseManageRouteView } from './shared-types'
+
+const AdminCourseListView = defineAsyncComponent(() => import('./AdminCourseListView.vue'))
+const AdminCourseGroupManageView = defineAsyncComponent(() => import('./AdminCourseGroupManageView.vue'))
+const AdminCourseLessonManageView = defineAsyncComponent(() => import('./AdminCourseLessonManageView.vue'))
+const AdminCourseStudentManageView = defineAsyncComponent(() => import('./AdminCourseStudentManageView.vue'))
 
 type CourseManageView = AdminCourseManageRouteView
 type CourseGroupLessonRow = CourseGroupLessonItem & {
@@ -33,11 +33,6 @@ const props = defineProps<AdminCourseManageProps & {
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
   courseManageRouteLessonId?: number | null
-  courseManagePathCommand?: {
-    token: number
-    target: AdminCourseManagePathTarget
-    courseId?: number | null
-  } | null
 }>()
 
 const emit = defineEmits<{
@@ -55,74 +50,19 @@ const emit = defineEmits<{
   toggleCourseSelection: [courseId: number]
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
-  updateCourseManageView: [view: CourseManageView]
   updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
 }>()
 
 const GROUP_BATCH_SIZE = 100
 const LESSON_BATCH_SIZE = 100
 const CANDIDATE_PAGE_SIZE = 100
-const currentTerm = getCurrentAcademicTerm()
 
 const currentView = ref<CourseManageView>(props.courseManageRouteView ?? 'courses')
 const syncingRouteState = ref(false)
-const selectedCourseIdSet = computed(() => new Set(props.selectedCourseIds))
-const areAllCoursesSelected = computed(() => props.courses.length > 0 && props.courses.every((item) => selectedCourseIdSet.value.has(item.id)))
 const classNameOptions = computed(() =>
   Array.from(new Set(props.allClasses.map((item) => item.class_name.trim()).filter((item) => item.length > 0))).sort((left, right) =>
     left.localeCompare(right, 'zh-Hans-CN'),
   ),
-)
-const courseColumns = [
-  { key: 'grade', label: '年级', width: 3 },
-  { key: 'course_name', label: '课程名称', width: 8 },
-  { key: 'teacher_name', label: '教师', width: 3 },
-  { key: 'class_names', label: '上课班级', width: 8, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '上课人数', width: 4 },
-] as const
-const groupColumns = [
-  { key: 'class_names', label: '上课班级', width: 20, copyValue: (row: Record<string, unknown>) => Array.isArray(row.class_names) ? row.class_names.join('、') : '' },
-  { key: 'student_count', label: '上课人数', width: 5 },
-  { key: 'lesson_count', label: '课次', width: 4 },
-] as const
-const lessonColumns = [
-  { key: 'session_no', label: '课次', width: 6, copyable: false },
-  { key: 'week_no', label: '上课周', width: 8, copyable: false },
-  { key: 'weekday', label: '星期', width: 6, copyable: false },
-  { key: 'section', label: '时间节', width: 10, copyable: false },
-  { key: 'location', label: '地点', width: 9, copyable: true, copyValue: (row: Record<string, unknown>) => String(row.location ?? '') },
-] as const
-const candidateClassColumns = [
-  { key: 'class_name', label: '班级名称', width: 8 },
-  { key: 'student_count', label: '人数', width: 4 },
-] as const
-const candidateStudentColumns = [
-  { key: 'student_no', label: '学号', width: 10 },
-  { key: 'student_name', label: '姓名', width: 8 },
-  { key: 'class_name', label: '所属班级', width: 9 },
-] as const
-
-const termOptions = computed(() => {
-  if (props.courseTerms.length > 0) {
-    return sortTermsForSelect(props.courseTerms).map((item) => item.name)
-  }
-  const terms = new Set<string>([currentTerm])
-  for (const item of props.courses) {
-    if (item.term) {
-      terms.add(item.term)
-    }
-  }
-  return Array.from(terms).sort((left, right) => right.localeCompare(left, 'zh-Hans-CN'))
-})
-
-watch(
-  termOptions,
-  (terms) => {
-    if (!props.courseFilters.term || !terms.includes(props.courseFilters.term)) {
-      props.courseFilters.term = selectDefaultTermName(props.courseTerms) || terms[0] || ''
-    }
-  },
-  { immediate: true },
 )
 
 const courseGroupWorkspaceCourse = ref<CourseItem | null>(null)
@@ -167,7 +107,6 @@ const courseGroupClassHasMore = ref(false)
 const courseGroupStudentHasMore = ref(false)
 const courseGroupClassLoading = ref(false)
 const courseGroupStudentLoading = ref(false)
-const expandedCourseGroupClassKeys = ref<string[]>([])
 const courseGroupSessionForm = ref({
   weekNo: 1,
   weekday: '' as number | '',
@@ -384,13 +323,6 @@ watch(
 )
 
 watch(
-  () => activeCourseGroupId.value,
-  () => {
-    expandedCourseGroupClassKeys.value = []
-  },
-)
-
-watch(
   () => courseGroupClassNameFilter.value,
   async () => {
     if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
@@ -473,38 +405,6 @@ watch(
   { immediate: true },
 )
 
-watch(
-  currentView,
-  (view) => {
-    emit('updateCourseManageView', view)
-  },
-)
-
-watch(
-  () => props.courseManagePathCommand?.token,
-  () => {
-    const target = props.courseManagePathCommand?.target
-    if (!target) {
-      return
-    }
-    if (target === 'courses') {
-      closeCourseGroupWorkspace()
-      return
-    }
-    if (target === 'groups' && courseGroupWorkspaceCourse.value) {
-      closeSessionModal()
-      activeAttendanceLessonId.value = null
-      currentView.value = 'groups'
-      return
-    }
-    if (target === 'lessons' && courseGroupWorkspaceCourse.value) {
-      closeSessionModal()
-      activeAttendanceLessonId.value = null
-      currentView.value = 'lessons'
-    }
-  },
-)
-
 function syncCourseManageRoute(view: CourseManageView, courseId: number | null = null, groupId: number | null = null, lessonId: number | null = null) {
   if (syncingRouteState.value) {
     return
@@ -517,33 +417,8 @@ function syncCourseManageRoute(view: CourseManageView, courseId: number | null =
   })
 }
 
-function asCourseItem(row: Record<string, unknown>) {
-  return row as unknown as CourseItem
-}
-
-function openCourseEditor(row: Record<string, unknown> | null | undefined) {
-  if (!row) {
-    return
-  }
-  emit('openEditCourseModal', asCourseItem(row))
-}
-
-function openCourseGroupsManager(row: Record<string, unknown> | null | undefined) {
-  if (!row) {
-    return
-  }
-  void openCourseGroupPage(asCourseItem(row))
-}
-
-function openCourseDelete(row: Record<string, unknown> | null | undefined) {
-  if (!row) {
-    return
-  }
-  emit('openDeleteCourseModal', asCourseItem(row))
-}
-
-function asCourseGroupItem(row: Record<string, unknown>) {
-  return row as unknown as CourseGroupItem
+function openCourseGroupsManagerByItem(item: CourseItem) {
+  void openCourseGroupPage(item)
 }
 
 async function loadCourseGroupDetail(courseId: number, groupId: number) {
@@ -654,7 +529,6 @@ function closeCourseGroupWorkspace() {
   courseGroupStudentPage.value = 1
   courseGroupClassHasMore.value = false
   courseGroupStudentHasMore.value = false
-  expandedCourseGroupClassKeys.value = []
 }
 
 async function openCourseGroupLessons(group: CourseGroupItem) {
@@ -1230,18 +1104,6 @@ function loadMoreCourseGroupLessons() {
   visibleLessonCount.value += LESSON_BATCH_SIZE
 }
 
-function isCourseGroupClassExpanded(key: string) {
-  return expandedCourseGroupClassKeys.value.includes(key)
-}
-
-function toggleCourseGroupClassExpanded(key: string) {
-  if (expandedCourseGroupClassKeys.value.includes(key)) {
-    expandedCourseGroupClassKeys.value = expandedCourseGroupClassKeys.value.filter((item) => item !== key)
-    return
-  }
-  expandedCourseGroupClassKeys.value = [...expandedCourseGroupClassKeys.value, key]
-}
-
 function formatLessonDate(term: string, weekNo: number, weekday: number) {
   const termStart = termStartMap.value.get(term)
   if (!termStart) {
@@ -1503,249 +1365,86 @@ function pad(value: number) {
     </Transition>
 
     <Transition name="subpage-fade" mode="out-in" appear>
-    <div v-if="currentView === 'courses'" key="courses" class="course-manage-page">
-      <AdminDataList
-        :rows="courses as unknown as Array<Record<string, unknown>>"
-        :columns="courseColumns as unknown as Array<{ key: string; label: string; width?: number }>"
-        row-key="id"
-        table-class="course-manage-table"
-        empty-text="暂无符合条件的课程"
-        :show-selection="true"
-        :selected-row-keys="selectedCourseIds"
-        :show-actions="true"
-        :action-col-width="24"
-        :pagination="{ page: coursePage, pageSize: coursePageSize, totalPages: courseTotalPages, pageOptions: coursePageOptions, totalItems: courseTotalItems }"
-        :all-items="courseAllItems"
-        :selected-items="selectedCourseIds.length"
-        :highlight-row-key="courseFocusRowKey ?? null"
-        :highlight-token="courseFocusToken ?? 0"
-        :active-filter-keys="[
-          ...(String(courseFilters.grade ?? '').trim() ? ['grade'] : []),
-          ...(courseFilters.courseName.trim() ? ['course_name'] : []),
-          ...(courseFilters.teacherName.trim() ? ['teacher_name'] : []),
-          ...(courseFilters.className.trim() ? ['class_names'] : []),
-        ]"
-        :has-search-condition="!!(String(courseFilters.grade ?? '').trim() || courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.className.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
-        @update-page="emit('updateCoursePage', $event)"
-        @update-page-size="emit('updateCoursePageSize', $event)"
-        @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
-      >
-        <template #filter-grade>
-          <AppDigitInput v-model="courseFilters.grade" aria-label="按年级筛选课程" />
-        </template>
-        <template #filter-course_name>
-          <input v-model="courseFilters.courseName" aria-label="按课程名称筛选课程" />
-        </template>
-        <template #filter-teacher_name>
-          <input v-model="courseFilters.teacherName" aria-label="按授课教师筛选课程" />
-        </template>
-        <template #filter-class_names>
-          <AppInputSelect
-            v-model="courseFilters.className"
-            :options="classNameOptions"
-            aria-label="按班级筛选课程"
-          />
-        </template>
-        <template #filter-actions>
-          <button class="ghost-button compact-button" :class="{ selected: areAllCoursesSelected }" type="button" @click="emit('toggleCoursePageSelection')">
-            全选
-          </button>
-          <button class="ghost-button compact-button danger-button" type="button" :disabled="courseDeleting || selectedCourseIds.length === 0" @click="emit('openBulkDeleteCourseModal')">
-            批量删除
-          </button>
-          <button class="primary-button compact-button filter-action-push" type="button" @click="emit('openCreateCourseModal')">
-            创建课程
-          </button>
-        </template>
-        <template #footer-trailing>
-          <label class="course-manage-term-filter">
-            <span class="visually-hidden">学期</span>
-            <select v-model="courseFilters.term" aria-label="按学期筛选课程">
-              <option v-for="term in termOptions" :key="term" :value="term">{{ term }}</option>
-            </select>
-          </label>
-        </template>
-        <template #cell-class_names="{ value }">
-          {{ Array.isArray(value) ? value.join('、') : '' }}
-        </template>
-        <template #actions="{ row }">
-          <div class="inline-actions user-actions">
-          <button class="ghost-button compact-button" type="button" :disabled="courseLoading || !row" @click="openCourseEditor(row as Record<string, unknown> | null)">编辑</button>
-            <button class="ghost-button compact-button" type="button" :disabled="courseLoading || !row" @click="openCourseGroupsManager(row as Record<string, unknown> | null)">课程组管理</button>
-            <button class="ghost-button compact-button danger-button" type="button" :disabled="!row" @click="openCourseDelete(row as Record<string, unknown> | null)">删除</button>
-          </div>
-        </template>
-      </AdminDataList>
-    </div>
+    <AdminCourseListView
+      v-if="currentView === 'courses'"
+      key="courses"
+      :courses="courses"
+      :all-classes="allClasses"
+      :course-terms="courseTerms"
+      :course-filters="courseFilters"
+      :selected-course-ids="selectedCourseIds"
+      :course-deleting="courseDeleting"
+      :course-loading="courseLoading"
+      :course-page="coursePage"
+      :course-page-size="coursePageSize"
+      :course-total-pages="courseTotalPages"
+      :course-total-items="courseTotalItems"
+      :course-all-items="courseAllItems"
+      :course-page-options="coursePageOptions"
+      :course-focus-row-key="courseFocusRowKey"
+      :course-focus-token="courseFocusToken"
+      @open-create-course-modal="emit('openCreateCourseModal')"
+      @open-edit-course-modal="emit('openEditCourseModal', $event)"
+      @open-delete-course-modal="emit('openDeleteCourseModal', $event)"
+      @open-course-groups-manager="openCourseGroupsManagerByItem($event)"
+      @open-bulk-delete-course-modal="emit('openBulkDeleteCourseModal')"
+      @update-course-page="emit('updateCoursePage', $event)"
+      @update-course-page-size="emit('updateCoursePageSize', $event)"
+      @toggle-course-selection="emit('toggleCourseSelection', $event)"
+      @toggle-course-page-selection="emit('toggleCoursePageSelection')"
+    />
 
-    <div v-else-if="currentView === 'groups'" key="groups" class="course-subpage-grid">
-      <aside class="workspace-card course-context-card">
-        <div class="settings-profile-summary-list">
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课程</strong>
-            </div>
-            <div class="settings-profile-summary-list">
-              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <AdminCourseGroupManageView
+      v-else-if="currentView === 'groups'"
+      key="groups"
+      :loading="courseGroupsLoading"
+      :parent-course-summary="parentCourseSummary"
+      :visible-course-groups="visibleCourseGroups"
+      :course-groups="courseGroups"
+      :selected-course-group-ids="selectedCourseGroupIds"
+      :are-all-course-groups-selected="areAllCourseGroupsSelected"
+      :course-group-action-loading="courseGroupActionLoading"
+      @toggle-course-group-selection="toggleCourseGroupSelection($event)"
+      @toggle-course-group-page-selection="toggleCourseGroupPageSelection"
+      @open-bulk-delete-course-group-modal="openBulkDeleteCourseGroupModal"
+      @create-course-group="createCourseGroup"
+      @load-more-course-groups="loadMoreCourseGroups"
+      @open-course-group-lessons="openCourseGroupLessons($event)"
+      @open-course-group-students="openCourseGroupStudents($event)"
+      @open-delete-course-group-modal="openDeleteCourseGroupModal($event)"
+    />
 
-      <section class="workspace-card course-subpage-main course-groups-main">
-        <p v-if="courseGroupsLoading" class="hint">正在加载课程组数据...</p>
-        <AdminDataList
-          v-else
-          :rows="visibleCourseGroups as unknown as Array<Record<string, unknown>>"
-          :columns="groupColumns as unknown as Array<{ key: string; label: string; width?: number }>"
-          row-key="id"
-          table-class="course-group-table"
-          empty-text="当前课程还没有课程组"
-          :show-selection="true"
-          :selected-row-keys="selectedCourseGroupIds"
-          :show-actions="true"
-          :action-col-width="28"
-          :selected-items="selectedCourseGroupIds.length"
-          :current-items="visibleCourseGroups.length"
-          :total-items="courseGroups.length"
-          :all-items="courseGroups.length"
-          :lazy-load="{ hasMore: visibleCourseGroups.length < courseGroups.length, loading: false, buttonText: '滚动到底部继续加载课程组' }"
-          @toggle-row-selection="toggleCourseGroupSelection(Number($event))"
-          @load-more="loadMoreCourseGroups"
-        >
-          <template #filter-actions>
-            <button class="ghost-button compact-button" :class="{ selected: areAllCourseGroupsSelected }" type="button" @click="toggleCourseGroupPageSelection">
-              全选
-            </button>
-            <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading || selectedCourseGroupIds.length === 0" @click="openBulkDeleteCourseGroupModal">
-              批量删除
-            </button>
-            <button class="primary-button compact-button filter-action-push" type="button" :disabled="courseGroupActionLoading" @click="createCourseGroup">
-              创建课程组
-            </button>
-          </template>
-          <template #cell-class_names="{ value }">
-            {{ Array.isArray(value) && value.length > 0 ? value.join('、') : '未绑定班级' }}
-          </template>
-        <template #actions="{ row }">
-          <div class="inline-actions user-actions">
-            <button class="ghost-button compact-button" type="button" @click="openCourseGroupLessons(asCourseGroupItem(row))">课次管理</button>
-            <button class="ghost-button compact-button" type="button" @click="openCourseGroupStudents(asCourseGroupItem(row))">上课学生管理</button>
-            <button class="ghost-button compact-button danger-button" type="button" @click="openDeleteCourseGroupModal(asCourseGroupItem(row))">删除</button>
-          </div>
-        </template>
-      </AdminDataList>
-      </section>
-    </div>
-
-    <div v-else-if="currentView === 'lessons'" key="lessons" class="course-subpage-grid">
-      <aside class="workspace-card course-context-card">
-        <div class="settings-profile-summary-list">
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课程组</strong>
-            </div>
-            <div class="settings-profile-summary-list">
-              <div v-for="item in activeCourseGroupSummary" :key="item.label" class="settings-profile-summary-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课程</strong>
-            </div>
-            <div class="settings-profile-summary-list">
-              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <section class="workspace-card course-subpage-main course-lessons-main">
-        <div class="course-lesson-list-card">
-          <p v-if="courseGroupsLoading" class="hint">正在加载课次数据...</p>
-          <AdminDataList
-            v-else
-            :rows="visibleCourseGroupLessons as unknown as Array<Record<string, unknown>>"
-            :columns="lessonColumns as unknown as Array<{ key: string; label: string; width?: number }>"
-            row-key="id"
-            table-class="course-group-table"
-            empty-text="当前课程组还没有课次"
-            :show-selection="true"
-            :selected-row-keys="selectedLessonIds"
-            :show-actions="true"
-            :action-col-width="30"
-            :selected-items="selectedLessonIds.length"
-            :lazy-load="{ hasMore: visibleCourseGroupLessons.length < filteredCourseGroupLessons.length, loading: false, buttonText: '滚动到底部继续加载课次' }"
-            :current-items="visibleCourseGroupLessons.length"
-            :total-items="filteredCourseGroupLessons.length"
-            :all-items="courseGroupLessonRows.length"
-            :active-filter-keys="[
-              ...(lessonSessionNoFilter ? ['session_no'] : []),
-              ...(lessonWeekFilter ? ['week_no'] : []),
-              ...(lessonWeekdayFilter ? ['weekday'] : []),
-              ...(lessonSectionFilter ? ['section'] : []),
-              ...(lessonLocationFilter.trim() ? ['location'] : []),
-            ]"
-            :has-search-condition="!!(lessonSessionNoFilter || lessonWeekFilter || lessonWeekdayFilter || lessonSectionFilter || lessonLocationFilter.trim())"
-            @toggle-row-selection="toggleLessonSelection(Number($event))"
-            @toggle-page-selection="toggleLessonPageSelection"
-            @load-more="loadMoreCourseGroupLessons"
-          >
-            <template #filter-session_no>
-              <AppDigitInput v-model="lessonSessionNoFilter" aria-label="按课次筛选课次列表" />
-            </template>
-            <template #filter-week_no>
-              <AppDigitInput v-model="lessonWeekFilter" aria-label="按上课周筛选课次" />
-            </template>
-            <template #filter-weekday>
-              <select v-model="lessonWeekdayFilter" aria-label="按星期筛选课次">
-                <option value="">全部</option>
-                <option v-for="day in Object.entries(weekdayLabels)" :key="day[0]" :value="day[0]">{{ day[1] }}</option>
-              </select>
-            </template>
-            <template #filter-section>
-              <select v-model="lessonSectionFilter" aria-label="按时间节筛选课次">
-                <option value="">全部</option>
-                <option v-for="slot in Object.entries(sectionLabels)" :key="slot[0]" :value="slot[0]">{{ slot[1] }}</option>
-              </select>
-            </template>
-            <template #filter-location>
-              <input v-model="lessonLocationFilter" aria-label="按地点筛选课次" />
-            </template>
-            <template #filter-actions>
-              <button class="ghost-button compact-button" :class="{ selected: areAllVisibleLessonsSelected }" type="button" @click="toggleLessonPageSelection">
-                全选
-              </button>
-              <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading || selectedLessonIds.length === 0" @click="openBulkDeleteLessonModal">
-                批量删除
-              </button>
-              <button class="primary-button compact-button filter-action-push" type="button" :disabled="courseGroupActionLoading" @click="openCreateSessionModal">
-                创建课次
-              </button>
-            </template>
-            <template #cell-week_no="{ value }">第 {{ value }} 周</template>
-            <template #cell-weekday="{ value }">{{ weekdayLabels[Number(value)] }}</template>
-            <template #cell-section="{ value }">{{ sectionLabels[Number(value)] }}</template>
-            <template #actions="{ row }">
-              <div class="inline-actions user-actions">
-                <button class="ghost-button compact-button" type="button" @click="openCourseGroupLessonAttendanceDetail(row as unknown as CourseGroupLessonItem)">考勤明细</button>
-                <button class="ghost-button compact-button" type="button" @click="openEditSessionModal(row as unknown as CourseGroupLessonItem)">编辑</button>
-                <button class="ghost-button compact-button danger-button" type="button" @click="deleteCourseGroupSession(row as unknown as CourseGroupLessonItem)">删除</button>
-              </div>
-            </template>
-          </AdminDataList>
-        </div>
-      </section>
-    </div>
+    <AdminCourseLessonManageView
+      v-else-if="currentView === 'lessons'"
+      key="lessons"
+      :parent-course-summary="parentCourseSummary"
+      :active-course-group-summary="activeCourseGroupSummary"
+      :loading="courseGroupsLoading"
+      :visible-course-group-lessons="visibleCourseGroupLessons"
+      :filtered-course-group-lessons="filteredCourseGroupLessons"
+      :course-group-lesson-rows="courseGroupLessonRows"
+      :selected-lesson-ids="selectedLessonIds"
+      :are-all-visible-lessons-selected="areAllVisibleLessonsSelected"
+      :course-group-action-loading="courseGroupActionLoading"
+      :lesson-session-no-filter="lessonSessionNoFilter"
+      :lesson-week-filter="lessonWeekFilter"
+      :lesson-weekday-filter="lessonWeekdayFilter"
+      :lesson-section-filter="lessonSectionFilter"
+      :lesson-location-filter="lessonLocationFilter"
+      @update:lesson-session-no-filter="lessonSessionNoFilter = $event"
+      @update:lesson-week-filter="lessonWeekFilter = $event"
+      @update:lesson-weekday-filter="lessonWeekdayFilter = $event"
+      @update:lesson-section-filter="lessonSectionFilter = $event"
+      @update:lesson-location-filter="lessonLocationFilter = $event"
+      @toggle-lesson-selection="toggleLessonSelection($event)"
+      @toggle-lesson-page-selection="toggleLessonPageSelection"
+      @load-more-course-group-lessons="loadMoreCourseGroupLessons"
+      @open-bulk-delete-lesson-modal="openBulkDeleteLessonModal"
+      @open-create-session-modal="openCreateSessionModal"
+      @open-course-group-lesson-attendance-detail="openCourseGroupLessonAttendanceDetail($event)"
+      @open-edit-session-modal="openEditSessionModal($event)"
+      @delete-course-group-session="deleteCourseGroupSession($event)"
+    />
 
     <div v-else-if="currentView === 'attendance-detail'" key="attendance-detail">
       <AdminCourseLessonAttendanceDetail
@@ -1781,168 +1480,36 @@ function pad(value: number) {
       </template>
     </div>
 
-    <div v-else key="students" class="course-student-manage-layout">
-      <aside class="workspace-card course-context-card">
-        <div class="settings-profile-summary-list">
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课程组</strong>
-            </div>
-            <div class="settings-profile-summary-list">
-              <div v-for="item in activeCourseGroupSummary" :key="item.label" class="settings-profile-summary-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-          <div class="workspace-card nested-context-card">
-            <div class="section-heading section-heading-compact">
-              <strong>课程</strong>
-            </div>
-            <div class="settings-profile-summary-list">
-              <div v-for="item in parentCourseSummary" :key="item.label" class="settings-profile-summary-item">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <section class="course-student-main-column">
-        <section class="workspace-card course-group-current-students-card">
-          <div class="course-group-student-groups">
-            <article
-              v-for="entry in courseGroupStudentEntries"
-              :key="entry.key"
-              class="course-group-student-block"
-              :class="{ 'course-group-student-block-expanded': entry.kind === 'class' && isCourseGroupClassExpanded(entry.key) }"
-            >
-              <template v-if="entry.kind === 'class'">
-                <div class="course-group-student-block-header">
-                  <button class="course-group-student-summary" type="button" @click="toggleCourseGroupClassExpanded(entry.key)">
-                    <span class="course-group-student-caret" :class="{ 'course-group-student-caret-expanded': isCourseGroupClassExpanded(entry.key) }" aria-hidden="true">▸</span>
-                    <div class="course-group-student-block-title">
-                      <strong>{{ entry.label }}</strong>
-                      <span class="pill">{{ entry.items.length }} 人</span>
-                      <span class="hint">{{ isCourseGroupClassExpanded(entry.key) ? '收起学生' : '展开学生' }}</span>
-                    </div>
-                  </button>
-                  <button
-                    v-if="entry.classId"
-                    class="ghost-button compact-button danger-button"
-                    type="button"
-                    :disabled="courseGroupActionLoading"
-                    @click="openRemoveCourseGroupClassModal(entry.classId, entry.label)"
-                  >
-                    移除班级
-                  </button>
-                </div>
-                <div v-if="isCourseGroupClassExpanded(entry.key)" class="course-group-student-list">
-                  <div v-for="student in entry.items" :key="student.id" class="course-group-student-row">
-                    <div class="course-group-student-row-main">
-                      <span class="course-student-member-id">{{ student.student_no }}</span>
-                      <span class="course-student-member-name">{{ student.student_name }}</span>
-                    </div>
-                    <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="openRemoveCourseGroupStudentModal(student.student_id, student.student_name)">
-                      移除
-                    </button>
-                  </div>
-                </div>
-              </template>
-
-              <template v-else>
-                <div class="course-group-student-row course-group-student-row-standalone">
-                  <div class="course-group-student-row-main">
-                    <div class="course-group-student-standalone-meta">
-                      <span class="course-student-member-name">{{ entry.student.student_name }}</span>
-                      <span class="course-student-member-id">{{ entry.student.student_no }}</span>
-                    </div>
-                    <span class="pill">其他学生</span>
-                  </div>
-                  <button class="ghost-button compact-button danger-button" type="button" :disabled="courseGroupActionLoading" @click="openRemoveCourseGroupStudentModal(entry.student.student_id, entry.student.student_name)">
-                    移除
-                  </button>
-                </div>
-              </template>
-            </article>
-            <p v-if="courseGroupStudentEntries.length === 0" class="hint">当前课程组还没有上课学生。</p>
-          </div>
-        </section>
-
-        <section class="workspace-card course-group-candidates-card">
-          <div class="course-group-editor-grid">
-            <section class="course-group-editor-block">
-              <AdminDataList
-                :rows="courseGroupClassRows as unknown as Array<Record<string, unknown>>"
-                :columns="candidateClassColumns as unknown as Array<{ key: string; label: string; width?: number }>"
-                row-key="id"
-                table-class="course-group-candidate-table"
-                empty-text="没有可添加的班级"
-                :show-actions="true"
-                :action-col-width="20"
-                :lazy-load="{ hasMore: courseGroupClassHasMore, loading: courseGroupClassLoading, buttonText: '滚动到底部继续加载班级' }"
-                :active-filter-keys="courseGroupClassNameFilter.trim() ? ['class_name'] : []"
-                :has-search-condition="!!courseGroupClassNameFilter.trim()"
-                @load-more="loadMoreCourseGroupClasses"
-              >
-                <template #filter-class_name>
-                  <AppInputSelect
-                    v-model="courseGroupClassNameFilter"
-                    :options="classNameOptions"
-                    aria-label="按班级名称筛选可添加班级"
-                  />
-                </template>
-                <template #actions="{ row }">
-                  <div class="inline-actions user-actions">
-                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupClass(Number(row.id))">添加</button>
-                  </div>
-                </template>
-              </AdminDataList>
-            </section>
-
-            <section class="course-group-editor-block">
-              <AdminDataList
-                :rows="courseGroupStudentRows as unknown as Array<Record<string, unknown>>"
-                :columns="candidateStudentColumns as unknown as Array<{ key: string; label: string; width?: number }>"
-                row-key="id"
-                table-class="course-group-candidate-table"
-                empty-text="没有可添加的学生"
-                :show-actions="true"
-                :action-col-width="20"
-                :lazy-load="{ hasMore: courseGroupStudentHasMore, loading: courseGroupStudentLoading, buttonText: '滚动到底部继续加载学生' }"
-                :active-filter-keys="[
-                  ...(courseGroupStudentNoFilter.trim() ? ['student_no'] : []),
-                  ...(courseGroupStudentNameFilter.trim() ? ['student_name'] : []),
-                  ...(courseGroupStudentClassNameFilter.trim() ? ['class_name'] : []),
-                ]"
-                :has-search-condition="!!(courseGroupStudentNoFilter.trim() || courseGroupStudentNameFilter.trim() || courseGroupStudentClassNameFilter.trim())"
-                @load-more="loadMoreCourseGroupStudents"
-              >
-                <template #filter-student_no>
-                  <AppDigitInput v-model="courseGroupStudentNoFilter" aria-label="按学号筛选可添加学生" />
-                </template>
-                <template #filter-student_name>
-                  <input v-model="courseGroupStudentNameFilter" aria-label="按姓名筛选可添加学生" />
-                </template>
-                <template #filter-class_name>
-                  <AppInputSelect
-                    v-model="courseGroupStudentClassNameFilter"
-                    :options="classNameOptions"
-                    aria-label="按所属班级筛选可添加学生"
-                  />
-                </template>
-                <template #actions="{ row }">
-                  <div class="inline-actions user-actions">
-                    <button class="ghost-button compact-button" type="button" :disabled="courseGroupActionLoading" @click="addCourseGroupStudent(Number(row.id))">添加</button>
-                  </div>
-                </template>
-              </AdminDataList>
-            </section>
-          </div>
-        </section>
-      </section>
-    </div>
+    <AdminCourseStudentManageView
+      v-else
+      key="students"
+      :active-course-group-id="activeCourseGroupId"
+      :parent-course-summary="parentCourseSummary"
+      :active-course-group-summary="activeCourseGroupSummary"
+      :course-group-student-entries="courseGroupStudentEntries"
+      :course-group-action-loading="courseGroupActionLoading"
+      :course-group-class-rows="courseGroupClassRows"
+      :course-group-student-rows="courseGroupStudentRows"
+      :course-group-class-has-more="courseGroupClassHasMore"
+      :course-group-student-has-more="courseGroupStudentHasMore"
+      :course-group-class-loading="courseGroupClassLoading"
+      :course-group-student-loading="courseGroupStudentLoading"
+      :course-group-class-name-filter="courseGroupClassNameFilter"
+      :course-group-student-no-filter="courseGroupStudentNoFilter"
+      :course-group-student-name-filter="courseGroupStudentNameFilter"
+      :course-group-student-class-name-filter="courseGroupStudentClassNameFilter"
+      :class-name-options="classNameOptions"
+      @update:course-group-class-name-filter="courseGroupClassNameFilter = $event"
+      @update:course-group-student-no-filter="courseGroupStudentNoFilter = $event"
+      @update:course-group-student-name-filter="courseGroupStudentNameFilter = $event"
+      @update:course-group-student-class-name-filter="courseGroupStudentClassNameFilter = $event"
+      @load-more-course-group-classes="loadMoreCourseGroupClasses"
+      @load-more-course-group-students="loadMoreCourseGroupStudents"
+      @add-course-group-class="addCourseGroupClass($event)"
+      @add-course-group-student="addCourseGroupStudent($event)"
+      @open-remove-course-group-class-modal="openRemoveCourseGroupClassModal($event.classId, $event.className)"
+      @open-remove-course-group-student-modal="openRemoveCourseGroupStudentModal($event.studentId, $event.studentName)"
+    />
     </Transition>
     <Teleport to="body">
       <div v-if="actionToast" class="toast-banner admin-data-list-copy-toast">{{ actionToast }}</div>

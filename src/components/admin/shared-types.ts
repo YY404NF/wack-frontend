@@ -9,7 +9,7 @@ export type AdminStatusClass = (status: number) => Record<string, boolean>
 export type AdminSlotLabel = (weekday: number, section: number) => string
 export type AdminRoleName = (role?: number) => string
 export type AdminCourseManageRouteView = 'courses' | 'groups' | 'lessons' | 'attendance-detail' | 'students'
-export type AdminCourseManagePathTarget = 'courses' | 'groups' | 'lessons'
+export type AdminClassManageRouteView = 'classes' | 'students'
 
 export type AdminAttendanceDetailTarget = {
   sessionId: number
