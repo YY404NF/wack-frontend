@@ -93,7 +93,6 @@ export function createCourseFilters(): AdminCourseFilters {
     courseName: '',
     teacherName: '',
     className: '',
-    studentCount: '',
   }
 }
 

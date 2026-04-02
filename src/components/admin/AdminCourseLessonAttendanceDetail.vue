@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, type AttendanceRecordStudentItem } from '../../api'
 import { attendanceStatusBadgeClass, statusLabels } from '../../constants'
 import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
+import AppDigitInput from '../common/AppDigitInput.vue'
 import AdminDataList from './AdminDataList.vue'
 
 const props = defineProps<{
@@ -272,7 +273,7 @@ async function saveAttendanceStatus() {
           @update-page-size="detailPageSize = $event"
         >
           <template #filter-student_id>
-            <input v-model="detailStudentId" aria-label="按学号筛选课次考勤明细" />
+            <AppDigitInput v-model="detailStudentId" aria-label="按学号筛选课次考勤明细" />
           </template>
           <template #filter-real_name>
             <input v-model="detailRealName" aria-label="按姓名筛选课次考勤明细" />

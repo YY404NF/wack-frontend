@@ -25,16 +25,16 @@ function normalizeCourseGroupDetail(detail: CourseGroupDetail | null | undefined
 }
 
 export const coursesApi = {
-  listCourses(query: { page?: number; page_size?: number; term?: string; grade?: string; course_name?: string; teacher_name?: string; class_name?: string; student_count?: string; focus_course_id?: number } = {}) {
+  listCourses(query: { page?: number; page_size?: number; term?: string; grade?: string | number; course_name?: string; teacher_name?: string; class_name?: string; focus_course_id?: number } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
     if (query.term?.trim()) params.set('term', query.term.trim())
-    if (query.grade?.trim()) params.set('grade', query.grade.trim())
+    const grade = query.grade === null || query.grade === undefined ? '' : String(query.grade).trim()
+    if (grade) params.set('grade', grade)
     if (query.course_name?.trim()) params.set('keyword', query.course_name.trim())
     if (query.teacher_name?.trim()) params.set('teacher_name', query.teacher_name.trim())
     if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
-    if (query.student_count?.trim()) params.set('student_count', query.student_count.trim())
     if (typeof query.focus_course_id === 'number' && query.focus_course_id > 0) params.set('focus_course_id', String(query.focus_course_id))
     return request<PageResult<CourseItem>>(`${apiPaths.admin.courses}?${params.toString()}`).then((page) => ({
       ...page,

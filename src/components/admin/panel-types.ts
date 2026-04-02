@@ -78,6 +78,7 @@ export type AdminCourseCalendarProps = {
 
 export type AdminClassManageProps = {
   classes: ClassItem[]
+  allClasses: ClassItem[]
   students: StudentItem[]
   classForm: AdminClassForm
   classFilters: AdminClassFilters
@@ -140,6 +141,7 @@ export type AdminFreeTimeCalendarProps = {
 
 export type AdminAttendanceLogsProps = {
   attendanceLogs: AttendanceRecordLogListItem[]
+  attendanceLogRows: AttendanceRecordLogListItem[]
   courseTerms: MetaTermItem[]
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number

@@ -51,6 +51,7 @@ export type AdminWorkspaceProps = {
   systemSettingSaving: boolean
   overviewData: AdminOverviewData | null
   attendanceLogs: AttendanceRecordLogListItem[]
+  attendanceLogRows: AttendanceRecordLogListItem[]
   classes: ClassItem[]
   allClasses: ClassItem[]
   students: StudentItem[]

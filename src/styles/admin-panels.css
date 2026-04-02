@@ -451,12 +451,14 @@
 }
 
 .copyable-inline-button {
-  display: block;
-  width: 100%;
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
+  vertical-align: top;
   padding: 0;
   border: 0;
   background: transparent;

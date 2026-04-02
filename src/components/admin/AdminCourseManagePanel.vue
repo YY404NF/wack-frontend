@@ -14,6 +14,7 @@ import {
 import { formatClassNameListMultiline, sectionLabels, weekdayLabels } from '../../constants'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import AppDigitInput from '../common/AppDigitInput.vue'
 import AppInputSelect from '../common/AppInputSelect.vue'
 import AdminDataList from './AdminDataList.vue'
 import AdminCourseLessonAttendanceDetail from './AdminCourseLessonAttendanceDetail.vue'
@@ -58,9 +59,9 @@ const emit = defineEmits<{
   updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
 }>()
 
-const GROUP_BATCH_SIZE = 20
-const LESSON_BATCH_SIZE = 20
-const CANDIDATE_PAGE_SIZE = 20
+const GROUP_BATCH_SIZE = 100
+const LESSON_BATCH_SIZE = 100
+const CANDIDATE_PAGE_SIZE = 100
 const currentTerm = getCurrentAcademicTerm()
 
 const currentView = ref<CourseManageView>(props.courseManageRouteView ?? 'courses')
@@ -216,10 +217,10 @@ const filteredCourseGroupLessons = computed(() => {
   const locationKeyword = lessonLocationFilter.value.trim().toLowerCase()
 
   return courseGroupLessonRows.value.filter((item) => {
-    if (sessionNoKeyword && String(item.session_no) !== sessionNoKeyword) {
+    if (sessionNoKeyword && !String(item.session_no).includes(sessionNoKeyword)) {
       return false
     }
-    if (lessonWeekFilter.value && String(item.week_no) !== lessonWeekFilter.value) {
+    if (lessonWeekFilter.value && !String(item.week_no).includes(lessonWeekFilter.value)) {
       return false
     }
     if (lessonWeekdayFilter.value && String(item.weekday) !== lessonWeekdayFilter.value) {
@@ -1519,19 +1520,18 @@ function pad(value: number) {
         :highlight-row-key="courseFocusRowKey ?? null"
         :highlight-token="courseFocusToken ?? 0"
         :active-filter-keys="[
-          ...(courseFilters.grade.trim() ? ['grade'] : []),
+          ...(String(courseFilters.grade ?? '').trim() ? ['grade'] : []),
           ...(courseFilters.courseName.trim() ? ['course_name'] : []),
           ...(courseFilters.teacherName.trim() ? ['teacher_name'] : []),
           ...(courseFilters.className.trim() ? ['class_names'] : []),
-          ...(courseFilters.studentCount.trim() ? ['student_count'] : []),
         ]"
-        :has-search-condition="!!(courseFilters.grade.trim() || courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.className.trim() || courseFilters.studentCount.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
+        :has-search-condition="!!(String(courseFilters.grade ?? '').trim() || courseFilters.courseName.trim() || courseFilters.teacherName.trim() || courseFilters.className.trim() || (courseFilters.term && courseFilters.term !== termOptions[0]))"
         @update-page="emit('updateCoursePage', $event)"
         @update-page-size="emit('updateCoursePageSize', $event)"
         @toggle-row-selection="emit('toggleCourseSelection', Number($event))"
       >
         <template #filter-grade>
-          <input v-model="courseFilters.grade" type="number" inputmode="numeric" aria-label="按年级筛选课程" />
+          <AppDigitInput v-model="courseFilters.grade" aria-label="按年级筛选课程" />
         </template>
         <template #filter-course_name>
           <input v-model="courseFilters.courseName" aria-label="按课程名称筛选课程" />
@@ -1545,9 +1545,6 @@ function pad(value: number) {
             :options="classNameOptions"
             aria-label="按班级筛选课程"
           />
-        </template>
-        <template #filter-student_count>
-          <input v-model="courseFilters.studentCount" type="number" inputmode="numeric" aria-label="按上课人数筛选课程" />
         </template>
         <template #filter-actions>
           <button class="ghost-button compact-button" :class="{ selected: areAllCoursesSelected }" type="button" @click="emit('toggleCoursePageSelection')">
@@ -1704,10 +1701,10 @@ function pad(value: number) {
             @load-more="loadMoreCourseGroupLessons"
           >
             <template #filter-session_no>
-              <input v-model="lessonSessionNoFilter" type="number" inputmode="numeric" aria-label="按课次筛选课次列表" />
+              <AppDigitInput v-model="lessonSessionNoFilter" aria-label="按课次筛选课次列表" />
             </template>
             <template #filter-week_no>
-              <input v-model="lessonWeekFilter" type="number" inputmode="numeric" aria-label="按上课周筛选课次" />
+              <AppDigitInput v-model="lessonWeekFilter" aria-label="按上课周筛选课次" />
             </template>
             <template #filter-weekday>
               <select v-model="lessonWeekdayFilter" aria-label="按星期筛选课次">
@@ -1923,7 +1920,7 @@ function pad(value: number) {
                 @load-more="loadMoreCourseGroupStudents"
               >
                 <template #filter-student_no>
-                  <input v-model="courseGroupStudentNoFilter" inputmode="numeric" aria-label="按学号筛选可添加学生" />
+                  <AppDigitInput v-model="courseGroupStudentNoFilter" aria-label="按学号筛选可添加学生" />
                 </template>
                 <template #filter-student_name>
                   <input v-model="courseGroupStudentNameFilter" aria-label="按姓名筛选可添加学生" />

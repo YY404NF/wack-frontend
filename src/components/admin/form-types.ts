@@ -22,7 +22,6 @@ export type AdminCourseFilters = {
   courseName: string
   teacherName: string
   className: string
-  studentCount: string
 }
 
 export type AdminCourseForm = {

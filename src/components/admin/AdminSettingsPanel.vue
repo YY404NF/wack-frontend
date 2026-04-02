@@ -24,7 +24,7 @@ const termSaving = ref(false)
 const termFormError = ref('')
 const editingTermId = ref<number | null>(null)
 const localTerms = ref<MetaTermItem[]>([])
-const visibleTermCount = ref(12)
+const visibleTermCount = ref(100)
 const termFilters = reactive({
   name: '',
 })
@@ -59,7 +59,7 @@ watch(
   () => props.courseTerms,
   (terms) => {
     localTerms.value = sortTermsForSelect(terms)
-    visibleTermCount.value = 12
+    visibleTermCount.value = 100
   },
   { immediate: true },
 )
@@ -81,7 +81,7 @@ const hasTermSearchCondition = computed(() => activeTermFilterKeys.value.length 
 watch(
   () => termFilters.name,
   () => {
-    visibleTermCount.value = 12
+    visibleTermCount.value = 100
   },
 )
 
@@ -161,7 +161,7 @@ function asMetaTermItem(row: Record<string, unknown>) {
 }
 
 function loadMoreTerms() {
-  visibleTermCount.value += 12
+  visibleTermCount.value += 100
 }
 
 </script>

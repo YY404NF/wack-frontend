@@ -34,10 +34,12 @@ export type AdminWorkspacePropsDeps = {
   systemSettingSaving: Ref<boolean>
   overviewData: Ref<AdminOverviewData | null>
   paginatedAttendanceLogs: ComputedRef<AttendanceRecordLogListItem[]>
+  attendanceLogRows: Ref<AttendanceRecordLogListItem[]>
   paginatedClasses: ComputedRef<ClassItem[]>
   classes: Ref<ClassItem[]>
   students: Ref<StudentItem[]>
   paginatedStudents: ComputedRef<StudentItem[]>
+  classStudents: Ref<ClassStudentItem[]>
   filteredClassStudents: ComputedRef<ClassStudentItem[]>
   paginatedUsers: ComputedRef<any[]>
   currentUserId: ComputedRef<number | undefined>
@@ -160,10 +162,11 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     systemSettingSaving: deps.systemSettingSaving.value,
     overviewData: deps.overviewData.value,
     attendanceLogs: deps.paginatedAttendanceLogs.value,
+    attendanceLogRows: deps.attendanceLogRows.value,
     classes: deps.paginatedClasses.value,
     allClasses: deps.classes.value,
     students: deps.activeTab.value === 'class-manage' ? deps.students.value : deps.paginatedStudents.value,
-    classStudents: deps.filteredClassStudents.value,
+    classStudents: deps.classStudents.value,
     users: deps.paginatedUsers.value,
     currentUserId: deps.currentUserId.value,
     courses: deps.paginatedCourses.value,

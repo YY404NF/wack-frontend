@@ -3,11 +3,12 @@ import { apiPaths } from './paths'
 import type { ClassItem, ClassOptionItem, ClassStudentCandidateItem, ClassStudentImportResult, ClassStudentItem, ManagedClassSnapshot, PageResult } from './types'
 
 export const classesApi = {
-  listClasses(query: { page?: number; page_size?: number; grade?: string; major_name?: string; class_name?: string; focus_class_id?: number } = {}) {
+  listClasses(query: { page?: number; page_size?: number; grade?: string | number; major_name?: string; class_name?: string; focus_class_id?: number } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
-    if (query.grade?.trim()) params.set('grade', query.grade.trim())
+    const grade = query.grade === null || query.grade === undefined ? '' : String(query.grade).trim()
+    if (grade) params.set('grade', grade)
     if (query.major_name?.trim()) params.set('major_name', query.major_name.trim())
     if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     if (typeof query.focus_class_id === 'number' && query.focus_class_id > 0) params.set('focus_class_id', String(query.focus_class_id))

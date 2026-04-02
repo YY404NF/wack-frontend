@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { StudentItem } from '../../api'
+import AppDigitInput from '../common/AppDigitInput.vue'
 import AdminDataList from './AdminDataList.vue'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminStudentManageProps } from './types'
 
 const props = defineProps<AdminStudentManageProps>()
@@ -56,6 +58,14 @@ const filteredClassOptions = computed(() => {
     `${item.grade} ${item.major_name} ${item.class_name}`.toLowerCase().includes(keyword.toLowerCase()),
   )
 })
+
+const studentFilterClassOptions = computed(() =>
+  Array.from(
+    new Set(props.allClasses.map((item) => item.class_name.trim())),
+  )
+    .filter((item) => item.length > 0)
+    .sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
 
 const visibleClassOptions = computed(() => filteredClassOptions.value.slice(0, visibleClassCount.value))
 const hasMoreClasses = computed(() => visibleClassOptions.value.length < filteredClassOptions.value.length)
@@ -242,13 +252,17 @@ function asStudentItem(row: Record<string, unknown>) {
       @toggle-row-selection="emit('toggleStudentSelection', Number($event))"
     >
       <template #filter-student_id>
-        <input v-model="studentFilters.studentId" aria-label="按学号筛选学生" />
+        <AppDigitInput v-model="studentFilters.studentId" aria-label="按学号筛选学生" />
       </template>
       <template #filter-real_name>
         <input v-model="studentFilters.realName" aria-label="按姓名筛选学生" />
       </template>
       <template #filter-class_name>
-        <input v-model="studentFilters.className" aria-label="按班级名称筛选学生" />
+        <AppInputSelect
+          v-model="studentFilters.className"
+          :options="studentFilterClassOptions"
+          aria-label="按班级名称筛选学生"
+        />
       </template>
       <template #filter-actions>
         <button class="ghost-button compact-button" type="button" @click="emit('toggleStudentPageSelection')">

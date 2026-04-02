@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 
 import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import AppDigitInput from '../common/AppDigitInput.vue'
 import AppInputSelect from '../common/AppInputSelect.vue'
 import AdminDataList from './AdminDataList.vue'
 import type { AdminAttendanceLogsProps } from './types'
@@ -46,7 +47,7 @@ const statusOptions = [
 const classOptions = computed(() =>
   Array.from(
     new Set(
-      [props.attendanceLogFilters.className, ...props.attendanceLogs.map((item) => item.class_name)]
+      props.attendanceLogRows.map((item) => item.class_name)
         .map((item) => item.trim())
         .filter((item) => item.length > 0),
     ),
@@ -145,7 +146,7 @@ function formatStatus(value: unknown, emptyLabel = '-') {
         <input v-model="attendanceLogFilters.teacherName" aria-label="按教师筛选考勤日志" />
       </template>
       <template #filter-student_id>
-        <input v-model="attendanceLogFilters.studentId" inputmode="numeric" aria-label="按学号筛选考勤日志" />
+        <AppDigitInput v-model="attendanceLogFilters.studentId" aria-label="按学号筛选考勤日志" />
       </template>
       <template #filter-real_name>
         <input v-model="attendanceLogFilters.realName" aria-label="按姓名筛选考勤日志" />

@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { ClassItem, StudentItem } from '../../api'
 import AdminDataList from './AdminDataList.vue'
 import AdminFileImportModal from './AdminFileImportModal.vue'
+import AppDigitInput from '../common/AppDigitInput.vue'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminClassManageProps } from './types'
 
 const props = defineProps<AdminClassManageProps>()
@@ -32,7 +34,10 @@ const emit = defineEmits<{
 }>()
 
 const majorOptions = computed(() =>
-  Array.from(new Set(props.classes.map((item) => item.major_name))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+  Array.from(new Set(props.allClasses.map((item) => item.major_name))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
+const classNameOptions = computed(() =>
+  Array.from(new Set(props.allClasses.map((item) => item.class_name))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
 )
 const selectedClassIdSet = computed(() => new Set(props.selectedClassIds))
 const areAllClassesSelected = computed(() => props.classes.length > 0 && props.classes.every((item) => selectedClassIdSet.value.has(item.id)))
@@ -46,7 +51,7 @@ const classStudentColumns = [
   { key: 'student_id', label: '学号', width: 30 },
   { key: 'real_name', label: '姓名', width: 30 },
 ] as const
-const CLASS_STUDENT_BATCH_SIZE = 20
+const CLASS_STUDENT_BATCH_SIZE = 100
 const visibleClassStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
 const visibleUnboundStudentCount = ref(CLASS_STUDENT_BATCH_SIZE)
 const importModalOpen = ref(false)
@@ -86,6 +91,15 @@ const filteredClassStudents = computed(() => {
 })
 const visibleClassStudents = computed(() => filteredClassStudents.value.slice(0, visibleClassStudentCount.value))
 const visibleUnboundStudents = computed(() => filteredUnboundStudents.value.slice(0, visibleUnboundStudentCount.value))
+const classStudentNameOptions = computed(() =>
+  Array.from(
+    new Set(
+      [...props.classStudents.map((item) => item.real_name), ...props.students.map((item) => item.real_name)]
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
 const activeClassStudentSummary = computed(() => {
   if (!props.classStudentTargetName) {
     return []
@@ -272,16 +286,21 @@ function downloadSampleCsv() {
           @toggle-row-selection="emit('toggleClassSelection', Number($event))"
         >
           <template #filter-grade>
-            <input v-model="classFilters.grade" aria-label="按年级筛选班级" />
+            <AppDigitInput v-model="classFilters.grade" aria-label="按年级筛选班级" />
           </template>
           <template #filter-major_name>
-            <select v-model="classFilters.majorName" aria-label="按专业名称筛选班级">
-              <option value="">全部</option>
-              <option v-for="major in majorOptions" :key="major" :value="major">{{ major }}</option>
-            </select>
+            <AppInputSelect
+              v-model="classFilters.majorName"
+              :options="majorOptions"
+              aria-label="按专业名称筛选班级"
+            />
           </template>
           <template #filter-class_name>
-            <input v-model="classFilters.className" aria-label="按班级名称筛选班级" />
+            <AppInputSelect
+              v-model="classFilters.className"
+              :options="classNameOptions"
+              aria-label="按班级名称筛选班级"
+            />
           </template>
           <template #filter-actions>
             <button
@@ -354,10 +373,14 @@ function downloadSampleCsv() {
               @load-more="loadMoreClassStudents"
             >
               <template #filter-student_id>
-                <input v-model="classStudentFilters.studentId" aria-label="按学号筛选班级学生" />
+                <AppDigitInput v-model="classStudentFilters.studentId" aria-label="按学号筛选班级学生" />
               </template>
               <template #filter-real_name>
-                <input v-model="classStudentFilters.realName" aria-label="按姓名筛选班级学生" />
+                <AppInputSelect
+                  v-model="classStudentFilters.realName"
+                  :options="classStudentNameOptions"
+                  aria-label="按姓名筛选班级学生"
+                />
               </template>
               <template #actions="{ row }">
                 <div class="inline-actions user-actions">
@@ -391,10 +414,14 @@ function downloadSampleCsv() {
               @load-more="loadMoreUnboundStudents"
             >
               <template #filter-student_id>
-                <input v-model="classStudentFilters.studentId" aria-label="按学号筛选未绑定学生" />
+                <AppDigitInput v-model="classStudentFilters.studentId" aria-label="按学号筛选未绑定学生" />
               </template>
               <template #filter-real_name>
-                <input v-model="classStudentFilters.realName" aria-label="按姓名筛选未绑定学生" />
+                <AppInputSelect
+                  v-model="classStudentFilters.realName"
+                  :options="classStudentNameOptions"
+                  aria-label="按姓名筛选未绑定学生"
+                />
               </template>
               <template #actions="{ row }">
                 <div class="inline-actions user-actions">

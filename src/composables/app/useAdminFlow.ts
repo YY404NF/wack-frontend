@@ -46,7 +46,6 @@ type CourseFilters = {
   courseName: string
   teacherName: string
   className: string
-  studentCount: string
 }
 
 type ClassFilters = {
@@ -259,40 +258,82 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadAttendanceLogsData() {
     const requestToken = nextRequestToken('attendanceLogs')
-    const [attendanceLogPageResult, attendanceLogAllResult, terms] = await Promise.all([
+    const logQuery = {
+      term: deps.attendanceLogFilters.term,
+      course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
+      lesson_date: deps.attendanceLogFilters.lessonDate,
+      section: deps.attendanceLogFilters.section,
+      course_name: deps.attendanceLogFilters.courseName,
+      teacher_name: deps.attendanceLogFilters.teacherName,
+      student_id: deps.attendanceLogFilters.studentId,
+      real_name: deps.attendanceLogFilters.realName,
+      class_name: deps.attendanceLogFilters.className,
+      old_status: deps.attendanceLogFilters.oldStatus,
+      new_status: deps.attendanceLogFilters.newStatus,
+      operator_name: deps.attendanceLogFilters.operatorName,
+      operated_date: deps.attendanceLogFilters.operatedDate,
+    }
+    const [attendanceLogPageResult, terms] = await Promise.all([
       api.listAttendanceRecordLogs({
         page: deps.attendanceLogsPage.value,
         page_size: deps.attendanceLogsPageSize.value,
-        term: deps.attendanceLogFilters.term,
-        course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
-        lesson_date: deps.attendanceLogFilters.lessonDate,
-        section: deps.attendanceLogFilters.section,
-        course_name: deps.attendanceLogFilters.courseName,
-        teacher_name: deps.attendanceLogFilters.teacherName,
-        student_id: deps.attendanceLogFilters.studentId,
-        real_name: deps.attendanceLogFilters.realName,
-        class_name: deps.attendanceLogFilters.className,
-        old_status: deps.attendanceLogFilters.oldStatus,
-        new_status: deps.attendanceLogFilters.newStatus,
-        operator_name: deps.attendanceLogFilters.operatorName,
-        operated_date: deps.attendanceLogFilters.operatedDate,
-      }),
-      api.listAttendanceRecordLogs({
-        page: 1,
-        page_size: 1,
-        term: deps.attendanceLogFilters.term,
+        ...logQuery,
       }),
       api.listMetaTerms(),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {
       return
     }
+    const attendanceLogRows = await fetchAllAttendanceLogRows(logQuery, attendanceLogPageResult.total ?? 0)
+    if (!isLatestRequest('attendanceLogs', requestToken)) {
+      return
+    }
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
-    deps.attendanceLogRows.value = attendanceLogPageResult.items ?? []
+    deps.attendanceLogRows.value = attendanceLogRows
     deps.courseTerms.value = terms
     deps.attendanceLogsTotalItems.value = attendanceLogPageResult.total ?? 0
-    deps.attendanceLogsAllItems.value = attendanceLogAllResult.total ?? 0
+    deps.attendanceLogsAllItems.value = attendanceLogPageResult.total ?? 0
     deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))
+  }
+
+  async function fetchAllAttendanceLogRows(
+    query: {
+      term?: string
+      course_group_lesson_id?: string
+      lesson_date?: string
+      section?: string
+      course_name?: string
+      teacher_name?: string
+      student_id?: string
+      real_name?: string
+      class_name?: string
+      old_status?: string
+      new_status?: string
+      operator_name?: string
+      operated_date?: string
+    },
+    total: number,
+  ) {
+    const pageSize = 500
+    const items: Awaited<ReturnType<typeof api.listAttendanceRecordLogs>>['items'] = []
+
+    if (total <= 0) {
+      return items
+    }
+
+    for (let page = 1; items.length < total; page += 1) {
+      const result = await api.listAttendanceRecordLogs({
+        ...query,
+        page,
+        page_size: pageSize,
+      })
+      items.push(...(result.items ?? []))
+      if ((result.items?.length ?? 0) === 0) {
+        break
+      }
+    }
+
+    return items
   }
 
   async function loadCourseCalendarData() {
@@ -331,7 +372,6 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         course_name: deps.courseFilters.courseName,
         teacher_name: deps.courseFilters.teacherName,
         class_name: deps.courseFilters.className,
-        student_count: deps.courseFilters.studentCount,
         focus_course_id: focusCourseId ?? undefined,
       }),
       api.listCourses({ page: 1, page_size: 1 }),

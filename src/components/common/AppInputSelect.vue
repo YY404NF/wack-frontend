@@ -25,9 +25,13 @@ const normalizedOptions = computed(() =>
     .filter((item, index, array) => item && array.indexOf(item) === index),
 )
 
+const sortedOptions = computed(() =>
+  [...normalizedOptions.value].sort((left, right) => right.localeCompare(left, 'zh-Hans-CN')),
+)
+
 function getSuggestions(queryString: string, callback: (items: Array<{ value: string }>) => void) {
   const keyword = queryString.trim().toLocaleLowerCase()
-  const matched = normalizedOptions.value
+  const matched = sortedOptions.value
     .filter((item) => !keyword || item.toLocaleLowerCase().includes(keyword))
     .map((item) => ({ value: item }))
   callback(matched)
@@ -59,7 +63,8 @@ function onBlur(event: FocusEvent) {
       value-key="value"
       :trigger-on-focus="true"
       :highlight-first-item="true"
-      :teleported="false"
+      :teleported="true"
+      popper-class="app-input-select-popper"
       :disabled="disabled"
       :aria-label="ariaLabel"
       placeholder=""
@@ -97,5 +102,15 @@ function onBlur(event: FocusEvent) {
 
 .app-input-select-disabled {
   opacity: 0.72;
+}
+
+:global(.app-input-select-popper) {
+  z-index: 2600 !important;
+}
+
+:global(.app-input-select-popper .el-autocomplete-suggestion__list li) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

@@ -83,7 +83,6 @@ const tableWrapRef = ref<HTMLElement | null>(null)
 const highlightedRowKey = ref<string | number | null>(null)
 const pendingHighlightRowKey = ref<string | number | null>(null)
 let copyToastTimer: number | null = null
-let lazyLoadTimer: number | null = null
 let highlightTimer: number | null = null
 
 const selectedKeySet = computed(() => new Set(props.selectedRowKeys))
@@ -238,6 +237,27 @@ watch(
   },
 )
 
+watch(
+  () => [props.rows.length, props.lazyLoad?.hasMore, props.lazyLoad?.loading] as const,
+  ([, hasMore, loading]) => {
+    if (!props.lazyLoad) {
+      loadingMore.value = false
+      return
+    }
+    if (loading) {
+      loadingMore.value = true
+      return
+    }
+    if (!hasMore) {
+      loadingMore.value = false
+      return
+    }
+    loadingMore.value = false
+    void ensureLazyLoadFilledViewport()
+  },
+  { immediate: true },
+)
+
 function resolveRowKey(row: Record<string, unknown>) {
   return typeof props.rowKey === 'function' ? props.rowKey(row) : (row[props.rowKey] as string | number)
 }
@@ -333,14 +353,13 @@ function requestLazyLoad() {
     return
   }
   loadingMore.value = true
+  const previousLength = props.rows.length
   emit('loadMore')
-  if (lazyLoadTimer !== null) {
-    window.clearTimeout(lazyLoadTimer)
-  }
-  lazyLoadTimer = window.setTimeout(() => {
-    loadingMore.value = false
-    lazyLoadTimer = null
-  }, 240)
+  void nextTick(() => {
+    if (!props.lazyLoad?.loading && props.rows.length === previousLength) {
+      loadingMore.value = false
+    }
+  })
 }
 
 function handleTableScroll(event: Event) {
@@ -352,6 +371,20 @@ function handleTableScroll(event: Event) {
     return
   }
   if (target.scrollTop + target.clientHeight >= target.scrollHeight - 32) {
+    requestLazyLoad()
+  }
+}
+
+async function ensureLazyLoadFilledViewport() {
+  if (!props.lazyLoad || props.pagination || props.lazyLoad.loading || loadingMore.value || !props.lazyLoad.hasMore) {
+    return
+  }
+  await nextTick()
+  const wrapper = tableWrapRef.value
+  if (!wrapper) {
+    return
+  }
+  if (wrapper.scrollHeight <= wrapper.clientHeight + 1) {
     requestLazyLoad()
   }
 }
@@ -458,9 +491,6 @@ function handleRootKeydown(event: KeyboardEvent) {
 onBeforeUnmount(() => {
   if (copyToastTimer !== null) {
     window.clearTimeout(copyToastTimer)
-  }
-  if (lazyLoadTimer !== null) {
-    window.clearTimeout(lazyLoadTimer)
   }
   if (highlightTimer !== null) {
     window.clearTimeout(highlightTimer)
@@ -571,9 +601,9 @@ onBeforeUnmount(() => {
                 :title="cellTitleText(column, row)"
                 @click.stop="copyText(cellCopyText(column, row))"
               >
-                {{ row[column.key] }}
+                {{ cellTitleText(column, row) }}
               </button>
-              <div v-else class="data-list-copy-cell" :title="cellTitleText(column, row)">{{ row[column.key] }}</div>
+              <div v-else class="data-list-copy-cell" :title="cellTitleText(column, row)">{{ cellTitleText(column, row) }}</div>
             </slot>
           </td>
             <td v-if="showActions" class="actions-column">
@@ -585,9 +615,9 @@ onBeforeUnmount(() => {
               <slot name="empty">{{ emptyText }}</slot>
             </td>
           </tr>
-          <tr v-else-if="lazyLoad && (lazyLoad.loading || !lazyLoad.hasMore)">
+          <tr v-else-if="lazyLoad && ((lazyLoad.loading || loadingMore) || !lazyLoad.hasMore)">
             <td :colspan="totalColumnCount" class="empty-cell">
-              {{ lazyLoad.loading ? '加载中...' : '已加载全部内容' }}
+              {{ lazyLoad.loading || loadingMore ? '加载中...' : '已加载全部内容' }}
             </td>
           </tr>
         </tbody>

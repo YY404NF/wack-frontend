@@ -6,6 +6,7 @@ import { sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import type { AdminAttendanceDetailTarget } from './shared-types'
 import AdminDataList from './AdminDataList.vue'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminAttendanceProps } from './types'
 
 type AttendanceSessionSummary = {
@@ -57,7 +58,6 @@ const sessionSection = ref('')
 const sessionCourseName = ref('')
 const sessionTeacherName = ref('')
 const sessionClassName = ref('')
-const sessionStudentCount = ref('')
 const sessionPage = ref(1)
 const sessionPageSize = ref(100)
 const sessionLoading = ref(false)
@@ -87,7 +87,7 @@ watch([selectedTerm], () => {
   }
 }, { immediate: true })
 
-watch([sessionDate, sessionSection, sessionCourseName, sessionTeacherName, sessionClassName, sessionStudentCount, sessionPageSize], () => {
+watch([sessionDate, sessionSection, sessionCourseName, sessionTeacherName, sessionClassName, sessionPageSize], () => {
   sessionPage.value = 1
 })
 
@@ -97,9 +97,12 @@ const selectedTermMeta = computed(() => props.courseTerms.find((item) => item.na
 const classOptions = computed(() =>
   Array.from(
     new Set(
-      sessionRows.value
-        .map((item) => formatClassSummaryInline(item.class_summary, ''))
-        .filter((item) => item.length > 0),
+      sessionRows.value.flatMap((item) =>
+        formatClassSummaryInline(item.class_summary, '')
+          .split(/[、,，]\s*/)
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0),
+      )
     ),
   ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
 )
@@ -115,10 +118,11 @@ const sortedSessionRows = computed(() =>
 const filteredSessions = computed(() => {
   const courseKeyword = sessionCourseName.value.trim().toLowerCase()
   const teacherKeyword = sessionTeacherName.value.trim().toLowerCase()
-  const countKeyword = sessionStudentCount.value.trim()
+  const classKeyword = sessionClassName.value.trim().toLowerCase()
+  const dateKeyword = sessionDate.value.trim()
 
   return sortedSessionRows.value.filter((item) => {
-    if (sessionDate.value && formatLessonDate(item) !== sessionDate.value) {
+    if (dateKeyword && formatLessonDate(item) !== dateKeyword) {
       return false
     }
     if (sessionSection.value && String(item.section) !== sessionSection.value) {
@@ -130,10 +134,7 @@ const filteredSessions = computed(() => {
     if (teacherKeyword && !item.teacher_name.toLowerCase().includes(teacherKeyword)) {
       return false
     }
-    if (sessionClassName.value && formatClassSummaryInline(item.class_summary, '') !== sessionClassName.value) {
-      return false
-    }
-    if (countKeyword && String(item.student_count) !== countKeyword) {
+    if (classKeyword && !formatClassSummaryInline(item.class_summary, '').toLowerCase().includes(classKeyword)) {
       return false
     }
     return true
@@ -399,9 +400,8 @@ function formatStatus(status?: number | null) {
           ...(sessionCourseName.trim() ? ['course_name'] : []),
           ...(sessionTeacherName.trim() ? ['teacher_name'] : []),
           ...(sessionClassName ? ['class_summary'] : []),
-          ...(sessionStudentCount.trim() ? ['student_count'] : []),
         ]"
-        :has-search-condition="!!(sessionDate || sessionSection || sessionCourseName.trim() || sessionTeacherName.trim() || sessionClassName || sessionStudentCount.trim())"
+        :has-search-condition="!!(sessionDate || sessionSection || sessionCourseName.trim() || sessionTeacherName.trim() || sessionClassName)"
         @update-page="sessionPage = $event"
         @update-page-size="sessionPageSize = $event"
       >
@@ -421,13 +421,11 @@ function formatStatus(status?: number | null) {
           <input v-model="sessionTeacherName" aria-label="按教师筛选考勤记录" />
         </template>
         <template #filter-class_summary>
-          <select v-model="sessionClassName" aria-label="按班级筛选考勤记录">
-            <option value="">全部</option>
-            <option v-for="item in classOptions" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </template>
-        <template #filter-student_count>
-          <input v-model="sessionStudentCount" type="number" min="0" aria-label="按人数筛选考勤记录" />
+          <AppInputSelect
+            v-model="sessionClassName"
+            :options="classOptions"
+            aria-label="按班级筛选考勤记录"
+          />
         </template>
         <template #filter-actions>
           <button class="ghost-button compact-button" type="button" :disabled="!selectedTerm" @click="openExportModal">

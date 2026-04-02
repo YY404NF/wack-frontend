@@ -2,8 +2,10 @@
 import { computed, ref } from 'vue'
 import type { UserItem } from '../../api'
 import { roleName } from '../../composables/app/view'
+import AppDigitInput from '../common/AppDigitInput.vue'
 import AdminDataList from './AdminDataList.vue'
 import AdminUserFreeTimeModal from './AdminUserFreeTimeModal.vue'
+import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminUserManageProps } from './types'
 import { sortTermsForSelect } from '../../utils/terms'
 
@@ -45,6 +47,13 @@ const canBulkUnfreezeUsers = computed(
   () => selectedUsers.value.length > 0 && selectedUsers.value.every((user) => user.id !== props.currentUserId && user.status !== 1),
 )
 const freeTimeTermOptions = computed(() => sortTermsForSelect(props.courseTerms).map((item) => item.name))
+const managedClassOptions = computed(() =>
+  Array.from(
+    new Set(props.allClasses.map((item) => item.class_name.trim())),
+  )
+    .filter((item) => item.length > 0)
+    .sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
+)
 const singleStatusConfirmOpen = ref(false)
 const bulkStatusConfirmOpen = ref(false)
 const pendingStatusTarget = ref<{ loginId: string; realName: string; status: number } | null>(null)
@@ -306,7 +315,7 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
       @toggle-row-selection="emit('toggleUserSelection', String($event))"
     >
       <template #filter-login_id>
-        <input v-model="userFilters.studentId" aria-label="按登录账号筛选用户" />
+        <AppDigitInput v-model="userFilters.studentId" aria-label="按登录账号筛选用户" />
       </template>
       <template #filter-real_name>
         <input v-model="userFilters.realName" aria-label="按姓名筛选用户" />
@@ -320,7 +329,11 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
         </select>
       </template>
       <template #filter-managed_class_id>
-        <input v-model="userFilters.managedClassName" aria-label="按负责班级筛选用户" />
+        <AppInputSelect
+          v-model="userFilters.managedClassName"
+          :options="managedClassOptions"
+          aria-label="按负责班级筛选用户"
+        />
       </template>
       <template #filter-status>
         <select v-model="userFilters.status" aria-label="按状态筛选用户">
