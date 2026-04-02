@@ -76,7 +76,8 @@ export type AdminWorkspaceProps = {
   userFocusToken?: number
   userPasswordModalOpen: boolean
   userPasswordForm: AdminUserPasswordForm
-  passwordTargetName: string
+  passwordTargetStudentId: string
+  passwordTargetRealName: string
   passwordResetting: boolean
   userFreeTimeModalOpen: boolean
   freeTimeTargetName: string

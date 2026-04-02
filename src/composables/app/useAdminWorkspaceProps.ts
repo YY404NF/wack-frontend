@@ -62,7 +62,8 @@ export type AdminWorkspacePropsDeps = {
   userFocusToken: Ref<number>
   userPasswordModalOpen: Ref<boolean>
   userPasswordForm: AdminUserPasswordForm
-  passwordTargetName: Ref<string>
+  passwordTargetStudentId: Ref<string>
+  passwordTargetRealName: Ref<string>
   passwordResetting: Ref<boolean>
   userFreeTimeModalOpen: Ref<boolean>
   freeTimeTargetName: Ref<string>
@@ -190,7 +191,8 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     userFocusToken: deps.userFocusToken.value,
     userPasswordModalOpen: deps.userPasswordModalOpen.value,
     userPasswordForm: deps.userPasswordForm,
-    passwordTargetName: deps.passwordTargetName.value,
+    passwordTargetStudentId: deps.passwordTargetStudentId.value,
+    passwordTargetRealName: deps.passwordTargetRealName.value,
     passwordResetting: deps.passwordResetting.value,
     userFreeTimeModalOpen: deps.userFreeTimeModalOpen.value,
     freeTimeTargetName: deps.freeTimeTargetName.value,

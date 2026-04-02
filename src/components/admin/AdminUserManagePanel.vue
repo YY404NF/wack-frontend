@@ -254,8 +254,15 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? '�
           <h3>更改密码</h3>
           <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeUserPasswordModal')">关闭</button>
         </div>
-        <p class="hint">目标账号：{{ passwordTargetName }}</p>
         <form class="form-grid single-column-form" @submit.prevent="emit('resetUserPassword')">
+          <label class="field">
+            <span>登录账号</span>
+            <input class="readonly-field-input" :value="passwordTargetStudentId" readonly />
+          </label>
+          <label class="field">
+            <span>姓名</span>
+            <input class="readonly-field-input" :value="passwordTargetRealName" readonly />
+          </label>
           <label class="field">
             <span>新密码</span>
             <input v-model="userPasswordForm.password" type="password" autocomplete="new-password" />

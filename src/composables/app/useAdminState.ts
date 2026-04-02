@@ -155,7 +155,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const classStudentTargetClassId = ref<number | null>(null)
   const classStudentTargetClass = ref<ClassItem | null>(null)
   const passwordTargetStudentId = ref('')
-  const passwordTargetName = ref('')
+  const passwordTargetRealName = ref('')
   const freeTimeTargetName = ref('')
   const freeTimeTargetLoginId = ref('')
   const userFreeTimeTerm = ref(getCurrentAcademicTerm())
@@ -262,7 +262,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   function resetUserPasswordForm() {
     Object.assign(userPasswordForm, createUserPasswordForm())
     passwordTargetStudentId.value = ''
-    passwordTargetName.value = ''
+    passwordTargetRealName.value = ''
   }
 
   function closeUserFreeTimeModal() {
@@ -503,7 +503,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   function openUserPasswordModal(user: UserItem) {
     resetUserPasswordForm()
     passwordTargetStudentId.value = user.login_id
-    passwordTargetName.value = `${user.real_name}（${user.login_id}）`
+    passwordTargetRealName.value = user.real_name
     userPasswordModalOpen.value = true
   }
 
@@ -696,7 +696,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           classStudentTargetClassId,
           classStudentTargetClass,
           passwordTargetStudentId,
-          passwordTargetName,
+          passwordTargetRealName,
           freeTimeTargetName,
           freeTimeTargetLoginId,
           userFreeTimeTerm,
