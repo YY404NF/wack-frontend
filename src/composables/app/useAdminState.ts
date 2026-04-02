@@ -220,7 +220,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     students: studentRows,
     courses: courseRows,
     courseTerms,
-    attendanceLogs: attendanceLogRows,
+    attendanceLogs,
     classStudents,
     classStudentFilters,
     userFreeTimeItems,
