@@ -31,6 +31,8 @@ const detailColumns = [
   { key: 'real_name', label: '姓名', width: 6 },
   { key: 'class_name', label: '班级', width: 9, copyable: false },
   { key: 'status', label: '状态', width: 4, copyable: false },
+  { key: 'operator_name', label: '最后操作用户', width: 8 },
+  { key: 'operated_at', label: '最后操作时间', width: 14, copyValue: (row: Record<string, unknown>) => typeof row.operated_at === 'string' ? formatDateTime(row.operated_at) : '-' },
 ] as const
 
 const detailRows = ref<AttendanceRecordStudentItem[]>([])
@@ -38,6 +40,8 @@ const detailStudentId = ref('')
 const detailRealName = ref('')
 const detailClassName = ref('')
 const detailStatus = ref('')
+const detailOperatorName = ref('')
+const detailOperatedDate = ref('')
 const detailPage = ref(1)
 const detailPageSize = ref(100)
 const detailTotalItems = ref(0)
@@ -61,17 +65,19 @@ watch(
     detailRealName.value = ''
     detailClassName.value = ''
     detailStatus.value = ''
+    detailOperatorName.value = ''
+    detailOperatedDate.value = ''
     detailPage.value = 1
   },
   { immediate: true },
 )
 
-watch([detailStudentId, detailRealName, detailClassName, detailStatus, detailPageSize], () => {
+watch([detailStudentId, detailRealName, detailClassName, detailStatus, detailOperatorName, detailOperatedDate, detailPageSize], () => {
   detailPage.value = 1
 })
 
 watch(
-  [() => props.sessionId, detailPage, detailPageSize, detailStudentId, detailRealName, detailClassName, detailStatus],
+  [() => props.sessionId, detailPage, detailPageSize, detailStudentId, detailRealName, detailClassName, detailStatus, detailOperatorName, detailOperatedDate],
   () => {
     if (!props.sessionId) {
       return
@@ -125,6 +131,8 @@ async function loadSessionDetailPage() {
       real_name: detailRealName.value,
       class_name: detailClassName.value === '未绑定班级' ? '' : detailClassName.value,
       status: detailStatus.value,
+      operator_name: detailOperatorName.value,
+      operated_date: detailOperatedDate.value,
       focus_student_ref_id: focusStudentRefId ?? undefined,
     })
     if (requestToken !== detailRequestToken) {
@@ -168,6 +176,10 @@ function formatStatus(status?: number | null) {
     return '未查'
   }
   return statusLabels[status as 0 | 1 | 2 | 3] ?? '未知'
+}
+
+function formatDateTime(value: string) {
+  return value.replace('T', ' ').slice(0, 19)
 }
 
 function asAttendanceRecordStudentItem(row: Record<string, unknown>) {
@@ -267,8 +279,10 @@ async function saveAttendanceStatus() {
             ...(detailRealName.trim() ? ['real_name'] : []),
             ...(detailClassName ? ['class_name'] : []),
             ...(detailStatus ? ['status'] : []),
+            ...(detailOperatorName.trim() ? ['operator_name'] : []),
+            ...(detailOperatedDate ? ['operated_at'] : []),
           ]"
-          :has-search-condition="!!(detailStudentId.trim() || detailRealName.trim() || detailClassName || detailStatus)"
+          :has-search-condition="!!(detailStudentId.trim() || detailRealName.trim() || detailClassName || detailStatus || detailOperatorName.trim() || detailOperatedDate)"
           @update-page="detailPage = $event"
           @update-page-size="detailPageSize = $event"
         >
@@ -294,6 +308,12 @@ async function saveAttendanceStatus() {
               <option value="3">请假</option>
             </select>
           </template>
+          <template #filter-operator_name>
+            <input v-model="detailOperatorName" aria-label="按最后操作用户筛选课次考勤明细" />
+          </template>
+          <template #filter-operated_at>
+            <input v-model="detailOperatedDate" type="date" aria-label="按最后操作时间筛选课次考勤明细" />
+          </template>
           <template #cell-class_name="{ value }">
             {{ normalizeClassName(String(value ?? '')) }}
           </template>
@@ -301,6 +321,12 @@ async function saveAttendanceStatus() {
             <span class="status-badge" :class="attendanceStatusBadgeClass(value as number | null | undefined)">
               {{ formatStatus(value as number | null | undefined) }}
             </span>
+          </template>
+          <template #cell-operator_name="{ value }">
+            {{ String(value ?? '').trim() || '-' }}
+          </template>
+          <template #cell-operated_at="{ value }">
+            {{ typeof value === 'string' ? formatDateTime(value) : '-' }}
           </template>
           <template #actions="{ row }">
             <div class="inline-actions user-actions">

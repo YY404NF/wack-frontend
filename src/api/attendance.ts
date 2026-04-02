@@ -97,6 +97,8 @@ export const attendanceApi = {
     real_name?: string
     class_name?: string
     status?: string
+    operator_name?: string
+    operated_date?: string
     focus_student_ref_id?: number
   } = {}) {
     const params = new URLSearchParams()
@@ -106,6 +108,8 @@ export const attendanceApi = {
     if (query.real_name?.trim()) params.set('real_name', query.real_name.trim())
     if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
+    if (query.operator_name?.trim()) params.set('operator_name', query.operator_name.trim())
+    if (query.operated_date?.trim()) params.set('operated_date', query.operated_date.trim())
     if (typeof query.focus_student_ref_id === 'number' && query.focus_student_ref_id > 0) {
       params.set('focus_student_ref_id', String(query.focus_student_ref_id))
     }

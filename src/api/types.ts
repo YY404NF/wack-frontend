@@ -432,6 +432,8 @@ export interface AttendanceRecordStudentItem {
   status?: number | null
   status_set_by_user_id?: number | null
   status_set_at?: string | null
+  operator_name?: string | null
+  operated_at?: string | null
 }
 
 export interface AttendanceClassGroupItem {
