@@ -146,6 +146,7 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
       courseGroupId: number
       courseId: number
       selectedLessonId: number | null
+      selectedHasAttendanceRecord: boolean
       courseName: string
       teacherName: string
       locations: string[]
@@ -165,6 +166,7 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
       if (item.week_no === selectedWeek.value) {
         current.containsSelectedWeek = true
         current.selectedLessonId = item.id
+        current.selectedHasAttendanceRecord = item.has_attendance_record
       }
       continue
     }
@@ -172,6 +174,7 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
       key,
       courseGroupId: item.course_group_id,
       selectedLessonId: item.week_no === selectedWeek.value ? item.id : null,
+      selectedHasAttendanceRecord: item.week_no === selectedWeek.value ? item.has_attendance_record : false,
       courseName: item.course_name,
       courseId: item.course_id,
       teacherName: item.teacher_name,
@@ -431,7 +434,10 @@ onBeforeUnmount(() => {
                 v-for="item in courseCells[rowIndex][columnIndex]"
                 :key="`course-${item.key}`"
                 class="course-tag course-tag-button"
-                :class="{ 'course-tag-muted': !item.containsSelectedWeek }"
+                :class="{
+                  'course-tag-muted': !item.containsSelectedWeek,
+                  'course-tag-recorded': item.containsSelectedWeek && item.selectedHasAttendanceRecord,
+                }"
                 type="button"
                 :disabled="!item.containsSelectedWeek || !item.selectedLessonId"
                 @mouseenter="showCourseTooltip($event, item)"

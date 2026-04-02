@@ -1529,6 +1529,12 @@
   color: var(--muted);
 }
 
+.course-tag-recorded {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(123, 52, 24, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
 .course-tag-free {
   background: rgba(45, 134, 102, 0.14);
   color: #235843;
