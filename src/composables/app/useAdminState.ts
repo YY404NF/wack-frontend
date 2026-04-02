@@ -153,6 +153,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const editingStudentId = ref<number | null>(null)
   const editingClassStudentId = ref<number | null>(null)
   const classStudentTargetClassId = ref<number | null>(null)
+  const classStudentTargetClass = ref<ClassItem | null>(null)
   const passwordTargetStudentId = ref('')
   const passwordTargetName = ref('')
   const freeTimeTargetName = ref('')
@@ -160,6 +161,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const userFreeTimeTerm = ref(getCurrentAcademicTerm())
   const userFreeTimeItems = ref<FreeTimeEditorItem[]>([])
   const userFreeTimeDraft = ref<Record<string, number[]>>({})
+  const userFocusRowKey = ref<string | null>(null)
+  const userFocusToken = ref(0)
   const deletingCourseId = ref<number | null>(null)
   const deletingCourseName = ref('')
   const courseFocusRowKey = ref<number | null>(null)
@@ -409,6 +412,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   function closeClassStudentModal() {
     classStudentModalOpen.value = false
     classStudentTargetClassId.value = null
+    classStudentTargetClass.value = null
     classStudentTargetName.value = ''
     classStudents.value = []
     Object.assign(classStudentFilters, createClassStudentFilters())
@@ -422,6 +426,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
 
   async function openClassStudentModal(item: ClassItem) {
     classStudentTargetClassId.value = item.id
+    classStudentTargetClass.value = item
     classStudentTargetName.value = item.class_name
     resetClassStudentForm()
     resetEditingClassStudentForm()
@@ -563,6 +568,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
   }
 
   function clearAdminListFocusState() {
+    userFocusRowKey.value = null
+    userFocusToken.value = 0
     courseFocusRowKey.value = null
     courseFocusToken.value = 0
     classFocusRowKey.value = null
@@ -587,6 +594,34 @@ export function useAdminState(deps: UseAdminStateDeps) {
     closeProfileModal()
     closeUserPasswordModal()
     closeUserFreeTimeModal()
+  }
+
+  function resetAdminFiltersForTab(tab: AppTab) {
+    switch (tab) {
+      case 'user-manage':
+        Object.assign(userFilters, createUserFilters())
+        userPage.value = 1
+        return
+      case 'course-manage':
+        Object.assign(courseFilters, createCourseFilters())
+        coursePage.value = 1
+        return
+      case 'class-manage':
+        Object.assign(classFilters, createClassFilters())
+        Object.assign(classStudentFilters, createClassStudentFilters())
+        classPage.value = 1
+        return
+      case 'student':
+        Object.assign(studentFilters, createStudentFilters())
+        studentPage.value = 1
+        return
+      case 'attendance-logs':
+        Object.assign(attendanceLogFilters, createAttendanceLogFilters())
+        attendanceLogsPage.value = 1
+        return
+      default:
+        return
+    }
   }
 
   const adminApp = shallowRef<AdminAppInstance | null>(null)
@@ -663,6 +698,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           editingStudentId,
           editingClassStudentId,
           classStudentTargetClassId,
+          classStudentTargetClass,
           passwordTargetStudentId,
           passwordTargetName,
           freeTimeTargetName,
@@ -670,6 +706,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userFreeTimeTerm,
           userFreeTimeItems,
           userFreeTimeDraft,
+          userFocusRowKey,
+          userFocusToken,
           deletingCourseId,
           deletingCourseName,
           courseFocusRowKey,
@@ -871,6 +909,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
       clearAdminListFocusState()
       closeAllModals()
       clearAdminSelections()
+      resetAdminFiltersForTab(previousTab)
       void loadRoleData(nextTab)
     }
     if (isAdmin.value) {

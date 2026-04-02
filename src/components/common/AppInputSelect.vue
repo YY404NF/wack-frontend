@@ -78,10 +78,16 @@ function onBlur(event: FocusEvent) {
 <style scoped>
 .app-input-select {
   min-width: 0;
+  font: inherit;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .app-input-select :deep(.el-autocomplete) {
   width: 100%;
+  font: inherit;
+  font-size: inherit;
 }
 
 .app-input-select :deep(.el-input__wrapper) {
@@ -89,6 +95,10 @@ function onBlur(event: FocusEvent) {
   border-radius: 14px;
   box-shadow: 0 0 0 1px var(--line) inset;
   background: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  font-size: inherit;
+  color: var(--ink);
+  line-height: 1.5;
 }
 
 .app-input-select :deep(.el-input__inner) {
@@ -98,6 +108,11 @@ function onBlur(event: FocusEvent) {
   padding: 0;
   background: transparent;
   box-shadow: none;
+  font: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+  color: inherit;
+  line-height: 1.5;
 }
 
 .app-input-select-disabled {
@@ -106,9 +121,35 @@ function onBlur(event: FocusEvent) {
 
 :global(.app-input-select-popper) {
   z-index: 2600 !important;
+  font: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+:global(.app-input-select-popper .el-autocomplete-suggestion__wrap),
+:global(.app-input-select-popper .el-autocomplete-suggestion__list),
+:global(.app-input-select-popper .el-autocomplete-suggestion__list li) {
+  font-family: inherit;
+  color: var(--ink);
+}
+
+:global(.app-input-select-popper .el-autocomplete-suggestion__wrap.el-scrollbar__wrap) {
+  max-height: min(320px, 48vh) !important;
+  overflow-y: auto !important;
+}
+
+:global(.app-input-select-popper .el-autocomplete-suggestion__list) {
+  padding: 6px 0;
 }
 
 :global(.app-input-select-popper .el-autocomplete-suggestion__list li) {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 12px 14px !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

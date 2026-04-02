@@ -144,6 +144,29 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     }
   }
 
+  async function bulkDeleteClassStudents(studentIds: number[]) {
+    if (deps.classStudentTargetClassId.value === null || studentIds.length === 0) {
+      return
+    }
+    deps.classStudentSaving.value = true
+    deps.adminError.value = ''
+    try {
+      for (const studentId of studentIds) {
+        await api.deleteClassStudent(deps.classStudentTargetClassId.value, studentId)
+        if (deps.editingClassStudentId.value === studentId) {
+          deps.resetEditingClassStudentForm()
+        }
+      }
+      await deps.loadClassStudents(deps.classStudentTargetClassId.value)
+      await deps.loadAdminData()
+      deps.showScopedToast('admin', `已移除 ${studentIds.length} 个班级学生`)
+    } catch (error) {
+      deps.adminError.value = error instanceof Error ? error.message : '批量移除班级学生失败'
+    } finally {
+      deps.classStudentSaving.value = false
+    }
+  }
+
   async function saveUserFreeTime() {
     if (!deps.freeTimeTargetLoginId.value) {
       return
@@ -368,6 +391,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
     saveEditingClassStudent,
     importClassStudents,
     deleteClassStudent,
+    bulkDeleteClassStudents,
     saveUserFreeTime,
     updateSystemSettings,
     bulkDeleteCourses,

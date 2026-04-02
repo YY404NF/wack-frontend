@@ -86,6 +86,15 @@ function sessionRightTitleText(item: (typeof recentSessions.value)[number]) {
   return `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count} · ${rateText(item.attendance_rate)}`
 }
 
+function sessionSummaryItems(item: (typeof recentSessions.value)[number]) {
+  return [
+    { key: 'present', label: '签到', count: item.present_count, className: attendanceStatusBadgeClass(0) },
+    { key: 'late', label: '迟到', count: item.late_count, className: attendanceStatusBadgeClass(1) },
+    { key: 'absent', label: '缺勤', count: item.absent_count, className: attendanceStatusBadgeClass(2) },
+    { key: 'leave', label: '请假', count: item.leave_count, className: attendanceStatusBadgeClass(3) },
+  ].filter((entry) => entry.count > 0)
+}
+
 function sessionRightSubtitleText(item: (typeof recentSessions.value)[number]) {
   return item.class_summary || '其他学生'
 }
@@ -245,7 +254,18 @@ function openRecentAbnormalDetail(item: (typeof recentAbnormalStudents.value)[nu
             @click="openRecentSessionDetail(item)"
           >
             <strong class="overview-entry-title overview-entry-title-left">{{ sessionLeftTitleText(item) }}</strong>
-            <strong class="overview-entry-title overview-entry-title-right">{{ sessionRightTitleText(item) }}</strong>
+            <div class="overview-entry-title overview-entry-title-right attendance-session-summary overview-session-summary-title" :aria-label="sessionRightTitleText(item)">
+              <span
+                v-for="summary in sessionSummaryItems(item)"
+                :key="summary.key"
+                class="status-badge attendance-session-summary-chip"
+                :class="summary.className"
+              >
+                <span class="attendance-session-summary-label">{{ summary.label }}</span>
+                <span class="attendance-session-summary-count">{{ summary.count }}</span>
+              </span>
+              <span class="overview-session-summary-rate">· {{ rateText(item.attendance_rate) }}</span>
+            </div>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ sessionLeftSubtitleText(item) }}</p>
             <small class="overview-entry-subtitle overview-entry-subtitle-right">{{ sessionRightSubtitleText(item) }}</small>
           </button>

@@ -98,6 +98,10 @@
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(92, 82, 75, 0.06);
+  transition:
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .overview-session-item-button {
@@ -198,6 +202,16 @@
 .overview-entry-title-left,
 .overview-entry-title-right {
   grid-row: 1;
+}
+
+.overview-session-summary-title {
+  justify-content: flex-end;
+  align-self: start;
+}
+
+.overview-session-summary-rate {
+  white-space: nowrap;
+  font-weight: 700;
 }
 
 .overview-entry-subtitle-left,
@@ -347,6 +361,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   user-select: none;
+  transition: background-color 0.18s ease;
 }
 
 .actions-column-col {
@@ -764,6 +779,46 @@
 .attendance-page {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
+}
+
+.attendance-session-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.attendance-session-summary-chip {
+  min-width: 0;
+  padding: 5px 6px 5px 11px;
+  gap: 8px;
+  justify-content: space-between;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 1px 2px rgba(41, 23, 16, 0.06);
+}
+
+.attendance-session-summary-label {
+  white-space: nowrap;
+}
+
+.attendance-session-summary-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  color: inherit;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.attendance-session-summary-empty {
+  color: var(--muted);
 }
 
 .attendance-page > .admin-data-list,
@@ -1231,14 +1286,15 @@
 }
 
 .course-calendar-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) max-content;
   gap: 14px;
-  align-items: end;
+  align-items: center;
   margin-bottom: 18px;
 }
 
 .course-calendar-toolbar-primary {
-  align-items: flex-end;
+  align-items: center;
   margin-bottom: 14px;
 }
 
@@ -1248,8 +1304,11 @@
 }
 
 .course-calendar-switch {
-  width: calc(100% - 24px);
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
   white-space: nowrap;
+  border-radius: 0;
 }
 
 .course-calendar-switch-text {
@@ -1257,17 +1316,23 @@
   height: 100%;
   padding: 10px 14px;
   border: 0;
+  border-radius: 12px;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
   cursor: pointer;
   transition:
     background-color 140ms ease,
-    color 140ms ease;
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.course-calendar-switch-text:hover {
+  color: #7b3418;
 }
 
 .course-calendar-switch-text-active {
-  background: rgba(202, 89, 40, 0.14);
   color: #7b3418;
 }
 
@@ -1280,35 +1345,49 @@
 }
 
 .course-calendar-weeks {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(16, minmax(40px, 54px));
   gap: 8px;
-  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
 }
 
 .course-calendar-week-button {
-  min-width: 0;
-  width: 42px;
+  width: 100%;
+  min-width: 40px;
+  max-width: 54px;
+  height: 40px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
 }
 
 .course-calendar-weekend-toggle {
-  margin-left: auto;
+  justify-self: end;
 }
 
 .course-calendar-grid-wrap {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 22px;
   background: var(--paper-strong);
   height: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.course-calendar-grid-wrap::-webkit-scrollbar {
+  display: none;
 }
 
 .course-calendar-grid {
   display: grid;
   width: 100%;
+  min-width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 100%;
 }
 
 .course-calendar-corner-top {
@@ -1320,6 +1399,15 @@
   z-index: 4;
   background: #fffdf9;
   padding: 0;
+  transition: background-color 0.18s ease;
+}
+
+.course-calendar-corner-top:hover {
+  background: rgba(202, 89, 40, 0.08);
+}
+
+.course-calendar-corner-top-active {
+  background: rgba(202, 89, 40, 0.14);
 }
 
 .course-calendar-corner,
@@ -1406,6 +1494,34 @@
   flex: 0 0 auto;
   width: fit-content;
   max-width: 100%;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.course-tag-button {
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.course-tag-button:disabled {
+  cursor: default;
+}
+
+.course-tag-button:not(:disabled):hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 2px 6px rgba(41, 23, 16, 0.08);
+}
+
+.course-tag-button:focus-visible {
+  outline: 2px solid rgba(202, 89, 40, 0.32);
+  outline-offset: 2px;
 }
 
 .course-tag-muted {
@@ -1416,6 +1532,11 @@
 .course-tag-free {
   background: rgba(45, 134, 102, 0.14);
   color: #235843;
+}
+
+.course-tag-free-dimmed {
+  background: rgba(92, 82, 75, 0.08);
+  color: rgba(107, 96, 86, 0.78);
 }
 
 .course-floating-tooltip {
@@ -1858,6 +1979,12 @@
   color: #4c3328;
   box-shadow: none;
   font-weight: 600;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .user-free-time-week-row .user-free-time-week-button:not(:first-child) {
@@ -2030,7 +2157,7 @@
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -2175,7 +2302,7 @@
   height: 100%;
 }
 
-.class-student-subpage-grid > .class-student-context-card,
+.class-student-subpage-grid > .course-context-card,
 .class-student-subpage-grid > .class-student-subpage-main {
   min-height: 0;
   height: 100%;
@@ -2423,7 +2550,7 @@
   }
 
   .course-calendar-toolbar {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
     align-items: stretch;
   }
 
@@ -2437,6 +2564,7 @@
 
   .course-calendar-weeks {
     flex-basis: 100%;
+    justify-content: flex-start;
   }
 
   .split-modal-layout,

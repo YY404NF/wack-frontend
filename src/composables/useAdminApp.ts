@@ -27,6 +27,7 @@ type AdminWorkspaceHandlersInputDeps = Omit<
   | 'importClassStudents'
   | 'saveEditingClassStudent'
   | 'deleteClassStudent'
+  | 'bulkDeleteClassStudents'
   | 'bulkDeleteClasses'
   | 'saveUserFreeTime'
   | 'resetUserPassword'
@@ -116,6 +117,7 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     importClassStudents: adminBulkActions.importClassStudents,
     saveEditingClassStudent: adminBulkActions.saveEditingClassStudent,
     deleteClassStudent: adminBulkActions.deleteClassStudent,
+    bulkDeleteClassStudents: adminBulkActions.bulkDeleteClassStudents,
     bulkDeleteClasses: adminBulkActions.bulkDeleteClasses,
     saveUserFreeTime: adminBulkActions.saveUserFreeTime,
     resetUserPassword,

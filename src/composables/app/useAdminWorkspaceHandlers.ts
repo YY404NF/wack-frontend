@@ -49,6 +49,7 @@ export type AdminWorkspaceHandlersDeps = {
   startEditClassStudent: (studentId: number) => void
   saveEditingClassStudent: () => Promise<boolean>
   deleteClassStudent: (studentId: number) => Promise<void>
+  bulkDeleteClassStudents: (studentIds: number[]) => Promise<void>
   updateClassPage: (page: number) => void
   updateClassPageSize: (size: number) => void
   toggleClassSelection: (classId: number) => void
@@ -137,6 +138,7 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     startEditClassStudent: deps.startEditClassStudent,
     saveEditingClassStudent: deps.saveEditingClassStudent,
     deleteClassStudent: deps.deleteClassStudent,
+    bulkDeleteClassStudents: deps.bulkDeleteClassStudents,
     updateClassPage: deps.updateClassPage,
     updateClassPageSize: deps.updateClassPageSize,
     toggleClassSelection: deps.toggleClassSelection,

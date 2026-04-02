@@ -86,6 +86,7 @@ export type AdminClassManageProps = {
   editingClassStudentForm: AdminClassStudentForm
   classStudentFilters: AdminClassStudentFilters
   classStudents: ClassStudentItem[]
+  classStudentTargetClass: ClassItem | null
   classStudentModalOpen: boolean
   classStudentSaving: boolean
   classStudentImporting: boolean
@@ -184,6 +185,8 @@ export type AdminUserManageProps = {
   userAllItems: number
   userPageOptions: number[]
   selectedUserStudentIds: string[]
+  userFocusRowKey?: string | null
+  userFocusToken?: number
   userPasswordModalOpen: boolean
   userPasswordForm: AdminUserPasswordForm
   passwordTargetName: string

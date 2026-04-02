@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { api, type MetaTermItem } from '../../api'
-import { sectionLabels } from '../../constants'
+import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import type { AdminAttendanceDetailTarget } from './shared-types'
 import AdminDataList from './AdminDataList.vue'
@@ -362,6 +362,15 @@ function sessionSummaryText(item: AttendanceSessionSummary) {
   return `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count}`
 }
 
+function sessionSummaryItems(item: AttendanceSessionSummary) {
+  return [
+    { key: 'present', label: '签到', count: item.present_count, className: attendanceStatusBadgeClass(0) },
+    { key: 'late', label: '迟到', count: item.late_count, className: attendanceStatusBadgeClass(1) },
+    { key: 'absent', label: '缺勤', count: item.absent_count, className: attendanceStatusBadgeClass(2) },
+    { key: 'leave', label: '请假', count: item.leave_count, className: attendanceStatusBadgeClass(3) },
+  ].filter((entry) => entry.count > 0)
+}
+
 function normalizeClassName(value?: string | null) {
   return value?.trim() || '未绑定班级'
 }
@@ -442,7 +451,18 @@ function formatStatus(status?: number | null) {
           {{ formatClassSummaryInline(typeof value === 'string' ? value : '', '-') }}
         </template>
         <template #cell-summary="{ row }">
-          {{ sessionSummaryText(row as AttendanceSessionSummary) }}
+          <div class="attendance-session-summary" :aria-label="sessionSummaryText(row as AttendanceSessionSummary)">
+            <span
+              v-for="item in sessionSummaryItems(row as AttendanceSessionSummary)"
+              :key="item.key"
+              class="status-badge attendance-session-summary-chip"
+              :class="item.className"
+            >
+              <span class="attendance-session-summary-label">{{ item.label }}</span>
+              <span class="attendance-session-summary-count">{{ item.count }}</span>
+            </span>
+            <span v-if="sessionSummaryItems(row as AttendanceSessionSummary).length === 0" class="attendance-session-summary-empty">-</span>
+          </div>
         </template>
         <template #actions="{ row }">
           <div class="inline-actions user-actions">

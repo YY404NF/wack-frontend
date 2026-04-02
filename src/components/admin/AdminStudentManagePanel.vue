@@ -25,39 +25,11 @@ const emit = defineEmits<{
   toggleStudentPageSelection: []
 }>()
 
-const classKeyword = ref('')
-const visibleClassCount = ref(12)
-
-const classOptions = computed(() =>
-  [...props.allClasses].sort((left, right) => {
-    const selectedClassID = Number(props.studentForm.classId || 0)
-    const leftSelected = left.id === selectedClassID
-    const rightSelected = right.id === selectedClassID
-    if (leftSelected !== rightSelected) {
-      return leftSelected ? -1 : 1
-    }
-    if (left.grade !== right.grade) {
-      return right.grade - left.grade
-    }
-    return `${left.major_name}${left.class_name}`.localeCompare(`${right.major_name}${right.class_name}`, 'zh-Hans-CN')
-  }),
-)
-
 const studentColumns = [
   { key: 'student_id', label: '学号', width: 8 },
   { key: 'real_name', label: '姓名', width: 4 },
   { key: 'class_name', label: '所属班级', width: 6, copyable: false },
 ] as const
-
-const filteredClassOptions = computed(() => {
-  const keyword = classKeyword.value.trim()
-  if (!keyword) {
-    return classOptions.value
-  }
-  return classOptions.value.filter((item) =>
-    `${item.grade} ${item.major_name} ${item.class_name}`.toLowerCase().includes(keyword.toLowerCase()),
-  )
-})
 
 const studentFilterClassOptions = computed(() =>
   Array.from(
@@ -67,9 +39,27 @@ const studentFilterClassOptions = computed(() =>
     .sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
 )
 
-const visibleClassOptions = computed(() => filteredClassOptions.value.slice(0, visibleClassCount.value))
-const hasMoreClasses = computed(() => visibleClassOptions.value.length < filteredClassOptions.value.length)
-const selectedClass = computed(() => classOptions.value.find((item) => item.id === props.studentForm.classId) ?? null)
+const STUDENT_UNBOUND_CLASS_LABEL = '未绑定班级'
+const studentFormClassInput = ref(STUDENT_UNBOUND_CLASS_LABEL)
+const studentFormClassOptions = computed(() =>
+  [STUDENT_UNBOUND_CLASS_LABEL, ...props.allClasses.map((item) => item.class_name.trim())]
+    .filter((item, index, array) => item.length > 0 && array.indexOf(item) === index),
+)
+const studentFormClassName = computed({
+  get() {
+    return studentFormClassInput.value
+  },
+  set(value: string) {
+    const normalized = value.trim()
+    studentFormClassInput.value = normalized || STUDENT_UNBOUND_CLASS_LABEL
+    if (!normalized || normalized === STUDENT_UNBOUND_CLASS_LABEL) {
+      props.studentForm.classId = ''
+      return
+    }
+    const matched = props.allClasses.find((item) => item.class_name === normalized)
+    props.studentForm.classId = matched?.id ?? ''
+  },
+})
 const canSaveStudent = computed(
   () =>
     !props.studentSaving &&
@@ -78,29 +68,20 @@ const canSaveStudent = computed(
 )
 
 watch(
-  () => [props.studentModalOpen, classKeyword.value] as const,
-  () => {
-    visibleClassCount.value = 12
-  },
-)
-
-watch(
-  () => props.studentModalOpen,
-  (open) => {
-    if (open) {
-      classKeyword.value = ''
-      visibleClassCount.value = 12
+  () => [props.studentModalOpen, props.studentForm.classId] as const,
+  ([open]) => {
+    if (!open) {
+      return
     }
+    if (typeof props.studentForm.classId !== 'number') {
+      studentFormClassInput.value = STUDENT_UNBOUND_CLASS_LABEL
+      return
+    }
+    studentFormClassInput.value =
+      props.allClasses.find((item) => item.id === props.studentForm.classId)?.class_name ?? STUDENT_UNBOUND_CLASS_LABEL
   },
+  { immediate: true },
 )
-
-function toggleStudentClass(classId: number) {
-  props.studentForm.classId = props.studentForm.classId === classId ? '' : classId
-}
-
-function loadMoreClasses() {
-  visibleClassCount.value += 12
-}
 
 function asStudentItem(row: Record<string, unknown>) {
   return row as unknown as StudentItem
@@ -111,79 +92,34 @@ function asStudentItem(row: Record<string, unknown>) {
   <section class="workspace-card user-manage-panel">
     <Transition name="modal-float" appear>
     <div v-if="studentModalOpen" class="modal-backdrop">
-      <article class="modal-card modal-card-wide student-bind-modal">
+      <article class="modal-card modal-card-narrow">
         <div class="modal-header">
           <h3>{{ isEditingStudent ? '编辑学生信息' : '创建学生' }}</h3>
           <button class="ghost-button compact-button modal-close" type="button" @click="emit('closeStudentModal')">关闭</button>
         </div>
-        <div class="student-bind-layout">
-          <section class="student-bind-class-panel">
-            <div class="student-bind-panel-head">
-              <strong>班级列表</strong>
-              <span class="hint">绑定后自动置顶</span>
-            </div>
-            <label class="field student-bind-class-filter">
-              <span>筛选</span>
-              <input v-model="classKeyword" placeholder="按年级、专业、班级名筛选" />
-            </label>
-            <div class="student-bind-class-list">
-              <article
-                v-for="item in visibleClassOptions"
-                :key="item.id"
-                class="student-bind-class-item"
-                :class="{ 'student-bind-class-item-selected': item.id === studentForm.classId }"
-              >
-                <div class="student-bind-class-main">
-                  <strong>{{ item.class_name }}</strong>
-                  <p>{{ item.grade }}级 {{ item.major_name }}</p>
-                </div>
-                <button
-                  class="ghost-button compact-button"
-                  :class="item.id === studentForm.classId ? 'danger-button' : ''"
-                  type="button"
-                  @click="toggleStudentClass(item.id)"
-                >
-                  {{ item.id === studentForm.classId ? '解绑' : '绑定' }}
-                </button>
-              </article>
-              <div v-if="visibleClassOptions.length === 0" class="empty-cell student-bind-empty">
-                暂无匹配班级
-              </div>
-            </div>
-            <div v-if="hasMoreClasses" class="student-bind-loadmore">
-              <button class="ghost-button compact-button" type="button" @click="loadMoreClasses">继续加载</button>
-            </div>
-          </section>
-
-          <form class="form-grid single-column-form student-bind-form" @submit.prevent="emit('saveStudent')">
-            <div class="student-bind-panel-head">
-              <strong>学生信息</strong>
-            </div>
-            <div class="student-bind-current">
-              <span class="hint">当前绑定班级</span>
-              <strong v-if="selectedClass" class="class-display-text">
-                <span>{{ selectedClass.grade }}级</span>
-                <span class="copy-token-separator" aria-hidden="true">&nbsp;&nbsp;</span>
-                <span>{{ selectedClass.major_name }}</span>
-                <span class="copy-token-separator" aria-hidden="true">&nbsp;&nbsp;</span>
-                <span>{{ selectedClass.class_name }}</span>
-              </strong>
-              <strong v-else>未绑定班级</strong>
-            </div>
-            <label class="field">
-              <span>学号</span>
-              <input v-model="studentForm.studentId" />
-            </label>
-            <label class="field">
-              <span>姓名</span>
-              <input v-model="studentForm.realName" />
-            </label>
-            <button class="primary-button" type="submit" :disabled="!canSaveStudent">
-              <span v-if="studentSaving" class="button-spinner" aria-hidden="true"></span>
-              <span>{{ studentSaving ? '保存中...' : '保存' }}</span>
-            </button>
-          </form>
-        </div>
+        <form class="form-grid single-column-form" @submit.prevent="emit('saveStudent')">
+          <label class="field">
+            <span>学号</span>
+            <AppDigitInput v-model="studentForm.studentId" />
+          </label>
+          <label class="field">
+            <span>姓名</span>
+            <input v-model="studentForm.realName" />
+          </label>
+          <label class="field">
+            <span>班级</span>
+            <AppInputSelect
+              v-model="studentFormClassName"
+              :options="studentFormClassOptions"
+              :allow-custom="false"
+              aria-label="选择学生所属班级"
+            />
+          </label>
+          <button class="primary-button" type="submit" :disabled="!canSaveStudent">
+            <span v-if="studentSaving" class="button-spinner" aria-hidden="true"></span>
+            <span>{{ studentSaving ? '保存中...' : '保存' }}</span>
+          </button>
+        </form>
       </article>
     </div>
     </Transition>

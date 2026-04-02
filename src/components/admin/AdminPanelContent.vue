@@ -55,6 +55,7 @@ const emit = defineEmits<{
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
+  bulkDeleteClassStudents: [studentIds: number[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
   updateStudentPage: [page: number]
@@ -70,6 +71,7 @@ const emit = defineEmits<{
   openOverviewCourse: [courseId: number]
   openOverviewClass: [classId: number]
   openOverviewStudent: [studentRefId: number]
+  openCourseCalendarUser: [loginId: string]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
   closeUserModal: []
@@ -173,6 +175,8 @@ function forwardUserStatus(studentId: string, status: number) {
       :course-terms="courseTerms"
       :system-settings="systemSettings"
       @update:selected-term="emit('updateCourseCalendarTerm', $event)"
+      @open-attendance-detail="emit('openAttendanceDetail', $event)"
+      @open-calendar-user="emit('openCourseCalendarUser', $event)"
     />
 
     <AdminCourseManagePanel
@@ -236,6 +240,7 @@ function forwardUserStatus(studentId: string, status: number) {
       :editing-class-student-form="editingClassStudentForm"
       :class-student-filters="classStudentFilters"
       :class-students="classStudents"
+      :class-student-target-class="classStudentTargetClass"
       :class-student-modal-open="classStudentModalOpen"
       :class-student-saving="classStudentSaving"
       :class-student-importing="classStudentImporting"
@@ -274,6 +279,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @start-edit-class-student="emit('startEditClassStudent', $event)"
       @save-editing-class-student="emit('saveEditingClassStudent')"
       @delete-class-student="emit('deleteClassStudent', $event)"
+      @bulk-delete-class-students="emit('bulkDeleteClassStudents', $event)"
       @update-class-page="emit('updateClassPage', $event)"
       @update-class-page-size="emit('updateClassPageSize', $event)"
       @toggle-class-selection="emit('toggleClassSelection', $event)"
@@ -341,6 +347,8 @@ function forwardUserStatus(studentId: string, status: number) {
       :user-all-items="userAllItems"
       :user-page-options="userPageOptions"
       :selected-user-student-ids="selectedUserStudentIds"
+      :user-focus-row-key="userFocusRowKey"
+      :user-focus-token="userFocusToken"
       :user-password-modal-open="userPasswordModalOpen"
       :user-password-form="userPasswordForm"
       :password-target-name="passwordTargetName"

@@ -3,7 +3,7 @@ import { apiPaths } from './paths'
 import type { PageResult, UserItem, UserPageQuery } from './types'
 
 export const usersApi = {
-  listUsers(query: UserPageQuery & { login_id?: string; real_name?: string; managed_class_name?: string } = {}) {
+  listUsers(query: UserPageQuery & { login_id?: string; real_name?: string; managed_class_name?: string; focus_login_id?: string } = {}) {
     const params = new URLSearchParams()
     params.set('page', String(query.page ?? 1))
     params.set('page_size', String(query.page_size ?? 20))
@@ -13,6 +13,7 @@ export const usersApi = {
     if (query.login_id?.trim()) params.set('login_id', query.login_id.trim())
     if (query.real_name?.trim()) params.set('real_name', query.real_name.trim())
     if (query.managed_class_name?.trim()) params.set('managed_class_name', query.managed_class_name.trim())
+    if (query.focus_login_id?.trim()) params.set('focus_login_id', query.focus_login_id.trim())
     return request<PageResult<UserItem>>(`${apiPaths.admin.users}?${params.toString()}`)
   },
   createUser(input: { login_id: string; real_name: string; password: string; role: number; status: number; managed_class_id?: number | null }) {

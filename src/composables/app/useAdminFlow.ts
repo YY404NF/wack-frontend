@@ -153,6 +153,8 @@ export type AdminFlowDeps = {
   classFocusToken: Ref<number>
   studentFocusRowKey: Ref<number | null>
   studentFocusToken: Ref<number>
+  userFocusRowKey: Ref<string | null>
+  userFocusToken: Ref<number>
   userSaving: Ref<boolean>
   passwordResetting: Ref<boolean>
   profileSaving: Ref<boolean>
@@ -224,6 +226,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function clearAdminFocusQuery() {
     const nextQuery = omitAdminFocusQuery(deps.route.query)
+    delete nextQuery.focus_login_id
     await deps.router.replace({
       name: deps.route.name || undefined,
       params: deps.route.params,
@@ -465,6 +468,12 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadUserManageData() {
     const requestToken = nextRequestToken('userManage')
+    const focusLoginIdRaw = deps.route.query.focus_login_id
+    const focusLoginId = typeof focusLoginIdRaw === 'string'
+      ? focusLoginIdRaw.trim()
+      : Array.isArray(focusLoginIdRaw) && typeof focusLoginIdRaw[0] === 'string'
+        ? focusLoginIdRaw[0].trim()
+        : ''
     const [userPageResult, userAllResult, classes, terms] = await Promise.all([
       api.listUsers({
         page: deps.userPage.value,
@@ -474,6 +483,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         managed_class_name: deps.userFilters.managedClassName,
         role: deps.userFilters.role,
         status: deps.userFilters.status,
+        focus_login_id: focusLoginId || undefined,
       }),
       api.listUsers({ page: 1, page_size: 1 }),
       api.listClassOptions(),
@@ -485,9 +495,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.userRows.value = userPageResult.items ?? []
     deps.classes.value = classes as unknown as ClassItem[]
     deps.courseTerms.value = terms
+    deps.userPage.value = userPageResult.page ?? deps.userPage.value
     deps.userTotalItems.value = userPageResult.total ?? 0
     deps.userAllItems.value = userAllResult.total ?? 0
     deps.userTotalPages.value = Math.max(1, Math.ceil((userPageResult.total ?? 0) / deps.userPageSize.value))
+    if (focusLoginId) {
+      if (userPageResult.focus_found) {
+        deps.userFocusRowKey.value = focusLoginId
+        deps.userFocusToken.value += 1
+      }
+      await clearAdminFocusQuery()
+    }
   }
 
   async function loadSettingsData() {

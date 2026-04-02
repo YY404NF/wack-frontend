@@ -58,6 +58,8 @@ export type AdminWorkspacePropsDeps = {
   userTotalItems: Ref<number>
   userAllItems: Ref<number>
   selectedUserStudentIds: Ref<string[]>
+  userFocusRowKey: Ref<string | null>
+  userFocusToken: Ref<number>
   userPasswordModalOpen: Ref<boolean>
   userPasswordForm: AdminUserPasswordForm
   passwordTargetName: Ref<string>
@@ -97,6 +99,7 @@ export type AdminWorkspacePropsDeps = {
   classStudentForm: AdminClassStudentForm
   editingClassStudentForm: AdminClassStudentForm
   classStudentFilters: AdminClassStudentFilters
+  classStudentTargetClass: Ref<ClassItem | null>
   studentForm: AdminStudentForm
   studentFilters: AdminStudentFilters
   classStudentModalOpen: Ref<boolean>
@@ -185,6 +188,8 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     userAllItems: deps.userAllItems.value,
     userPageOptions: USER_PAGE_OPTIONS,
     selectedUserStudentIds: deps.selectedUserStudentIds.value,
+    userFocusRowKey: deps.userFocusRowKey.value,
+    userFocusToken: deps.userFocusToken.value,
     userPasswordModalOpen: deps.userPasswordModalOpen.value,
     userPasswordForm: deps.userPasswordForm,
     passwordTargetName: deps.passwordTargetName.value,
@@ -226,6 +231,7 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     classStudentForm: deps.classStudentForm,
     editingClassStudentForm: deps.editingClassStudentForm,
     classStudentFilters: deps.classStudentFilters,
+    classStudentTargetClass: deps.classStudentTargetClass.value,
     classStudentModalOpen: deps.classStudentModalOpen.value,
     classStudentSaving: deps.classStudentSaving.value,
     classStudentImporting: deps.classStudentImporting.value,

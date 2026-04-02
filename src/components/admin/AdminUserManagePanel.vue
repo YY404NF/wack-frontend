@@ -302,6 +302,8 @@ const bulkStatusActionLabel = computed(() => (pendingBulkStatus.value === 2 ? 'å
       :pagination="{ page: userPage, pageSize: userPageSize, totalPages: userTotalPages, pageOptions: userPageOptions, totalItems: userTotalItems }"
       :all-items="userAllItems"
       :selected-items="selectedUserStudentIds.length"
+      :highlight-row-key="userFocusRowKey ?? null"
+      :highlight-token="userFocusToken ?? 0"
       :active-filter-keys="[
         ...(userFilters.studentId.trim() ? ['login_id'] : []),
         ...(userFilters.realName.trim() ? ['real_name'] : []),

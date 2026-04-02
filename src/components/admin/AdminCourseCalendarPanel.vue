@@ -5,6 +5,7 @@ import type { CourseCalendarItem, FreeTimeItem, MetaTermItem, SystemSetting } fr
 import { weekdayLabels } from '../../constants'
 import { parseFreeWeeks } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import type { AdminAttendanceDetailTarget } from './shared-types'
 
 const props = defineProps<{
   courseCalendar: CourseCalendarItem[]
@@ -16,6 +17,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:selectedTerm': [term: string]
+  openAttendanceDetail: [target: AdminAttendanceDetailTarget]
+  openCalendarUser: [loginId: string]
 }>()
 
 const WEEK_COUNT = 16
@@ -25,6 +28,7 @@ const showingFreeTime = ref(false)
 const showWeekend = ref(false)
 const selectedWeek = ref(1)
 const hoveredCourse = ref<null | { title: string; lines: string[]; x: number; y: number }>(null)
+const hoveredFreeTimeLoginId = ref('')
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipSize = ref({ width: 0, height: 0 })
 
@@ -118,8 +122,10 @@ const termOptions = computed(() => {
 })
 
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `144px repeat(${visibleWeekdays.value.length}, minmax(0, 1fr))`,
-  gridTemplateRows: `42px repeat(${activeSchedule.value.length}, minmax(160px, 1fr))`,
+  gridTemplateColumns: `144px repeat(${visibleWeekdays.value.length}, minmax(188px, 1fr))`,
+  gridTemplateRows: `42px repeat(${activeSchedule.value.length}, minmax(172px, 1fr))`,
+  minWidth: `calc(144px + ${visibleWeekdays.value.length} * 188px)`,
+  minHeight: `calc(42px + ${activeSchedule.value.length} * 172px)`,
 }))
 
 const filteredCourses = computed(() =>
@@ -138,6 +144,8 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
     {
       key: string
       courseGroupId: number
+      courseId: number
+      selectedLessonId: number | null
       courseName: string
       teacherName: string
       locations: string[]
@@ -156,13 +164,16 @@ function mergeCourseItems(items: CourseCalendarItem[]) {
       current.locations.push(formatCourseLocation(item))
       if (item.week_no === selectedWeek.value) {
         current.containsSelectedWeek = true
+        current.selectedLessonId = item.id
       }
       continue
     }
     grouped.set(key, {
       key,
       courseGroupId: item.course_group_id,
+      selectedLessonId: item.week_no === selectedWeek.value ? item.id : null,
       courseName: item.course_name,
+      courseId: item.course_id,
       teacherName: item.teacher_name,
       locations: [formatCourseLocation(item)],
       classNames: [...item.class_names],
@@ -218,19 +229,30 @@ function formatCourseLocation(item: Pick<CourseCalendarItem, 'building_name' | '
 
 function courseTooltipLines(item: (typeof courseCells.value)[number][number][number]) {
   return [
-    `${item.teacherName} · ${formatWeekText(item.weekNos)}`,
-    ...item.locations,
+    formatWeekText(item.weekNos),
+    item.locations.join('、') || '-',
     item.classNames.join('、') || '未关联班级',
   ]
 }
 
 function showCourseTooltip(event: MouseEvent, item: (typeof courseCells.value)[number][number][number]) {
   hoveredCourse.value = {
-    title: item.courseName,
+    title: `${item.courseName} · ${item.teacherName}`,
     lines: courseTooltipLines(item),
     x: event.clientX,
     y: event.clientY,
   }
+}
+
+function openCourseCell(item: (typeof courseCells.value)[number][number][number]) {
+  if (!item.containsSelectedWeek || !item.selectedLessonId) {
+    return
+  }
+  emit('openAttendanceDetail', {
+    sessionId: item.selectedLessonId,
+    courseId: item.courseId,
+    groupId: item.courseGroupId,
+  })
 }
 
 function moveCourseTooltip(event: MouseEvent) {
@@ -246,6 +268,18 @@ function moveCourseTooltip(event: MouseEvent) {
 
 function hideCourseTooltip() {
   hoveredCourse.value = null
+}
+
+function highlightFreeTimeUser(loginId: string) {
+  hoveredFreeTimeLoginId.value = loginId
+}
+
+function clearFreeTimeHighlight() {
+  hoveredFreeTimeLoginId.value = ''
+}
+
+function openFreeTimeUser(loginId: string) {
+  emit('openCalendarUser', loginId)
 }
 
 function updateTooltipSize() {
@@ -320,6 +354,7 @@ onBeforeUnmount(() => {
   window.clearInterval(timerId)
   window.removeEventListener('resize', updateTooltipSize)
   hoveredCourse.value = null
+  hoveredFreeTimeLoginId.value = ''
 })
 </script>
 
@@ -354,9 +389,9 @@ onBeforeUnmount(() => {
 
     <div class="course-calendar-grid-wrap">
       <div class="course-calendar-grid" :style="gridStyle">
-        <div class="course-calendar-corner course-calendar-corner-top">
+        <div class="course-calendar-corner course-calendar-corner-top" :class="{ 'course-calendar-corner-top-active': showingFreeTime }">
           <button
-            class="course-calendar-switch-text"
+            class="course-calendar-switch-text course-calendar-switch"
             :class="{ 'course-calendar-switch-text-active': showingFreeTime }"
             type="button"
             @click="showingFreeTime = !showingFreeTime"
@@ -392,27 +427,35 @@ onBeforeUnmount(() => {
             }"
           >
             <template v-if="!showingFreeTime">
-              <div
+              <button
                 v-for="item in courseCells[rowIndex][columnIndex]"
                 :key="`course-${item.key}`"
-                class="course-tag"
+                class="course-tag course-tag-button"
                 :class="{ 'course-tag-muted': !item.containsSelectedWeek }"
+                type="button"
+                :disabled="!item.containsSelectedWeek || !item.selectedLessonId"
                 @mouseenter="showCourseTooltip($event, item)"
                 @mousemove="moveCourseTooltip"
                 @mouseleave="hideCourseTooltip"
+                @click="openCourseCell(item)"
               >
                 {{ item.courseName }}
-              </div>
+              </button>
             </template>
             <template v-else>
-              <div
+              <button
                 v-for="item in freeTimeCells[rowIndex][columnIndex]"
                 :key="`free-${item.id}`"
-                class="course-tag course-tag-free"
+                class="course-tag course-tag-free course-tag-button"
+                :class="{ 'course-tag-free-dimmed': hoveredFreeTimeLoginId && hoveredFreeTimeLoginId !== item.login_id }"
+                type="button"
                 :title="`${item.real_name}（${item.login_id}）`"
+                @mouseenter="highlightFreeTimeUser(item.login_id)"
+                @mouseleave="clearFreeTimeHighlight"
+                @click="openFreeTimeUser(item.login_id)"
               >
                 {{ item.real_name }}
-              </div>
+              </button>
             </template>
           </div>
         </template>

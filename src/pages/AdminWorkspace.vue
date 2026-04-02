@@ -48,6 +48,7 @@ const emit = defineEmits<{
   startEditClassStudent: [studentId: number]
   saveEditingClassStudent: []
   deleteClassStudent: [studentId: number]
+  bulkDeleteClassStudents: [studentIds: number[]]
   updateClassPage: [page: number]
   updateClassPageSize: [size: number]
   updateStudentPage: [page: number]
@@ -248,6 +249,10 @@ function openOverviewClass(classId: number) {
 
 function openOverviewStudent(studentRefId: number) {
   void router.push(buildAdminTabLocation('student', { focus_student_ref_id: String(studentRefId) }))
+}
+
+function openCourseCalendarUser(loginId: string) {
+  void router.push(buildAdminTabLocation('user-manage', { focus_login_id: loginId }))
 }
 
 async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarget, mode: 'push' | 'replace' = 'push') {
@@ -470,6 +475,7 @@ function closeAboutModal() {
           @start-edit-class-student="emit('startEditClassStudent', $event)"
           @save-editing-class-student="emit('saveEditingClassStudent')"
           @delete-class-student="emit('deleteClassStudent', $event)"
+          @bulk-delete-class-students="emit('bulkDeleteClassStudents', $event)"
           @update-class-page="emit('updateClassPage', $event)"
           @update-class-page-size="emit('updateClassPageSize', $event)"
           @update-student-page="emit('updateStudentPage', $event)"
@@ -484,6 +490,7 @@ function closeAboutModal() {
           @open-overview-course="openOverviewCourse"
           @open-overview-class="openOverviewClass"
           @open-overview-student="openOverviewStudent"
+          @open-course-calendar-user="openCourseCalendarUser"
           @open-attendance-detail="handleOverviewAttendanceDetail"
           @open-create-user-modal="emit('openCreateUserModal')"
           @open-edit-user-modal="emit('openEditUserModal', $event)"
