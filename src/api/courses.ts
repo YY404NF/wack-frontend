@@ -4,6 +4,7 @@ import type {
   AvailableCourseGroupClassItem,
   AvailableCourseGroupStudentItem,
   CourseCalendarItem,
+  CourseCalendarOutlineItem,
   CourseGroupDetail,
   CourseGroupLessonItem,
   CourseGroupItem,
@@ -170,10 +171,17 @@ export const coursesApi = {
       method: 'DELETE',
     })
   },
-  adminCourseCalendar(term = '') {
+  adminCourseCalendarOutline(term = '') {
     const params = new URLSearchParams()
     if (term.trim()) params.set('term', term.trim())
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    return request<CourseCalendarItem[] | null>(`${apiPaths.admin.courseCalendar}${suffix}`)
+    return request<CourseCalendarOutlineItem[] | null>(`${apiPaths.admin.courseCalendarOutline}${suffix}`).then((items) => asArray(items))
+  },
+  adminCourseCalendar(term = '', weekNo?: number) {
+    const params = new URLSearchParams()
+    if (term.trim()) params.set('term', term.trim())
+    if (typeof weekNo === 'number' && weekNo > 0) params.set('week_no', String(weekNo))
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return request<CourseCalendarItem[] | null>(`${apiPaths.admin.courseCalendar}${suffix}`).then((items) => asArray(items))
   },
 }

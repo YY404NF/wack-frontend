@@ -239,6 +239,18 @@ export interface CourseCalendarItem {
   major_names: string[]
 }
 
+export interface CourseCalendarOutlineItem {
+  course_group_id: number
+  course_id: number
+  weekday: number
+  section: number
+  course_name: string
+  teacher_name: string
+  week_nos: number[]
+  locations: string[]
+  class_names: string[]
+}
+
 export interface AttendanceRecordLogItem {
   id: number
   attendance_record_id: number

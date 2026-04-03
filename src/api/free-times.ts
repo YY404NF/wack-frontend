@@ -3,9 +3,10 @@ import { apiPaths } from './paths'
 import type { FreeTimeEditorItem, FreeTimeInput, FreeTimeItem, FreeTimeQuery, PageResult } from './types'
 
 export const freeTimesApi = {
-  adminFreeTimeCalendar(term = '') {
+  adminFreeTimeCalendar(term = '', weekNo?: number) {
     const params = new URLSearchParams()
     if (term.trim()) params.set('term', term.trim())
+    if (typeof weekNo === 'number' && weekNo > 0) params.set('week_no', String(weekNo))
     const suffix = params.toString() ? `?${params.toString()}` : ''
     return request<FreeTimeItem[] | null>(`${apiPaths.admin.freeTimeCalendar}${suffix}`)
   },

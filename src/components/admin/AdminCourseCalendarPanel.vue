@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import type { CourseCalendarItem, FreeTimeItem, MetaTermItem, SystemSetting } from '../../api'
+import { api, type CourseCalendarItem, type CourseCalendarOutlineItem, type FreeTimeItem, type MetaTermItem, type SystemSetting } from '../../api'
 import { weekdayLabels } from '../../constants'
-import { parseFreeWeeks } from '../../utils/free-time'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import type { AdminAttendanceDetailTarget } from './shared-types'
 
@@ -31,8 +30,35 @@ const hoveredCourse = ref<null | { title: string; lines: string[]; x: number; y:
 const hoveredFreeTimeLoginId = ref('')
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipSize = ref({ width: 0, height: 0 })
+const outlineRows = ref<CourseCalendarOutlineItem[]>([])
+const courseCalendarRows = ref<CourseCalendarItem[]>([])
+const freeTimeRows = ref<FreeTimeItem[]>([])
 
 let timerId = 0
+let outlineRequestToken = 0
+let courseRequestToken = 0
+let freeTimeRequestToken = 0
+let scheduledOutlineLoadToken = 0
+let scheduledCourseLoadToken = 0
+let scheduledFreeTimeLoadToken = 0
+
+const outlineCache = new Map<string, CourseCalendarOutlineItem[]>()
+const courseCalendarCache = new Map<string, CourseCalendarItem[]>()
+const freeTimeCache = new Map<string, FreeTimeItem[]>()
+
+type CalendarCellCourseItem = {
+  key: string
+  courseGroupId: number
+  courseId: number
+  selectedLessonId: number | null
+  selectedHasAttendanceRecord: boolean
+  courseName: string
+  teacherName: string
+  locations: string[]
+  classNames: string[]
+  weekNos: number[]
+  containsSelectedWeek: boolean
+}
 
 const scheduleMap = {
   summer: [
@@ -128,83 +154,171 @@ const gridStyle = computed(() => ({
   minHeight: `calc(42px + ${activeSchedule.value.length} * 172px)`,
 }))
 
-const filteredCourses = computed(() =>
-  props.courseCalendar.filter((item) => {
-    return item.term === selectedTermModel.value
-  }),
-)
-
-function freeTimeMatchesWeek(item: FreeTimeItem) {
-  return parseFreeWeeks(item.free_weeks).includes(selectedWeek.value)
+function buildWeekRequestKey(term: string, weekNo: number) {
+  return `${term}::${weekNo}`
 }
 
-function mergeCourseItems(items: CourseCalendarItem[]) {
-  const grouped = new Map<
-    string,
-    {
-      key: string
-      courseGroupId: number
-      courseId: number
-      selectedLessonId: number | null
-      selectedHasAttendanceRecord: boolean
-      courseName: string
-      teacherName: string
-      locations: string[]
-      classNames: string[]
-      weekNos: number[]
-      containsSelectedWeek: boolean
-    }
-  >()
-
-  for (const item of items) {
-    const key = String(item.course_group_id)
-    const current = grouped.get(key)
-    if (current) {
-      current.weekNos.push(item.week_no)
-      current.classNames.push(...item.class_names)
-      current.locations.push(formatCourseLocation(item))
-      if (item.week_no === selectedWeek.value) {
-        current.containsSelectedWeek = true
-        current.selectedLessonId = item.id
-        current.selectedHasAttendanceRecord = item.has_attendance_record
-      }
-      continue
-    }
-    grouped.set(key, {
-      key,
-      courseGroupId: item.course_group_id,
-      selectedLessonId: item.week_no === selectedWeek.value ? item.id : null,
-      selectedHasAttendanceRecord: item.week_no === selectedWeek.value ? item.has_attendance_record : false,
-      courseName: item.course_name,
-      courseId: item.course_id,
-      teacherName: item.teacher_name,
-      locations: [formatCourseLocation(item)],
-      classNames: [...item.class_names],
-      weekNos: [item.week_no],
-      containsSelectedWeek: item.week_no === selectedWeek.value,
-    })
+async function loadCourseOutline() {
+  const term = selectedTermModel.value.trim()
+  if (!term) {
+    outlineRows.value = []
+    return
+  }
+  const cached = outlineCache.get(term)
+  if (cached) {
+    outlineRows.value = cached
+    return
   }
 
-  return Array.from(grouped.values())
-    .map((item) => ({
-      ...item,
-      locations: Array.from(new Set(item.locations)).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-      weekNos: Array.from(new Set(item.weekNos)).sort((left, right) => left - right),
-      classNames: Array.from(new Set(item.classNames)).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-    }))
-    .sort((left, right) => {
-      const leftCurrent = left.containsSelectedWeek ? 0 : 1
-      const rightCurrent = right.containsSelectedWeek ? 0 : 1
-      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent
-      return left.courseName.localeCompare(right.courseName, 'zh-Hans-CN')
-    })
+  outlineRequestToken += 1
+  const requestToken = outlineRequestToken
+  outlineRows.value = []
+  try {
+    const items = await api.adminCourseCalendarOutline(term)
+    if (requestToken !== outlineRequestToken) {
+      return
+    }
+    outlineCache.set(term, items)
+    outlineRows.value = items
+  } catch {
+    if (requestToken !== outlineRequestToken) {
+      return
+    }
+    outlineRows.value = []
+  }
 }
+
+async function loadSelectedWeekCourses() {
+  const term = selectedTermModel.value.trim()
+  const weekNo = selectedWeek.value
+  if (!term || weekNo <= 0) {
+    courseCalendarRows.value = []
+    return
+  }
+  const cacheKey = buildWeekRequestKey(term, weekNo)
+  const cached = courseCalendarCache.get(cacheKey)
+  if (cached) {
+    courseCalendarRows.value = cached
+    return
+  }
+
+  courseRequestToken += 1
+  const requestToken = courseRequestToken
+  courseCalendarRows.value = []
+  try {
+    const items = (await api.adminCourseCalendar(term, weekNo)) ?? []
+    if (requestToken !== courseRequestToken) {
+      return
+    }
+    courseCalendarCache.set(cacheKey, items)
+    courseCalendarRows.value = items
+  } catch {
+    if (requestToken !== courseRequestToken) {
+      return
+    }
+    courseCalendarRows.value = []
+  }
+}
+
+async function loadSelectedWeekFreeTimes() {
+  const term = selectedTermModel.value.trim()
+  const weekNo = selectedWeek.value
+  if (!term || weekNo <= 0) {
+    freeTimeRows.value = []
+    return
+  }
+  const cacheKey = buildWeekRequestKey(term, weekNo)
+  const cached = freeTimeCache.get(cacheKey)
+  if (cached) {
+    freeTimeRows.value = cached
+    return
+  }
+
+  freeTimeRequestToken += 1
+  const requestToken = freeTimeRequestToken
+  freeTimeRows.value = []
+  try {
+    const items = (await api.adminFreeTimeCalendar(term, weekNo)) ?? []
+    if (requestToken !== freeTimeRequestToken) {
+      return
+    }
+    freeTimeCache.set(cacheKey, items)
+    freeTimeRows.value = items
+  } catch {
+    if (requestToken !== freeTimeRequestToken) {
+      return
+    }
+    freeTimeRows.value = []
+  }
+}
+
+function scheduleOutlineLoad() {
+  const token = ++scheduledOutlineLoadToken
+  void nextTick().then(() => {
+    if (token !== scheduledOutlineLoadToken) {
+      return
+    }
+    void loadCourseOutline()
+  })
+}
+
+function scheduleCourseWeekLoad() {
+  const token = ++scheduledCourseLoadToken
+  void nextTick().then(() => {
+    if (token !== scheduledCourseLoadToken) {
+      return
+    }
+    void loadSelectedWeekCourses()
+  })
+}
+
+function scheduleFreeTimeWeekLoad() {
+  const token = ++scheduledFreeTimeLoadToken
+  void nextTick().then(() => {
+    if (token !== scheduledFreeTimeLoadToken) {
+      return
+    }
+    void loadSelectedWeekFreeTimes()
+  })
+}
+
+const selectedWeekCourseMap = computed(() => {
+  const map = new Map<string, CourseCalendarItem>()
+  for (const item of courseCalendarRows.value) {
+    map.set(`${item.course_group_id}:${item.weekday}:${item.section}`, item)
+  }
+  return map
+})
 
 const courseCells = computed(() =>
   activeSchedule.value.map((row) =>
-    visibleWeekdays.value.map((weekday) =>
-      mergeCourseItems(filteredCourses.value.filter((item) => item.weekday === weekday && item.section === row.section)),
-    ),
+    visibleWeekdays.value.map((weekday) => {
+      const items = outlineRows.value
+        .filter((item) => item.weekday === weekday && item.section === row.section)
+        .map<CalendarCellCourseItem>((item) => {
+          const selectedWeekDetail = selectedWeekCourseMap.value.get(`${item.course_group_id}:${item.weekday}:${item.section}`)
+          const containsSelectedWeek = item.week_nos.includes(selectedWeek.value)
+          return {
+            key: `${item.course_group_id}:${item.weekday}:${item.section}`,
+            courseGroupId: item.course_group_id,
+            courseId: item.course_id,
+            selectedLessonId: selectedWeekDetail?.id ?? null,
+            selectedHasAttendanceRecord: selectedWeekDetail?.has_attendance_record ?? false,
+            courseName: item.course_name,
+            teacherName: item.teacher_name,
+            locations: item.locations,
+            classNames: item.class_names,
+            weekNos: item.week_nos,
+            containsSelectedWeek,
+          }
+        })
+      return items.sort((left, right) => {
+        const leftCurrent = left.containsSelectedWeek ? 0 : 1
+        const rightCurrent = right.containsSelectedWeek ? 0 : 1
+        if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent
+        return left.courseName.localeCompare(right.courseName, 'zh-Hans-CN')
+      })
+    }),
   ),
 )
 
@@ -213,8 +327,8 @@ const freeTimeCells = computed(() =>
     visibleWeekdays.value.map((weekday) =>
       Array.from(
         new Map(
-          props.freeTimes
-            .filter((item) => item.term === selectedTermModel.value && item.weekday === weekday && item.section === row.section && freeTimeMatchesWeek(item))
+          freeTimeRows.value
+            .filter((item) => item.term === selectedTermModel.value && item.weekday === weekday && item.section === row.section)
             .map((item) => [item.login_id, item]),
         ).values(),
       ).sort((left, right) => left.real_name.localeCompare(right.real_name, 'zh-Hans-CN')),
@@ -226,11 +340,7 @@ function formatWeekText(weeks: number[]) {
   return `第 ${weeks.join('、')} 周`
 }
 
-function formatCourseLocation(item: Pick<CourseCalendarItem, 'building_name' | 'room_name'>) {
-  return `${item.building_name}-${item.room_name}`
-}
-
-function courseTooltipLines(item: (typeof courseCells.value)[number][number][number]) {
+function courseTooltipLines(item: CalendarCellCourseItem) {
   return [
     formatWeekText(item.weekNos),
     item.locations.join('、') || '-',
@@ -238,7 +348,7 @@ function courseTooltipLines(item: (typeof courseCells.value)[number][number][num
   ]
 }
 
-function showCourseTooltip(event: MouseEvent, item: (typeof courseCells.value)[number][number][number]) {
+function showCourseTooltip(event: MouseEvent, item: CalendarCellCourseItem) {
   hoveredCourse.value = {
     title: `${item.courseName} · ${item.teacherName}`,
     lines: courseTooltipLines(item),
@@ -247,7 +357,7 @@ function showCourseTooltip(event: MouseEvent, item: (typeof courseCells.value)[n
   }
 }
 
-function openCourseCell(item: (typeof courseCells.value)[number][number][number]) {
+function openCourseCell(item: CalendarCellCourseItem) {
   if (!item.containsSelectedWeek || !item.selectedLessonId) {
     return
   }
@@ -351,6 +461,33 @@ watch(termOptions, (terms) => {
 
 watch(selectedTermModel, () => {
   selectedWeek.value = currentWeek.value
+  hideCourseTooltip()
+  clearFreeTimeHighlight()
+  scheduleOutlineLoad()
+}, { immediate: true })
+
+watch(
+  () => [selectedTermModel.value, selectedWeek.value] as const,
+  () => {
+    hideCourseTooltip()
+    clearFreeTimeHighlight()
+    if (showingFreeTime.value) {
+      scheduleFreeTimeWeekLoad()
+      return
+    }
+    scheduleCourseWeekLoad()
+  },
+  { immediate: true },
+)
+
+watch(showingFreeTime, (value) => {
+  hideCourseTooltip()
+  clearFreeTimeHighlight()
+  if (value) {
+    scheduleFreeTimeWeekLoad()
+    return
+  }
+  scheduleCourseWeekLoad()
 })
 
 onBeforeUnmount(() => {

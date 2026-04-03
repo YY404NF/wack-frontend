@@ -22,6 +22,7 @@ export const apiPaths = {
     studentOptions: buildPath(ADMIN_PREFIX, 'student-options'),
     classStudents: buildPath(ADMIN_PREFIX, 'class-students'),
     courses: buildPath(ADMIN_PREFIX, 'courses'),
+    courseCalendarOutline: buildPath(ADMIN_PREFIX, 'course-calendar-outline'),
     courseCalendar: buildPath(ADMIN_PREFIX, 'course-calendar'),
     attendanceDashboard: buildPath(ADMIN_PREFIX, 'attendance-dashboard'),
     attendanceResults: buildPath(ADMIN_PREFIX, 'attendance-results'),

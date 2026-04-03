@@ -214,6 +214,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     userManage: 0,
     settings: 0,
   }
+  let metaTermsRequest: Promise<MetaTermItem[]> | null = null
+  let systemSettingsRequest: Promise<SystemSetting> | null = null
 
   function nextRequestToken(key: keyof typeof requestTokens) {
     requestTokens[key] += 1
@@ -222,6 +224,32 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   function isLatestRequest(key: keyof typeof requestTokens, token: number) {
     return requestTokens[key] === token
+  }
+
+  async function loadMetaTerms(force = false) {
+    if (!force && deps.courseTerms.value.length > 0) {
+      return deps.courseTerms.value
+    }
+    if (metaTermsRequest) {
+      return metaTermsRequest
+    }
+    metaTermsRequest = api.listMetaTerms().finally(() => {
+      metaTermsRequest = null
+    })
+    return metaTermsRequest
+  }
+
+  async function loadSystemSettings(force = false) {
+    if (!force && deps.systemSettings.value) {
+      return deps.systemSettings.value
+    }
+    if (systemSettingsRequest) {
+      return systemSettingsRequest
+    }
+    systemSettingsRequest = api.getSystemSettings().finally(() => {
+      systemSettingsRequest = null
+    })
+    return systemSettingsRequest
   }
 
   async function clearAdminFocusQuery() {
@@ -248,7 +276,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     const requestToken = nextRequestToken('attendance')
     const [resultPage, terms] = await Promise.all([
       api.adminAttendanceResults(),
-      api.listMetaTerms(),
+      loadMetaTerms(),
     ])
     if (!isLatestRequest('attendance', requestToken)) {
       return
@@ -280,7 +308,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         page_size: deps.attendanceLogsPageSize.value,
         ...logQuery,
       }),
-      api.listMetaTerms(),
+      loadMetaTerms(),
       api.listClassOptions(),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {
@@ -298,24 +326,17 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadCourseCalendarData() {
     const requestToken = nextRequestToken('courseCalendar')
     const [terms, settings] = await Promise.all([
-      api.listMetaTerms(),
-      api.getSystemSettings(),
+      loadMetaTerms(),
+      loadSystemSettings(),
     ])
     if (!isLatestRequest('courseCalendar', requestToken)) {
       return
     }
     const targetTerm = deps.courseCalendarTerm.value.trim() || selectDefaultTermName(terms) || ''
-    const [calendar, freeTimeList] = await Promise.all([
-      api.adminCourseCalendar(targetTerm),
-      api.adminFreeTimeCalendar(targetTerm),
-    ])
-    if (!isLatestRequest('courseCalendar', requestToken)) {
-      return
-    }
     deps.courseTerms.value = terms
     deps.courseCalendarTerm.value = targetTerm
-    deps.courseCalendar.value = calendar ?? []
-    deps.freeTimes.value = freeTimeList ?? []
+    deps.courseCalendar.value = []
+    deps.freeTimes.value = []
     deps.systemSettings.value = settings
   }
 
@@ -334,7 +355,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         focus_course_id: focusCourseId ?? undefined,
       }),
       api.listCourses({ page: 1, page_size: 1 }),
-      api.listMetaTerms(),
+      loadMetaTerms(),
       api.listClassOptions(),
     ])
     if (!isLatestRequest('courseManage', requestToken)) {
@@ -443,7 +464,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       }),
       api.listUsers({ page: 1, page_size: 1 }),
       api.listClassOptions(),
-      api.listMetaTerms(),
+      loadMetaTerms(),
     ])
     if (!isLatestRequest('userManage', requestToken)) {
       return
@@ -466,7 +487,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadSettingsData() {
     const requestToken = nextRequestToken('settings')
-    const terms = await api.listMetaTerms()
+    const terms = await loadMetaTerms()
     if (!isLatestRequest('settings', requestToken)) {
       return
     }

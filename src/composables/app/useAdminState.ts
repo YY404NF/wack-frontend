@@ -1020,15 +1020,6 @@ export function useAdminState(deps: UseAdminStateDeps) {
     },
   )
 
-  watch(courseCalendarTerm, (nextTerm, previousTerm) => {
-    if (!previousTerm || nextTerm === previousTerm) {
-      return
-    }
-    if (isAdmin.value && deps.activeTab.value === 'course-calendar' && nextTerm) {
-      void loadRoleData('course-calendar')
-    }
-  })
-
   const adminWorkspaceProps = computed<(AdminWorkspaceProps & { activeTab: AppTab }) | null>(() => {
     if (!isAdmin.value || !adminApp.value) {
       return null
