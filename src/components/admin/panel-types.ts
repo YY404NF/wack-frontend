@@ -143,6 +143,7 @@ export type AdminFreeTimeCalendarProps = {
 export type AdminAttendanceLogsProps = {
   attendanceLogs: AttendanceRecordLogListItem[]
   attendanceLogRows: AttendanceRecordLogListItem[]
+  allClasses: ClassItem[]
   courseTerms: MetaTermItem[]
   attendanceLogFilters: AdminAttendanceLogFilters
   attendanceLogsPage: number

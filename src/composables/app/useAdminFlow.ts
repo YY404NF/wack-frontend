@@ -274,67 +274,25 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       operator_name: deps.attendanceLogFilters.operatorName,
       operated_date: deps.attendanceLogFilters.operatedDate,
     }
-    const [attendanceLogPageResult, terms] = await Promise.all([
+    const [attendanceLogPageResult, terms, classes] = await Promise.all([
       api.listAttendanceRecordLogs({
         page: deps.attendanceLogsPage.value,
         page_size: deps.attendanceLogsPageSize.value,
         ...logQuery,
       }),
       api.listMetaTerms(),
+      api.listClassOptions(),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {
       return
     }
-    const attendanceLogRows = await fetchAllAttendanceLogRows(logQuery, attendanceLogPageResult.total ?? 0)
-    if (!isLatestRequest('attendanceLogs', requestToken)) {
-      return
-    }
     deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
-    deps.attendanceLogRows.value = attendanceLogRows
+    deps.attendanceLogRows.value = []
+    deps.classes.value = classes as unknown as ClassItem[]
     deps.courseTerms.value = terms
     deps.attendanceLogsTotalItems.value = attendanceLogPageResult.total ?? 0
     deps.attendanceLogsAllItems.value = attendanceLogPageResult.total ?? 0
     deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))
-  }
-
-  async function fetchAllAttendanceLogRows(
-    query: {
-      term?: string
-      course_group_lesson_id?: string
-      lesson_date?: string
-      section?: string
-      course_name?: string
-      teacher_name?: string
-      student_id?: string
-      real_name?: string
-      class_name?: string
-      old_status?: string
-      new_status?: string
-      operator_name?: string
-      operated_date?: string
-    },
-    total: number,
-  ) {
-    const pageSize = 500
-    const items: Awaited<ReturnType<typeof api.listAttendanceRecordLogs>>['items'] = []
-
-    if (total <= 0) {
-      return items
-    }
-
-    for (let page = 1; items.length < total; page += 1) {
-      const result = await api.listAttendanceRecordLogs({
-        ...query,
-        page,
-        page_size: pageSize,
-      })
-      items.push(...(result.items ?? []))
-      if ((result.items?.length ?? 0) === 0) {
-        break
-      }
-    }
-
-    return items
   }
 
   async function loadCourseCalendarData() {

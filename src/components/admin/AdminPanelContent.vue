@@ -148,6 +148,7 @@ function forwardUserStatus(studentId: string, status: number) {
       key="attendance-logs"
       :attendance-logs="attendanceLogs"
       :attendance-log-rows="attendanceLogRows"
+      :all-classes="allClasses"
       :course-terms="courseTerms"
       :attendance-log-filters="attendanceLogFilters"
       :attendance-logs-page="attendanceLogsPage"

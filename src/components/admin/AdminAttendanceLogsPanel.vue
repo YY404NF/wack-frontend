@@ -47,7 +47,7 @@ const statusOptions = [
 const classOptions = computed(() =>
   Array.from(
     new Set(
-      props.attendanceLogRows.map((item) => item.class_name)
+      props.allClasses.map((item) => item.class_name)
         .map((item) => item.trim())
         .filter((item) => item.length > 0),
     ),
