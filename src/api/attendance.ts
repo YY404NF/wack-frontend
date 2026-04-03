@@ -22,14 +22,43 @@ function normalizeAttendanceSessionDetail(detail: AttendanceSessionDetail) {
 }
 
 export const attendanceApi = {
-  adminOverview() {
-    return request<AdminOverviewData>(apiPaths.admin.overview).then((payload) => ({
+  adminOverview(query: {
+    section?: 'course_rankings' | 'class_rankings' | 'student_rankings' | 'recent_sessions' | 'recent_abnormal_students'
+    offset?: number
+    limit?: number
+    order?: 'asc' | 'desc'
+  } = {}) {
+    const params = new URLSearchParams()
+    if (query.section) params.set('section', query.section)
+    if (typeof query.offset === 'number' && query.offset >= 0) params.set('offset', String(query.offset))
+    if (typeof query.limit === 'number' && query.limit > 0) params.set('limit', String(query.limit))
+    if (query.order === 'asc' || query.order === 'desc') params.set('order', query.order)
+    const url = params.size > 0 ? `${apiPaths.admin.overview}?${params.toString()}` : apiPaths.admin.overview
+    return request<AdminOverviewData>(url).then((payload) => ({
       ...payload,
       course_rankings: Array.isArray(payload.course_rankings) ? payload.course_rankings : [],
+      course_rankings_total: payload.course_rankings_total ?? 0,
+      course_rankings_has_more: payload.course_rankings_has_more ?? false,
+      course_rankings_min_rate: payload.course_rankings_min_rate ?? 0,
+      course_rankings_max_rate: payload.course_rankings_max_rate ?? 0,
       class_rankings: Array.isArray(payload.class_rankings) ? payload.class_rankings : [],
+      class_rankings_total: payload.class_rankings_total ?? 0,
+      class_rankings_has_more: payload.class_rankings_has_more ?? false,
+      class_rankings_min_rate: payload.class_rankings_min_rate ?? 0,
+      class_rankings_max_rate: payload.class_rankings_max_rate ?? 0,
       student_rankings: Array.isArray(payload.student_rankings) ? payload.student_rankings : [],
+      student_rankings_total: payload.student_rankings_total ?? 0,
+      student_rankings_has_more: payload.student_rankings_has_more ?? false,
+      student_rankings_min_rate: payload.student_rankings_min_rate ?? 0,
+      student_rankings_max_rate: payload.student_rankings_max_rate ?? 0,
       recent_sessions: Array.isArray(payload.recent_sessions) ? payload.recent_sessions : [],
+      recent_sessions_total: payload.recent_sessions_total ?? 0,
+      recent_sessions_has_more: payload.recent_sessions_has_more ?? false,
+      recent_sessions_min_rate: payload.recent_sessions_min_rate ?? 0,
+      recent_sessions_max_rate: payload.recent_sessions_max_rate ?? 0,
       recent_abnormal_students: Array.isArray(payload.recent_abnormal_students) ? payload.recent_abnormal_students : [],
+      recent_abnormal_students_total: payload.recent_abnormal_students_total ?? 0,
+      recent_abnormal_students_has_more: payload.recent_abnormal_students_has_more ?? false,
     }))
   },
   adminAttendanceDashboard() {

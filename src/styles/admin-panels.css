@@ -104,6 +104,31 @@
     transform 0.18s ease;
 }
 
+.overview-entry-with-rate,
+.overview-entry-with-status {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 1px 2px rgba(41, 23, 16, 0.03);
+  transition:
+    background 0.24s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.overview-entry-with-rate {
+  background:
+    linear-gradient(0deg, var(--overview-rate-fill-color, transparent), var(--overview-rate-fill-color, transparent)) left / var(--overview-rate-width, 0%) 100% no-repeat,
+    rgba(92, 82, 75, 0.06);
+}
+
+.overview-entry-with-status {
+  background: var(--overview-entry-bg, rgba(92, 82, 75, 0.06));
+  box-shadow:
+    inset 0 0 0 999px var(--overview-entry-status-tint, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 1px 2px rgba(41, 23, 16, 0.03);
+}
+
 .overview-session-item-button {
   width: 100%;
   border: 0;
@@ -127,6 +152,26 @@
   background: rgba(207, 90, 46, 0.1);
 }
 
+.overview-rank-item-button.overview-entry-with-rate:hover,
+.overview-session-item-button.overview-entry-with-rate:hover,
+.overview-session-item-button.overview-entry-with-status:hover {
+  background: var(--overview-entry-hover-bg, rgba(207, 90, 46, 0.1));
+}
+
+.overview-session-item-button.overview-entry-with-status:hover {
+  box-shadow:
+    inset 0 0 0 999px var(--overview-entry-status-hover-tint, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 1px 2px rgba(41, 23, 16, 0.03);
+}
+
+.overview-rank-item-button.overview-entry-with-rate:hover,
+.overview-session-item-button.overview-entry-with-rate:hover {
+  background:
+    linear-gradient(0deg, var(--overview-rate-hover-fill-color, var(--overview-rate-fill-color, transparent)), var(--overview-rate-hover-fill-color, var(--overview-rate-fill-color, transparent))) left / var(--overview-rate-width, 0%) 100% no-repeat,
+    rgba(92, 82, 75, 0.09);
+}
+
 .overview-rank-item-button:focus-visible,
 .overview-session-item-button:focus-visible {
   outline: 2px solid rgba(207, 90, 46, 0.35);
@@ -139,11 +184,12 @@
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
-  background: rgba(45, 134, 102, 0.14);
-  color: var(--text);
+  background: var(--overview-entry-lead-bg, rgba(45, 134, 102, 0.14));
+  color: var(--overview-entry-lead-text, var(--text));
   font-size: 0.92rem;
   font-weight: 700;
   flex: 0 0 auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .overview-entry {
@@ -210,8 +256,19 @@
 }
 
 .overview-session-summary-rate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 3rem;
+  width: 3rem;
   white-space: nowrap;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.overview-session-summary-rate-spaced {
+  margin-left: 10px;
 }
 
 .overview-entry-subtitle-left,
@@ -742,19 +799,21 @@
   color: var(--muted);
 }
 
-.attendance-status-modal {
+.attendance-export-form {
   display: grid;
   gap: 14px;
 }
 
-.attendance-status-modal-meta {
-  display: grid;
-  gap: 4px;
+.attendance-export-range-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
-.attendance-status-modal-meta span {
-  color: var(--muted);
-  font-size: 0.88rem;
+.attendance-export-range-field > input {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .attendance-record-panel,
@@ -874,16 +933,6 @@
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 18px;
-}
-
-.attendance-status-static-field {
-  display: grid;
-  gap: 4px;
-}
-
-.attendance-status-static-field span {
-  color: var(--muted);
-  font-size: 0.84rem;
 }
 
 .copy-token-group {

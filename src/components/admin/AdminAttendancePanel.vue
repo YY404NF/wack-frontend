@@ -37,7 +37,6 @@ const emit = defineEmits<{
 }>()
 
 const PAGE_OPTIONS = [100, 200, 500, 1000]
-const TERM_WEEK_COUNT = 16
 const EXPORT_PAGE_SIZE = 500
 
 const sessionColumns = [
@@ -47,7 +46,7 @@ const sessionColumns = [
   { key: 'teacher_name', label: '教师', width: 9 },
   { key: 'class_summary', label: '班级', width: 18, copyable: false, copyValue: (row: Record<string, unknown>) => formatClassSummaryInline(String(row.class_summary ?? ''), '-') },
   { key: 'student_count', label: '人数', width: 5 },
-  { key: 'summary', label: '考勤概况', width: 16, copyable: false },
+  { key: 'summary', label: '考勤概况', width: 12 , copyable: false },
 ] as const
 
 const termOptions = computed(() => sortTermsForSelect(props.courseTerms))
@@ -65,8 +64,10 @@ const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
 
 const exportModalOpen = ref(false)
-const exportingWeeklyAbnormal = ref(false)
-const weeklyExportError = ref('')
+const exportingAttendanceRecords = ref(false)
+const exportAttendanceError = ref('')
+const exportStartDate = ref('')
+const exportEndDate = ref('')
 
 let sessionRequestToken = 0
 
@@ -92,8 +93,6 @@ watch([sessionDate, sessionSection, sessionCourseName, sessionTeacherName, sessi
 })
 
 const termStartMap = computed(() => new Map(props.courseTerms.map((item) => [item.name, item.term_start_date])))
-const selectedTermMeta = computed(() => props.courseTerms.find((item) => item.name === selectedTerm.value) ?? null)
-
 const classOptions = computed(() =>
   Array.from(
     new Set(
@@ -148,27 +147,9 @@ const paginatedSessions = computed(() => {
 
 const sessionTotalPages = computed(() => Math.max(1, Math.ceil(filteredSessions.value.length / sessionPageSize.value)))
 
-const exportWeekNo = computed(() => {
-  const startDate = selectedTermMeta.value?.term_start_date
-  if (!startDate) {
-    return null
-  }
-  const start = parseDate(startDate)
-  if (!start) {
-    return null
-  }
-  const today = new Date()
-  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const diff = now.getTime() - start.getTime()
-  return Math.min(TERM_WEEK_COUNT, Math.max(1, Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1))
-})
-
-const exportWeekSessionCount = computed(() => {
-  if (exportWeekNo.value === null) {
-    return 0
-  }
-  return sessionRows.value.filter((item) => item.week_no === exportWeekNo.value).length
-})
+const exportRangeInvalid = computed(() =>
+  !exportStartDate.value || !exportEndDate.value || exportStartDate.value > exportEndDate.value,
+)
 
 async function loadSessions() {
   if (!selectedTerm.value) {
@@ -257,7 +238,10 @@ async function fetchAllAttendanceSessionRecords(
 }
 
 function openExportModal() {
-  weeklyExportError.value = ''
+  const range = defaultExportDateRange()
+  exportStartDate.value = range.start
+  exportEndDate.value = range.end
+  exportAttendanceError.value = ''
   exportModalOpen.value = true
 }
 
@@ -284,16 +268,19 @@ function isAbnormalStatus(status?: number | null) {
   return status === 1 || status === 2 || status === 3
 }
 
-async function exportWeeklyAbnormalRecords() {
-  if (!selectedTerm.value || exportWeekNo.value === null) {
+async function exportAttendanceRecords() {
+  if (!selectedTerm.value || exportRangeInvalid.value) {
+    if (exportRangeInvalid.value) {
+      exportAttendanceError.value = '请选择有效的导出日期范围'
+    }
     return
   }
-  exportingWeeklyAbnormal.value = true
-  weeklyExportError.value = ''
+  exportingAttendanceRecords.value = true
+  exportAttendanceError.value = ''
   try {
-    const sessions = await fetchAllAttendanceSessions({
-      term: selectedTerm.value,
-      week_no: String(exportWeekNo.value),
+    const sessions = sortedSessionRows.value.filter((item) => {
+      const lessonDate = formatLessonDate(item)
+      return lessonDate && lessonDate >= exportStartDate.value && lessonDate <= exportEndDate.value
     })
 
     const rows: Array<Array<string>> = []
@@ -317,15 +304,15 @@ async function exportWeeklyAbnormalRecords() {
     }
 
     downloadCsv(
-      `考勤异常记录-${selectedTerm.value}-第${exportWeekNo.value}周.csv`,
+      `考勤记录-${exportStartDate.value}-${exportEndDate.value}.csv`,
       ['日期', '时间', '课程名称', '教师', '学号', '姓名', '班级', '状态'],
       rows,
     )
     closeExportModal()
   } catch (error) {
-    weeklyExportError.value = error instanceof Error ? error.message : '导出本周异常记录失败'
+    exportAttendanceError.value = error instanceof Error ? error.message : '导出考勤记录失败'
   } finally {
-    exportingWeeklyAbnormal.value = false
+    exportingAttendanceRecords.value = false
   }
 }
 
@@ -354,17 +341,31 @@ function pad(value: number) {
   return String(value).padStart(2, '0')
 }
 
+function formatInputDate(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function defaultExportDateRange() {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const end = new Date(today.getFullYear(), today.getMonth(), 0)
+  return {
+    start: formatInputDate(start),
+    end: formatInputDate(end),
+  }
+}
+
 function lessonTimeLabel(section: number) {
   return sectionLabels[section] ?? `第 ${section} 节`
 }
 
 function sessionSummaryText(item: AttendanceSessionSummary) {
-  return `签到 ${item.present_count} / 迟到 ${item.late_count} / 缺勤 ${item.absent_count} / 请假 ${item.leave_count}`
+  const summaries = sessionSummaryItems(item).map((entry) => `${entry.label} ${entry.count}`)
+  return summaries.length > 0 ? summaries.join(' / ') : '-'
 }
 
 function sessionSummaryItems(item: AttendanceSessionSummary) {
   return [
-    { key: 'present', label: '签到', count: item.present_count, className: attendanceStatusBadgeClass(0) },
     { key: 'late', label: '迟到', count: item.late_count, className: attendanceStatusBadgeClass(1) },
     { key: 'absent', label: '缺勤', count: item.absent_count, className: attendanceStatusBadgeClass(2) },
     { key: 'leave', label: '请假', count: item.leave_count, className: attendanceStatusBadgeClass(3) },
@@ -489,31 +490,23 @@ function formatStatus(status?: number | null) {
         <article class="modal-card modal-card-narrow">
           <div class="modal-header">
             <h3>导出考勤记录</h3>
-            <button class="ghost-button compact-button modal-close" type="button" :disabled="exportingWeeklyAbnormal" @click="closeExportModal">关闭</button>
+            <button class="ghost-button compact-button modal-close" type="button" :disabled="exportingAttendanceRecords" @click="closeExportModal">关闭</button>
           </div>
-          <div class="attendance-status-modal">
-            <p class="hint">将导出当前学期本周所有迟到、缺勤和请假记录。</p>
-            <div class="attendance-status-static-field">
-              <span>学期</span>
-              <strong>{{ selectedTerm || '-' }}</strong>
-            </div>
-            <div class="attendance-status-static-field">
-              <span>周次</span>
-              <strong>{{ exportWeekNo === null ? '-' : `第 ${exportWeekNo} 周` }}</strong>
-            </div>
-            <div class="attendance-status-static-field">
-              <span>课次数量</span>
-              <strong>{{ exportWeekSessionCount }}</strong>
-            </div>
-            <p v-if="weeklyExportError" class="hint form-error-text">{{ weeklyExportError }}</p>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" :disabled="exportingWeeklyAbnormal" @click="closeExportModal">取消</button>
-              <button class="primary-button" type="button" :disabled="exportWeekNo === null || exportingWeeklyAbnormal" @click="exportWeeklyAbnormalRecords">
-                <span v-if="exportingWeeklyAbnormal" class="button-spinner" aria-hidden="true"></span>
-                <span>{{ exportingWeeklyAbnormal ? '导出中...' : '导出本周所有迟到、缺勤和请假记录' }}</span>
-              </button>
-            </div>
-          </div>
+          <form class="form-grid single-column-form attendance-export-form" @submit.prevent="exportAttendanceRecords">
+            <label class="field">
+              <span>范围</span>
+              <div class="term-segment-field attendance-export-range-field" aria-label="导出考勤记录范围">
+                <input v-model="exportStartDate" type="date" aria-label="起始日期" @input="exportAttendanceError = ''" />
+                <span class="term-segment-separator" aria-hidden="true">-</span>
+                <input v-model="exportEndDate" type="date" aria-label="结束日期" @input="exportAttendanceError = ''" />
+              </div>
+            </label>
+            <p v-if="exportAttendanceError" class="hint form-error-text">{{ exportAttendanceError }}</p>
+            <button class="primary-button" type="submit" :disabled="exportRangeInvalid || exportingAttendanceRecords">
+              <span v-if="exportingAttendanceRecords" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ exportingAttendanceRecords ? '导出中...' : '导出' }}</span>
+            </button>
+          </form>
         </article>
       </div>
     </Transition>

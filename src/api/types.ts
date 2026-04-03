@@ -350,10 +350,28 @@ export interface OverviewRecentAbnormalItem {
 export interface AdminOverviewData {
   term: string
   course_rankings: OverviewCourseRankingItem[]
+  course_rankings_total: number
+  course_rankings_has_more: boolean
+  course_rankings_min_rate: number
+  course_rankings_max_rate: number
   class_rankings: OverviewClassRankingItem[]
+  class_rankings_total: number
+  class_rankings_has_more: boolean
+  class_rankings_min_rate: number
+  class_rankings_max_rate: number
   student_rankings: OverviewStudentRankingItem[]
+  student_rankings_total: number
+  student_rankings_has_more: boolean
+  student_rankings_min_rate: number
+  student_rankings_max_rate: number
   recent_sessions: OverviewRecentSessionItem[]
+  recent_sessions_total: number
+  recent_sessions_has_more: boolean
+  recent_sessions_min_rate: number
+  recent_sessions_max_rate: number
   recent_abnormal_students: OverviewRecentAbnormalItem[]
+  recent_abnormal_students_total: number
+  recent_abnormal_students_has_more: boolean
 }
 
 export interface AttendanceRecordItem {

@@ -237,12 +237,10 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadOverviewData() {
     const requestToken = nextRequestToken('overview')
-    const [terms, overview] = await Promise.all([api.listMetaTerms(), api.adminOverview()])
     if (!isLatestRequest('overview', requestToken)) {
       return
     }
-    deps.courseTerms.value = terms
-    deps.overviewData.value = overview
+    deps.overviewData.value = null
     deps.dashboard.value = null
   }
 
