@@ -377,7 +377,7 @@ function entryToneStyle(palette: readonly [string, string, string, string]) {
   return {
     '--overview-entry-bg': 'rgba(92, 82, 75, 0.06)',
     '--overview-entry-hover-bg': 'rgba(92, 82, 75, 0.09)',
-    '--overview-entry-status-tint': mixHex(palette[0], '#FFFFFF', 0.14),
+    '--overview-entry-status-tint': mixHex(palette[0], '#F4EFE8', 0.14),
     '--overview-entry-status-hover-tint': mixHex(palette[1], '#FFFFFF', 0.18),
     '--overview-entry-lead-bg': mixHex(palette[1], '#D7D1C9', 0.22),
     '--overview-entry-lead-text': palette[3],
@@ -391,8 +391,8 @@ function rateThemeStyle(value: number, minRate: number, maxRate: number) {
   const percent = `${actualRate * 100}%`
   return {
     '--overview-rate-width': percent,
-    '--overview-rate-fill-color': mixHex(palette[0], '#F4EFE8', 0.5),
-    '--overview-rate-hover-fill-color': mixHex(palette[1], '#E8DFD4', 0),
+    '--overview-rate-fill-color': mixHex(palette[1], '#F4EFE8', 0.6),
+    '--overview-rate-hover-fill-color': mixHex(palette[1], '#E8DFD4', 0.7),
     '--overview-entry-lead-bg': mixHex(palette[1], '#D7D1C9', 0.22),
     '--overview-entry-lead-text': palette[3],
   }
