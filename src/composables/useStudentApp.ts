@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue'
+import { computed, watch, type Ref } from 'vue'
 
 import { api, type AvailableCourseItem, type ClassItem, type ClassStudentItem, type FreeTimeEditorItem, type MetaSectionItem, type SessionUser, type SystemSetting } from '../api'
 import type { AppTab } from '../constants'
@@ -163,6 +163,12 @@ export function useStudentApp(deps: StudentAppDeps) {
     await ensureStudentFreeTimesLoaded()
     await studentFlow.removeFreeTime(id)
   }
+
+  watch(deps.activeTab, (nextTab, previousTab) => {
+    if (nextTab === 'student' && previousTab !== 'student') {
+      void loadStudentCoreData(true)
+    }
+  })
 
   const openPasswordModal = deps.openPasswordModal
   const closePasswordModal = deps.closePasswordModal
