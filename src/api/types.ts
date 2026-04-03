@@ -293,6 +293,7 @@ export interface DashboardSummary {
 
 export interface OverviewCourseRankingItem {
   course_id: number
+  rank: number
   course_name: string
   teacher_name: string
   grade: number
@@ -303,6 +304,7 @@ export interface OverviewCourseRankingItem {
 
 export interface OverviewClassRankingItem {
   class_id: number
+  rank: number
   class_name: string
   major_name: string
   grade: number
@@ -313,6 +315,7 @@ export interface OverviewClassRankingItem {
 
 export interface OverviewStudentRankingItem {
   student_ref_id: number
+  rank: number
   student_id: string
   real_name: string
   class_name: string

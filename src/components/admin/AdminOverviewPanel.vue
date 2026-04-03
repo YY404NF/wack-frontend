@@ -84,10 +84,6 @@ function sectionOrder(section: OverviewSectionKey): OverviewOrder | undefined {
   return undefined
 }
 
-function displayRank(total: number, index: number, asc: boolean) {
-  return asc ? Math.max(total - index, 1) : index + 1
-}
-
 async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
   if (section === 'course_rankings') {
     if (!reset && (courseSection.loading.value || !courseSection.hasMore.value)) {
@@ -505,14 +501,14 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'course_rankings')">
           <button
-            v-for="(item, index) in courseRankings"
+            v-for="item in courseRankings"
             :key="item.course_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
             :style="rateThemeStyle(item.attendance_rate, courseSection.minRate.value, courseSection.maxRate.value)"
             type="button"
             @click="openCourseDetail(item.course_id)"
           >
-            <span class="overview-entry-lead overview-rank-index">{{ displayRank(courseSection.total.value, index, courseRankAsc) }}</span>
+            <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.course_name }} · {{ item.teacher_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.grade }}级</p>
@@ -531,14 +527,14 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'class_rankings')">
           <button
-            v-for="(item, index) in classRankings"
+            v-for="item in classRankings"
             :key="item.class_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
             :style="rateThemeStyle(item.attendance_rate, classSection.minRate.value, classSection.maxRate.value)"
             type="button"
             @click="openClassDetail(item.class_id)"
           >
-            <span class="overview-entry-lead overview-rank-index">{{ displayRank(classSection.total.value, index, classRankAsc) }}</span>
+            <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.class_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.major_name }} · {{ item.grade }}级</p>
@@ -557,14 +553,14 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
         </div>
         <div class="overview-rank-list" @scroll.passive="handleListScroll($event, 'student_rankings')">
           <button
-            v-for="(item, index) in studentRankings"
+            v-for="item in studentRankings"
             :key="item.student_ref_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
             :style="rateThemeStyle(item.attendance_rate, studentSection.minRate.value, studentSection.maxRate.value)"
             type="button"
             @click="openStudentDetail(item.student_ref_id)"
           >
-            <span class="overview-entry-lead overview-rank-index">{{ displayRank(studentSection.total.value, index, studentRankAsc) }}</span>
+            <span class="overview-entry-lead overview-rank-index">{{ item.rank }}</span>
             <strong class="overview-entry-title overview-entry-title-left">{{ item.real_name }}</strong>
             <strong class="overview-entry-title overview-entry-title-right">{{ rateText(item.attendance_rate) }}</strong>
             <p class="overview-entry-subtitle overview-entry-subtitle-left">{{ item.student_id }} · {{ item.class_name || '其他学生' }}</p>
