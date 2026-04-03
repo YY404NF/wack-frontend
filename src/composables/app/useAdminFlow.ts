@@ -216,6 +216,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   }
   let metaTermsRequest: Promise<MetaTermItem[]> | null = null
   let systemSettingsRequest: Promise<SystemSetting> | null = null
+  let classOptionsRequest: Promise<ClassItem[]> | null = null
+  let classOptionsStale = false
 
   function nextRequestToken(key: keyof typeof requestTokens) {
     requestTokens[key] += 1
@@ -252,6 +254,30 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     return systemSettingsRequest
   }
 
+  async function loadClassOptions(options: { force?: boolean; preferCache?: boolean } = {}) {
+    const { force = false, preferCache = false } = options
+    if (!force && preferCache && !classOptionsStale && deps.classes.value.length > 0) {
+      return deps.classes.value as ClassItem[]
+    }
+    if (!force && classOptionsRequest) {
+      return classOptionsRequest
+    }
+    classOptionsRequest = api.listClassOptions()
+      .then((items) => {
+        classOptionsStale = false
+        return items as unknown as ClassItem[]
+      })
+      .finally(() => {
+        classOptionsRequest = null
+      })
+    return classOptionsRequest
+  }
+
+  function invalidateClassOptionsCache() {
+    classOptionsRequest = null
+    classOptionsStale = true
+  }
+
   async function clearAdminFocusQuery() {
     const nextQuery = omitAdminFocusQuery(deps.route.query)
     delete nextQuery.focus_login_id
@@ -274,14 +300,11 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadAttendanceData() {
     const requestToken = nextRequestToken('attendance')
-    const [resultPage, terms] = await Promise.all([
-      api.adminAttendanceResults(),
-      loadMetaTerms(),
-    ])
+    const terms = await loadMetaTerms()
     if (!isLatestRequest('attendance', requestToken)) {
       return
     }
-    deps.attendanceResults.value = resultPage.items ?? []
+    deps.attendanceResults.value = []
     deps.courseTerms.value = terms
   }
 
@@ -309,7 +332,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         ...logQuery,
       }),
       loadMetaTerms(),
-      api.listClassOptions(),
+      loadClassOptions({ preferCache: true }),
     ])
     if (!isLatestRequest('attendanceLogs', requestToken)) {
       return
@@ -343,7 +366,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadCourseManageData() {
     const requestToken = nextRequestToken('courseManage')
     const focusCourseId = readAdminQueryNumber(deps.route.query, 'focus_course_id')
-    const [coursePageResult, courseAllResult, terms, classes] = await Promise.all([
+    const [coursePageResult, terms, classes] = await Promise.all([
       api.listCourses({
         page: deps.coursePage.value,
         page_size: deps.coursePageSize.value,
@@ -354,9 +377,8 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         class_name: deps.courseFilters.className,
         focus_course_id: focusCourseId ?? undefined,
       }),
-      api.listCourses({ page: 1, page_size: 1 }),
       loadMetaTerms(),
-      api.listClassOptions(),
+      loadClassOptions({ preferCache: true }),
     ])
     if (!isLatestRequest('courseManage', requestToken)) {
       return
@@ -366,7 +388,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.classes.value = classes as unknown as ClassItem[]
     deps.coursePage.value = coursePageResult.page ?? deps.coursePage.value
     deps.courseTotalItems.value = coursePageResult.total ?? 0
-    deps.courseAllItems.value = courseAllResult.total ?? 0
+    deps.courseAllItems.value = coursePageResult.total ?? 0
     deps.courseTotalPages.value = Math.max(1, Math.ceil((coursePageResult.total ?? 0) / deps.coursePageSize.value))
     if (focusCourseId !== null) {
       if (coursePageResult.focus_found && typeof coursePageResult.focus_row_key === 'number') {
@@ -380,26 +402,22 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadClassManageData() {
     const requestToken = nextRequestToken('classManage')
     const focusClassId = readAdminQueryNumber(deps.route.query, 'focus_class_id')
-    const [classPageResult, classAllResult, students] = await Promise.all([
-      api.listClasses({
-        page: deps.classPage.value,
-        page_size: deps.classPageSize.value,
-        grade: deps.classFilters.grade,
-        major_name: deps.classFilters.majorName,
-        class_name: deps.classFilters.className,
-        focus_class_id: focusClassId ?? undefined,
-      }),
-      api.listClasses({ page: 1, page_size: 1 }),
-      api.listStudentOptions({ binding: 'unbound' }),
-    ])
+    const classPageResult = await api.listClasses({
+      page: deps.classPage.value,
+      page_size: deps.classPageSize.value,
+      grade: deps.classFilters.grade,
+      major_name: deps.classFilters.majorName,
+      class_name: deps.classFilters.className,
+      focus_class_id: focusClassId ?? undefined,
+    })
     if (!isLatestRequest('classManage', requestToken)) {
       return
     }
     deps.classRows.value = classPageResult.items ?? []
-    deps.students.value = students as unknown as StudentItem[]
+    deps.students.value = []
     deps.classPage.value = classPageResult.page ?? deps.classPage.value
     deps.classTotalItems.value = classPageResult.total ?? 0
-    deps.classAllItems.value = classAllResult.total ?? 0
+    deps.classAllItems.value = classPageResult.total ?? 0
     deps.classTotalPages.value = Math.max(1, Math.ceil((classPageResult.total ?? 0) / deps.classPageSize.value))
     if (focusClassId !== null) {
       if (classPageResult.focus_found && typeof classPageResult.focus_row_key === 'number') {
@@ -413,7 +431,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadStudentManageData() {
     const requestToken = nextRequestToken('studentManage')
     const focusStudentRefId = readAdminQueryNumber(deps.route.query, 'focus_student_ref_id')
-    const [studentPageResult, studentAllResult, classes] = await Promise.all([
+    const [studentPageResult, classes] = await Promise.all([
       api.listStudents({
         page: deps.studentPage.value,
         page_size: deps.studentPageSize.value,
@@ -422,8 +440,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         class_name: deps.studentFilters.className,
         focus_student_ref_id: focusStudentRefId ?? undefined,
       }),
-      api.listStudents({ page: 1, page_size: 1 }),
-      api.listClassOptions(),
+      loadClassOptions({ preferCache: true }),
     ])
     if (!isLatestRequest('studentManage', requestToken)) {
       return
@@ -432,7 +449,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.classes.value = classes as unknown as ClassItem[]
     deps.studentPage.value = studentPageResult.page ?? deps.studentPage.value
     deps.studentTotalItems.value = studentPageResult.total ?? 0
-    deps.studentAllItems.value = studentAllResult.total ?? 0
+    deps.studentAllItems.value = studentPageResult.total ?? 0
     deps.studentTotalPages.value = Math.max(1, Math.ceil((studentPageResult.total ?? 0) / deps.studentPageSize.value))
     if (focusStudentRefId !== null) {
       if (studentPageResult.focus_found && typeof studentPageResult.focus_row_key === 'number') {
@@ -451,7 +468,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       : Array.isArray(focusLoginIdRaw) && typeof focusLoginIdRaw[0] === 'string'
         ? focusLoginIdRaw[0].trim()
         : ''
-    const [userPageResult, userAllResult, classes, terms] = await Promise.all([
+    const [userPageResult, classes, terms] = await Promise.all([
       api.listUsers({
         page: deps.userPage.value,
         page_size: deps.userPageSize.value,
@@ -462,8 +479,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
         status: deps.userFilters.status,
         focus_login_id: focusLoginId || undefined,
       }),
-      api.listUsers({ page: 1, page_size: 1 }),
-      api.listClassOptions(),
+      loadClassOptions({ preferCache: true }),
       loadMetaTerms(),
     ])
     if (!isLatestRequest('userManage', requestToken)) {
@@ -474,7 +490,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.courseTerms.value = terms
     deps.userPage.value = userPageResult.page ?? deps.userPage.value
     deps.userTotalItems.value = userPageResult.total ?? 0
-    deps.userAllItems.value = userAllResult.total ?? 0
+    deps.userAllItems.value = userPageResult.total ?? 0
     deps.userTotalPages.value = Math.max(1, Math.ceil((userPageResult.total ?? 0) / deps.userPageSize.value))
     if (focusLoginId) {
       if (userPageResult.focus_found) {
@@ -540,6 +556,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
       if (deps.editingClassId.value !== null) {
         await api.updateClass(deps.editingClassId.value, payload)
+        invalidateClassOptionsCache()
         Object.assign(deps.classForm, createClassForm())
         await loadAdminData()
         deps.closeClassModal()
@@ -548,6 +565,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       }
 
       await api.createClass(payload)
+      invalidateClassOptionsCache()
       Object.assign(deps.classForm, createClassForm())
       await loadAdminData()
       deps.closeClassModal()
@@ -599,6 +617,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.adminError.value = ''
     try {
       await api.deleteClass(deps.deletingClassId.value)
+      invalidateClassOptionsCache()
       await loadAdminData()
       deps.closeDeleteClassModal()
       deps.showAdminToast('班级已删除')
@@ -789,5 +808,6 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     saveStudent,
     deleteStudent,
     updateAdminStatus,
+    invalidateClassOptionsCache,
   }
 }

@@ -91,10 +91,16 @@ export const attendanceApi = {
     page_size?: number
     term?: string
     keyword?: string
+    lesson_date?: string
+    lesson_date_from?: string
+    lesson_date_to?: string
+    course_name?: string
+    teacher_name?: string
     week_no?: string
     weekday?: string
     section?: string
     class_id?: string
+    class_name?: string
     status?: string
     include_unchecked?: boolean
   } = {}) {
@@ -103,10 +109,16 @@ export const attendanceApi = {
     params.set('page_size', String(query.page_size ?? 20))
     if (query.term?.trim()) params.set('term', query.term.trim())
     if (query.keyword?.trim()) params.set('keyword', query.keyword.trim())
+    if (query.lesson_date?.trim()) params.set('lesson_date', query.lesson_date.trim())
+    if (query.lesson_date_from?.trim()) params.set('lesson_date_from', query.lesson_date_from.trim())
+    if (query.lesson_date_to?.trim()) params.set('lesson_date_to', query.lesson_date_to.trim())
+    if (query.course_name?.trim()) params.set('course_name', query.course_name.trim())
+    if (query.teacher_name?.trim()) params.set('teacher_name', query.teacher_name.trim())
     if (query.week_no?.trim()) params.set('week_no', query.week_no.trim())
     if (query.weekday?.trim()) params.set('weekday', query.weekday.trim())
     if (query.section?.trim()) params.set('section', query.section.trim())
     if (query.class_id?.trim()) params.set('class_id', query.class_id.trim())
+    if (query.class_name?.trim()) params.set('class_name', query.class_name.trim())
     if (query.status?.trim()) params.set('status', query.status.trim())
     if (query.include_unchecked) params.set('include_unchecked', '1')
     return request<PageResult<Record<string, unknown>>>(`${apiPaths.admin.attendanceSessions}?${params.toString()}`).then((page) => ({

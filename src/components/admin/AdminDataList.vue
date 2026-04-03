@@ -115,6 +115,15 @@ const resolvedSearchCount = computed(() => props.pagination?.totalItems ?? props
 const resolvedTotalCount = computed(() => props.allItems ?? resolvedSearchCount.value)
 const showSummaryStats = computed(() => props.rows.length > 0)
 const shouldShowSearchSummary = computed(() => props.hasSearchCondition)
+const shouldShowTotalSummary = computed(() => {
+  if (!shouldShowSearchSummary.value) {
+    return true
+  }
+  if (props.allItems === null || props.allItems === undefined) {
+    return false
+  }
+  return props.allItems !== resolvedSearchCount.value
+})
 const COLUMN_UNIT_PX = 11
 const DEFAULT_DATA_COL_UNITS = 14
 const SELECTION_COL_PX = 44
@@ -632,8 +641,8 @@ onBeforeUnmount(() => {
         本页 {{ resolvedCurrentCount }} 项
         <span v-if="shouldShowSearchSummary" class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
         <span v-if="shouldShowSearchSummary">搜索结果 {{ resolvedSearchCount }} 项</span>
-        <span class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
-        总计 {{ resolvedTotalCount }} 项
+        <span v-if="shouldShowTotalSummary" class="data-list-summary-separator" aria-hidden="true">&nbsp;&nbsp;&nbsp;</span>
+        <span v-if="shouldShowTotalSummary">总计 {{ resolvedTotalCount }} 项</span>
       </div>
     </div>
 

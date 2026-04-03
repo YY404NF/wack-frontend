@@ -10,7 +10,7 @@ type AdminScopedToastDeps = {
 
 type AdminFlowInputDeps = Omit<AdminFlowDeps, 'showAdminToast'>
 
-type AdminBulkActionsInputDeps = Omit<AdminBulkActionsDeps, 'loadAdminData'>
+type AdminBulkActionsInputDeps = Omit<AdminBulkActionsDeps, 'loadAdminData' | 'invalidateClassOptionsCache'>
 
 type AdminWorkspaceHandlersInputDeps = Omit<
   AdminWorkspaceHandlersDeps,
@@ -98,7 +98,11 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     await adminFlow.updateAdminStatus(sessionId, studentRefId, status)
   }
 
-  const adminBulkActions = useAdminBulkActions({ ...deps, loadAdminData })
+  const adminBulkActions = useAdminBulkActions({
+    ...deps,
+    loadAdminData,
+    invalidateClassOptionsCache: adminFlow.invalidateClassOptionsCache,
+  })
 
   const adminWorkspaceProps = useAdminWorkspaceProps(deps)
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, type AttendanceRecordStudentItem } from '../../api'
@@ -49,6 +49,7 @@ const detailLoading = ref(false)
 const detailError = ref('')
 const detailFocusRowKey = ref<number | null>(null)
 const detailFocusToken = ref(0)
+const suspendDetailAutoLoad = ref(false)
 
 const editModalOpen = ref(false)
 const editingRecord = ref<AttendanceRecordStudentItem | null>(null)
@@ -58,9 +59,22 @@ const actionError = ref('')
 
 let detailRequestToken = 0
 
+const detailQueryKey = computed(() =>
+  JSON.stringify({
+    studentId: detailStudentId.value.trim(),
+    realName: detailRealName.value.trim(),
+    className: detailClassName.value.trim(),
+    status: detailStatus.value,
+    operatorName: detailOperatorName.value.trim(),
+    operatedDate: detailOperatedDate.value,
+    pageSize: detailPageSize.value,
+  }),
+)
+
 watch(
   () => props.sessionId,
-  () => {
+  async () => {
+    suspendDetailAutoLoad.value = true
     detailStudentId.value = ''
     detailRealName.value = ''
     detailClassName.value = ''
@@ -68,23 +82,28 @@ watch(
     detailOperatorName.value = ''
     detailOperatedDate.value = ''
     detailPage.value = 1
+    await nextTick()
+    suspendDetailAutoLoad.value = false
+    if (props.sessionId) {
+      void loadSessionDetailPage()
+    }
   },
   { immediate: true },
 )
 
-watch([detailStudentId, detailRealName, detailClassName, detailStatus, detailOperatorName, detailOperatedDate, detailPageSize], () => {
-  detailPage.value = 1
-})
-
 watch(
-  [() => props.sessionId, detailPage, detailPageSize, detailStudentId, detailRealName, detailClassName, detailStatus, detailOperatorName, detailOperatedDate],
-  () => {
-    if (!props.sessionId) {
+  () => [detailQueryKey.value, detailPage.value] as const,
+  ([queryKey, page], previousValue) => {
+    if (!props.sessionId || suspendDetailAutoLoad.value) {
+      return
+    }
+    const [previousQueryKey] = previousValue ?? ['', 1]
+    if (queryKey !== previousQueryKey && page !== 1) {
+      detailPage.value = 1
       return
     }
     void loadSessionDetailPage()
   },
-  { immediate: true },
 )
 
 const detailClassOptions = computed(() =>

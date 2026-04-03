@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { api, type MetaTermItem } from '../../api'
 import { attendanceStatusBadgeClass, sectionLabels } from '../../constants'
@@ -13,6 +13,7 @@ type AttendanceSessionSummary = {
   course_group_lesson_id: number
   term_id: number
   term: string
+  lesson_date: string
   course_id: number
   course_name: string
   teacher_name: string
@@ -62,6 +63,8 @@ const sessionPageSize = ref(100)
 const sessionLoading = ref(false)
 const sessionError = ref('')
 const sessionRows = ref<AttendanceSessionSummary[]>([])
+const sessionTotalItems = ref(0)
+const classOptions = ref<string[]>([])
 
 const exportModalOpen = ref(false)
 const exportingAttendanceRecords = ref(false)
@@ -81,71 +84,19 @@ watch(
   { immediate: true },
 )
 
-watch([selectedTerm], () => {
-  sessionPage.value = 1
-  if (selectedTerm.value) {
-    void loadSessions()
-  }
-}, { immediate: true })
-
-watch([sessionDate, sessionSection, sessionCourseName, sessionTeacherName, sessionClassName, sessionPageSize], () => {
-  sessionPage.value = 1
-})
-
-const termStartMap = computed(() => new Map(props.courseTerms.map((item) => [item.name, item.term_start_date])))
-const classOptions = computed(() =>
-  Array.from(
-    new Set(
-      sessionRows.value.flatMap((item) =>
-        formatClassSummaryInline(item.class_summary, '')
-          .split(/[、,，]\s*/)
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0),
-      )
-    ),
-  ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
-)
-
-const sortedSessionRows = computed(() =>
-  [...sessionRows.value].sort((left, right) => {
-    const leftDate = `${formatLessonDate(left)} ${pad(left.section)}`
-    const rightDate = `${formatLessonDate(right)} ${pad(right.section)}`
-    return rightDate.localeCompare(leftDate, 'zh-Hans-CN')
+const sessionQueryKey = computed(() =>
+  JSON.stringify({
+    term: selectedTerm.value.trim(),
+    lessonDate: sessionDate.value,
+    section: sessionSection.value,
+    courseName: sessionCourseName.value.trim(),
+    teacherName: sessionTeacherName.value.trim(),
+    className: sessionClassName.value.trim(),
+    pageSize: sessionPageSize.value,
   }),
 )
 
-const filteredSessions = computed(() => {
-  const courseKeyword = sessionCourseName.value.trim().toLowerCase()
-  const teacherKeyword = sessionTeacherName.value.trim().toLowerCase()
-  const classKeyword = sessionClassName.value.trim().toLowerCase()
-  const dateKeyword = sessionDate.value.trim()
-
-  return sortedSessionRows.value.filter((item) => {
-    if (dateKeyword && formatLessonDate(item) !== dateKeyword) {
-      return false
-    }
-    if (sessionSection.value && String(item.section) !== sessionSection.value) {
-      return false
-    }
-    if (courseKeyword && !item.course_name.toLowerCase().includes(courseKeyword)) {
-      return false
-    }
-    if (teacherKeyword && !item.teacher_name.toLowerCase().includes(teacherKeyword)) {
-      return false
-    }
-    if (classKeyword && !formatClassSummaryInline(item.class_summary, '').toLowerCase().includes(classKeyword)) {
-      return false
-    }
-    return true
-  })
-})
-
-const paginatedSessions = computed(() => {
-  const start = (sessionPage.value - 1) * sessionPageSize.value
-  return filteredSessions.value.slice(start, start + sessionPageSize.value)
-})
-
-const sessionTotalPages = computed(() => Math.max(1, Math.ceil(filteredSessions.value.length / sessionPageSize.value)))
+const sessionTotalPages = computed(() => Math.max(1, Math.ceil(sessionTotalItems.value / sessionPageSize.value)))
 
 const exportRangeInvalid = computed(() =>
   !exportStartDate.value || !exportEndDate.value || exportStartDate.value > exportEndDate.value,
@@ -160,18 +111,28 @@ async function loadSessions() {
   sessionLoading.value = true
   sessionError.value = ''
   try {
-    const result = await fetchAllAttendanceSessions({
+    const result = await api.adminAttendanceSessions({
       term: selectedTerm.value,
+      lesson_date: sessionDate.value,
+      section: sessionSection.value,
+      course_name: sessionCourseName.value,
+      teacher_name: sessionTeacherName.value,
+      class_name: sessionClassName.value,
+      page: sessionPage.value,
+      page_size: sessionPageSize.value,
     })
     if (requestToken !== sessionRequestToken) {
       return
     }
-    sessionRows.value = result
+    sessionRows.value = (result.items ?? []) as AttendanceSessionSummary[]
+    sessionPage.value = result.page ?? sessionPage.value
+    sessionTotalItems.value = result.total ?? 0
   } catch (error) {
     if (requestToken !== sessionRequestToken) {
       return
     }
     sessionRows.value = []
+    sessionTotalItems.value = 0
     sessionError.value = error instanceof Error ? error.message : '加载考勤记录失败'
   } finally {
     if (requestToken === sessionRequestToken) {
@@ -183,10 +144,16 @@ async function loadSessions() {
 async function fetchAllAttendanceSessions(query: {
   term?: string
   keyword?: string
+  lesson_date?: string
+  lesson_date_from?: string
+  lesson_date_to?: string
+  course_name?: string
+  teacher_name?: string
   week_no?: string
   weekday?: string
   section?: string
   class_id?: string
+  class_name?: string
   status?: string
   include_unchecked?: boolean
 }) {
@@ -207,6 +174,21 @@ async function fetchAllAttendanceSessions(query: {
   } while (items.length < total)
 
   return items
+}
+
+async function loadClassOptions() {
+  try {
+    const items = await api.listClassOptions()
+    classOptions.value = Array.from(
+      new Set(
+        items
+          .map((item) => item.class_name.trim())
+          .filter((item) => item.length > 0),
+      ),
+    ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+  } catch {
+    classOptions.value = []
+  }
 }
 
 async function fetchAllAttendanceSessionRecords(
@@ -278,11 +260,11 @@ async function exportAttendanceRecords() {
   exportingAttendanceRecords.value = true
   exportAttendanceError.value = ''
   try {
-    const sessions = sortedSessionRows.value.filter((item) => {
-      const lessonDate = formatLessonDate(item)
-      return lessonDate && lessonDate >= exportStartDate.value && lessonDate <= exportEndDate.value
+    const sessions = await fetchAllAttendanceSessions({
+      term: selectedTerm.value,
+      lesson_date_from: exportStartDate.value,
+      lesson_date_to: exportEndDate.value,
     })
-
     const rows: Array<Array<string>> = []
     for (const session of sessions) {
       const records = await fetchAllAttendanceSessionRecords(session.course_group_lesson_id)
@@ -291,7 +273,7 @@ async function exportAttendanceRecords() {
           continue
         }
         rows.push([
-          formatLessonDate(session),
+          session.lesson_date || '-',
           lessonTimeLabel(session.section),
           session.course_name,
           session.teacher_name,
@@ -314,27 +296,6 @@ async function exportAttendanceRecords() {
   } finally {
     exportingAttendanceRecords.value = false
   }
-}
-
-function formatLessonDate(item: AttendanceSessionSummary) {
-  const termStart = termStartMap.value.get(item.term)
-  if (!termStart) {
-    return ''
-  }
-  const date = parseDate(termStart)
-  if (!date) {
-    return ''
-  }
-  date.setDate(date.getDate() + (item.week_no - 1) * 7 + (item.weekday - 1))
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function parseDate(value: string) {
-  const [year, month, day] = value.split('-').map((item) => Number(item))
-  if (!year || !month || !day) {
-    return null
-  }
-  return new Date(year, month - 1, day)
 }
 
 function pad(value: number) {
@@ -390,20 +351,40 @@ function formatStatus(status?: number | null) {
   }
   return props.statusName(status)
 }
+
+watch(
+  [sessionQueryKey, sessionPage],
+  ([queryKey, page], previousValue) => {
+    if (!selectedTerm.value) {
+      return
+    }
+    const [previousQueryKey] = previousValue ?? ['', 1]
+    if (queryKey !== previousQueryKey && page !== 1) {
+      sessionPage.value = 1
+      return
+    }
+    void loadSessions()
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  void loadClassOptions()
+})
 </script>
 
 <template>
   <section class="workspace-card user-manage-panel attendance-record-panel">
     <div class="attendance-page">
       <AdminDataList
-        :rows="paginatedSessions as unknown as Array<Record<string, unknown>>"
+        :rows="sessionRows as unknown as Array<Record<string, unknown>>"
         :columns="sessionColumns as unknown as Array<{ key: string; label: string; width?: number }>"
         row-key="course_group_lesson_id"
         empty-text="暂无考勤记录"
         :show-actions="true"
         :action-col-width="12"
-        :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: filteredSessions.length }"
-        :all-items="sessionRows.length"
+        :pagination="{ page: sessionPage, pageSize: sessionPageSize, totalPages: sessionTotalPages, pageOptions: PAGE_OPTIONS, totalItems: sessionTotalItems }"
+        :all-items="sessionTotalItems"
         :active-filter-keys="[
           ...(sessionDate ? ['lesson_date'] : []),
           ...(sessionSection ? ['lesson_time'] : []),
@@ -443,7 +424,7 @@ function formatStatus(status?: number | null) {
           </button>
         </template>
         <template #cell-lesson_date="{ row }">
-          {{ formatLessonDate(row as AttendanceSessionSummary) || '-' }}
+          {{ (row as AttendanceSessionSummary).lesson_date || '-' }}
         </template>
         <template #cell-lesson_time="{ row }">
           {{ lessonTimeLabel(Number((row as AttendanceSessionSummary).section)) }}

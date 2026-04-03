@@ -20,6 +20,7 @@ type SetupForm = {
 type UseAppSessionDeps = {
   router: Router
   me: Ref<SessionUser | null>
+  activeTab: Ref<AppTab>
   booting: Ref<boolean>
   initialized: Ref<boolean>
   authLoading: Ref<boolean>
@@ -39,6 +40,7 @@ type UseAppSessionDeps = {
 export function useAppSession(deps: UseAppSessionDeps) {
   const sessionFlow = useSessionFlow({
     me: deps.me,
+    activeTab: deps.activeTab,
     booting: deps.booting,
     initialized: deps.initialized,
     authLoading: deps.authLoading,

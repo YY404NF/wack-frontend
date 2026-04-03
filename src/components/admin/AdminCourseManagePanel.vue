@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 
 import {
   api,
@@ -107,6 +107,7 @@ const courseGroupClassHasMore = ref(false)
 const courseGroupStudentHasMore = ref(false)
 const courseGroupClassLoading = ref(false)
 const courseGroupStudentLoading = ref(false)
+const suppressCourseGroupCandidateFilterWatch = ref(false)
 const courseGroupSessionForm = ref({
   weekNo: 1,
   weekday: '' as number | '',
@@ -325,7 +326,7 @@ watch(
 watch(
   () => courseGroupClassNameFilter.value,
   async () => {
-    if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
+    if (suppressCourseGroupCandidateFilterWatch.value || currentView.value !== 'students' || activeCourseGroupId.value === null) {
       return
     }
     await resetCourseGroupClassCandidates()
@@ -339,7 +340,7 @@ watch(
     courseGroupStudentClassNameFilter.value,
   ],
   async () => {
-    if (currentView.value !== 'students' || activeCourseGroupId.value === null) {
+    if (suppressCourseGroupCandidateFilterWatch.value || currentView.value !== 'students' || activeCourseGroupId.value === null) {
       return
     }
     await resetCourseGroupStudentCandidates()
@@ -465,10 +466,7 @@ async function openCourseGroupPage(
     await refreshCourseGroups(targetGroupId)
     if (targetView === 'lessons' || targetView === 'attendance-detail' || targetView === 'students') {
       if (targetView === 'students') {
-        courseGroupClassNameFilter.value = ''
-        courseGroupStudentNoFilter.value = ''
-        courseGroupStudentNameFilter.value = ''
-        courseGroupStudentClassNameFilter.value = ''
+        await resetCourseGroupCandidateFilters()
       }
       currentView.value = targetView
       if (targetView === 'students') {
@@ -563,10 +561,7 @@ async function openCourseGroupStudents(group: CourseGroupItem) {
   try {
     await loadCourseGroupDetail(courseGroupWorkspaceCourse.value.id, group.id)
     activeAttendanceLessonId.value = null
-    courseGroupClassNameFilter.value = ''
-    courseGroupStudentNoFilter.value = ''
-    courseGroupStudentNameFilter.value = ''
-    courseGroupStudentClassNameFilter.value = ''
+    await resetCourseGroupCandidateFilters()
     currentView.value = 'students'
     await Promise.all([resetCourseGroupClassCandidates(), resetCourseGroupStudentCandidates()])
     syncCourseManageRoute('students', courseGroupWorkspaceCourse.value.id, group.id)
@@ -924,6 +919,16 @@ async function resetCourseGroupStudentCandidates() {
   courseGroupStudentPage.value = 1
   courseGroupStudentHasMore.value = true
   await loadMoreCourseGroupStudents()
+}
+
+async function resetCourseGroupCandidateFilters() {
+  suppressCourseGroupCandidateFilterWatch.value = true
+  courseGroupClassNameFilter.value = ''
+  courseGroupStudentNoFilter.value = ''
+  courseGroupStudentNameFilter.value = ''
+  courseGroupStudentClassNameFilter.value = ''
+  await nextTick()
+  suppressCourseGroupCandidateFilterWatch.value = false
 }
 
 async function loadMoreCourseGroupClasses() {

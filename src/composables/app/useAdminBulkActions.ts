@@ -8,6 +8,7 @@ type AdminBulkActionsCoreDeps = {
   adminError: Ref<string>
   showScopedToast: (target: 'admin' | 'student', message: string) => void
   loadAdminData: () => Promise<void>
+  invalidateClassOptionsCache?: () => void
 }
 
 type AdminBulkActionsStateDeps = {
@@ -298,6 +299,7 @@ export function useAdminBulkActions(deps: AdminBulkActionsDeps) {
           failed.push(`${label}（${message}）`)
         }
       }
+      deps.invalidateClassOptionsCache?.()
       await deps.loadAdminData()
       deps.closeBulkDeleteClassModal()
       deps.selectedClassIds.value = failed.length === 0 ? [] : deps.selectedClassIds.value.filter((id) => ids.includes(id))

@@ -19,6 +19,7 @@ type SetupForm = {
 
 type SessionFlowDeps = {
   me: Ref<SessionUser | null>
+  activeTab: Ref<AppTab>
   booting: Ref<boolean>
   initialized: Ref<boolean>
   authLoading: Ref<boolean>
@@ -39,6 +40,15 @@ type SessionFlowDeps = {
 
 export function useSessionFlow(deps: SessionFlowDeps) {
   const sessionStore = useSessionStore()
+
+  async function activateRoleTab(role: number, mode: 'push' | 'replace' = 'replace') {
+    const targetTab = deps.resolveTabForRole(role)
+    const tabChanged = targetTab !== deps.activeTab.value
+    await deps.setActiveTab(targetTab, mode)
+    if (!tabChanged) {
+      await deps.loadRoleData()
+    }
+  }
 
   async function loadSetupStatus() {
     const status = await api.setupStatus()
@@ -71,8 +81,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       deps.loginForm.studentId = studentId
       deps.loginForm.password = password
       Object.assign(deps.setupForm, createSetupForm())
-      await deps.loadRoleData()
-      deps.setActiveTab(deps.resolveTabForRole(data.user.role), 'replace')
+      await activateRoleTab(data.user.role, 'replace')
     } catch (error) {
       deps.setupError.value = error instanceof Error ? error.message : '初始化失败'
     } finally {
@@ -88,8 +97,7 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       setToken(data.token)
       sessionStore.setSession(data)
       deps.me.value = data.user
-      await deps.loadRoleData()
-      deps.setActiveTab(deps.resolveTabForRole(data.user.role), 'replace')
+      await activateRoleTab(data.user.role, 'replace')
     } catch (error) {
       deps.loginError.value = error instanceof Error ? error.message : '登录失败'
     } finally {
@@ -116,9 +124,8 @@ export function useSessionFlow(deps: SessionFlowDeps) {
       const me = await api.me()
       sessionStore.setUser(me)
       deps.me.value = me
-      deps.setActiveTab(deps.resolveTabForRole(me.role), 'replace')
+      await activateRoleTab(me.role, 'replace')
       deps.booting.value = false
-      void deps.loadRoleData()
     } catch {
       clearToken()
       sessionStore.clearSession()

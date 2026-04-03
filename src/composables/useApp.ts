@@ -157,6 +157,7 @@ export function useApp() {
   const appSession = useAppSession({
     router,
     me,
+    activeTab: appRouting.activeTab,
     booting,
     initialized,
     authLoading,

@@ -38,6 +38,7 @@ import {
   createUserPasswordForm,
 } from './forms'
 import { getCurrentAcademicTerm } from '../../utils/free-time'
+import { selectDefaultTermName } from '../../utils/terms'
 import { useAdminCollections } from './useAdminCollections'
 import { useAdminEditors } from './useAdminEditors'
 import type { UseAdminAppDeps } from '../useAdminApp'
@@ -180,6 +181,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const studentFocusRowKey = ref<number | null>(null)
   const studentFocusToken = ref(0)
   const classStudentTargetName = ref('')
+  const inFlightRoleLoads = new Map<string, Promise<void>>()
 
   const userModalOpen = ref(false)
   const courseModalOpen = ref(false)
@@ -592,6 +594,129 @@ export function useAdminState(deps: UseAdminStateDeps) {
     closeUserFreeTimeModal()
   }
 
+  function readQueryText(value: unknown) {
+    if (typeof value === 'string') {
+      return value
+    }
+    if (Array.isArray(value) && typeof value[0] === 'string') {
+      return value[0]
+    }
+    return ''
+  }
+
+  function buildRoleLoadKey(tab: AppTab = deps.activeTab.value) {
+    switch (tab) {
+      case 'user-manage':
+        return JSON.stringify({
+          tab,
+          page: userPage.value,
+          pageSize: userPageSize.value,
+          studentId: userFilters.studentId,
+          realName: userFilters.realName,
+          managedClassName: userFilters.managedClassName,
+          role: userFilters.role,
+          status: userFilters.status,
+          focusLoginId: readQueryText(deps.route.query.focus_login_id),
+        })
+      case 'course-manage':
+        return JSON.stringify({
+          tab,
+          page: coursePage.value,
+          pageSize: coursePageSize.value,
+          term: courseFilters.term,
+          grade: courseFilters.grade,
+          courseName: courseFilters.courseName,
+          teacherName: courseFilters.teacherName,
+          className: courseFilters.className,
+          focusCourseId: readQueryText(deps.route.query.focus_course_id),
+        })
+      case 'class-manage':
+        return JSON.stringify({
+          tab,
+          page: classPage.value,
+          pageSize: classPageSize.value,
+          grade: classFilters.grade,
+          majorName: classFilters.majorName,
+          className: classFilters.className,
+          focusClassId: readQueryText(deps.route.query.focus_class_id),
+        })
+      case 'student':
+        return JSON.stringify({
+          tab,
+          page: studentPage.value,
+          pageSize: studentPageSize.value,
+          studentId: studentFilters.studentId,
+          realName: studentFilters.realName,
+          className: studentFilters.className,
+          focusStudentRefId: readQueryText(deps.route.query.focus_student_ref_id),
+        })
+      case 'attendance-logs':
+        return JSON.stringify({
+          tab,
+          page: attendanceLogsPage.value,
+          pageSize: attendanceLogsPageSize.value,
+          term: attendanceLogFilters.term,
+          courseGroupLessonId: attendanceLogFilters.courseGroupLessonId,
+          lessonDate: attendanceLogFilters.lessonDate,
+          section: attendanceLogFilters.section,
+          courseName: attendanceLogFilters.courseName,
+          teacherName: attendanceLogFilters.teacherName,
+          studentId: attendanceLogFilters.studentId,
+          realName: attendanceLogFilters.realName,
+          className: attendanceLogFilters.className,
+          oldStatus: attendanceLogFilters.oldStatus,
+          newStatus: attendanceLogFilters.newStatus,
+          operatorName: attendanceLogFilters.operatorName,
+          operatedDate: attendanceLogFilters.operatedDate,
+        })
+      case 'course-calendar':
+        return JSON.stringify({
+          tab,
+          term: courseCalendarTerm.value,
+        })
+      default:
+        return JSON.stringify({ tab })
+    }
+  }
+
+  async function ensureAttendanceLogTermReady() {
+    if (attendanceLogFilters.term.trim()) {
+      return
+    }
+    const terms = courseTerms.value.length > 0
+      ? courseTerms.value
+      : await api.listMetaTerms()
+    courseTerms.value = terms
+    const defaultTerm = selectDefaultTermName(terms) || terms[0]?.name || ''
+    if (defaultTerm) {
+      attendanceLogFilters.term = defaultTerm
+    }
+  }
+
+  async function ensureCourseManageTermReady() {
+    if (courseFilters.term.trim()) {
+      return
+    }
+    const terms = courseTerms.value.length > 0
+      ? courseTerms.value
+      : await api.listMetaTerms()
+    courseTerms.value = terms
+    const defaultTerm = selectDefaultTermName(terms) || terms[0]?.name || ''
+    if (defaultTerm) {
+      courseFilters.term = defaultTerm
+    }
+  }
+
+  async function prepareTabForLoad(tab: AppTab = deps.activeTab.value) {
+    if (tab === 'attendance-logs') {
+      await ensureAttendanceLogTermReady()
+      return
+    }
+    if (tab === 'course-manage') {
+      await ensureCourseManageTermReady()
+    }
+  }
+
   function resetAdminFiltersForTab(tab: AppTab) {
     switch (tab) {
       case 'user-manage':
@@ -849,13 +974,33 @@ export function useAdminState(deps: UseAdminStateDeps) {
   }
 
   async function loadRoleData(tab: AppTab = deps.activeTab.value) {
-    clearNotices()
-    const app = await ensureAdminApp()
     try {
-      await app.loadAdminData(tab)
+      await prepareTabForLoad(tab)
     } catch (error) {
       adminError.value = error instanceof Error ? error.message : '加载管理数据失败'
+      return
     }
+    const requestKey = buildRoleLoadKey(tab)
+    const existingRequest = inFlightRoleLoads.get(requestKey)
+    if (existingRequest) {
+      return existingRequest
+    }
+    clearNotices()
+    const request = (async () => {
+      const app = await ensureAdminApp()
+      try {
+        await app.loadAdminData(tab)
+      } catch (error) {
+        adminError.value = error instanceof Error ? error.message : '加载管理数据失败'
+      }
+    })()
+    inFlightRoleLoads.set(requestKey, request)
+    request.finally(() => {
+      if (inFlightRoleLoads.get(requestKey) === request) {
+        inFlightRoleLoads.delete(requestKey)
+      }
+    })
+    return request
   }
 
   function resetState() {
@@ -893,6 +1038,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     systemSettings.value = null
     attendanceLogs.value = []
     attendanceLogRows.value = []
+    inFlightRoleLoads.clear()
     adminApp.value = null
     adminAppLoader = null
   }
