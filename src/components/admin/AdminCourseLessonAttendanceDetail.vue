@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, type AttendanceRecordStudentItem } from '../../api'
+import { useSelection } from '../../composables/app/useSelection'
 import { attendanceStatusBadgeClass, statusLabels } from '../../constants'
 import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
 import AppDigitInput from '../common/AppDigitInput.vue'
@@ -25,6 +26,12 @@ const route = useRoute()
 const router = useRouter()
 
 const PAGE_OPTIONS = [100, 200, 500, 1000]
+const ATTENDANCE_STATUS_OPTIONS = [
+  { value: '0', label: '签到' },
+  { value: '1', label: '迟到' },
+  { value: '2', label: '缺勤' },
+  { value: '3', label: '请假' },
+] as const
 
 const detailColumns = [
   { key: 'student_id', label: '学号', width: 9 },
@@ -55,9 +62,24 @@ const editModalOpen = ref(false)
 const editingRecord = ref<AttendanceRecordStudentItem | null>(null)
 const editingStatus = ref('')
 const savingStatus = ref(false)
+const bulkEditModalOpen = ref(false)
+const bulkEditingStatus = ref('0')
+const bulkSavingStatus = ref(false)
 const actionError = ref('')
 
 let detailRequestToken = 0
+
+const {
+  clearSelection: clearDetailSelection,
+  pageSelectableIds: detailPageSelectableIds,
+  selectedIds: selectedDetailIds,
+  togglePageSelection: toggleDetailPageSelection,
+  toggleSelection: toggleDetailSelection,
+} = useSelection({
+  allItems: detailRows,
+  pageItems: computed(() => detailRows.value),
+  getId: (item) => item.id,
+})
 
 const detailQueryKey = computed(() =>
   JSON.stringify({
@@ -75,6 +97,9 @@ watch(
   () => props.sessionId,
   async () => {
     suspendDetailAutoLoad.value = true
+    clearDetailSelection()
+    closeEditModal()
+    closeBulkEditModal()
     detailStudentId.value = ''
     detailRealName.value = ''
     detailClassName.value = ''
@@ -106,6 +131,15 @@ watch(
   },
 )
 
+watch(
+  () => selectedDetailIds.value.length,
+  (count) => {
+    if (count === 0 && bulkEditModalOpen.value && !bulkSavingStatus.value) {
+      closeBulkEditModal()
+    }
+  },
+)
+
 const detailClassOptions = computed(() =>
   Array.from(
     new Set(
@@ -117,6 +151,12 @@ const detailClassOptions = computed(() =>
 )
 
 const detailTotalPages = computed(() => Math.max(1, Math.ceil(detailTotalItems.value / detailPageSize.value)))
+const selectedDetailIdSet = computed(() => new Set(selectedDetailIds.value))
+const areAllVisibleDetailsSelected = computed(
+  () =>
+    detailPageSelectableIds.value.length > 0 &&
+    detailPageSelectableIds.value.every((id) => selectedDetailIdSet.value.has(id)),
+)
 
 const lessonSummary = computed(() => [
   { label: '日期', value: props.sessionDate || '-' },
@@ -220,6 +260,22 @@ function closeEditModal() {
   actionError.value = ''
 }
 
+function openBulkEditModal() {
+  if (selectedDetailIds.value.length === 0) {
+    return
+  }
+  bulkEditingStatus.value = '0'
+  actionError.value = ''
+  bulkEditModalOpen.value = true
+}
+
+function closeBulkEditModal() {
+  bulkEditModalOpen.value = false
+  bulkEditingStatus.value = '0'
+  bulkSavingStatus.value = false
+  actionError.value = ''
+}
+
 async function saveAttendanceStatus() {
   if (!editingRecord.value || editingStatus.value === '') {
     return
@@ -234,6 +290,37 @@ async function saveAttendanceStatus() {
     actionError.value = error instanceof Error ? error.message : '修改考勤状态失败'
   } finally {
     savingStatus.value = false
+  }
+}
+
+async function saveBulkAttendanceStatus() {
+  const ids = [...selectedDetailIds.value]
+  if (ids.length === 0 || bulkEditingStatus.value === '') {
+    return
+  }
+  bulkSavingStatus.value = true
+  actionError.value = ''
+  const failedIds = new Set<number>()
+  let updatedCount = 0
+
+  try {
+    for (const id of ids) {
+      try {
+        await api.adminUpdateAttendanceStatus(props.sessionId, id, Number(bulkEditingStatus.value))
+        updatedCount += 1
+      } catch {
+        failedIds.add(id)
+      }
+    }
+    await loadSessionDetailPage()
+    selectedDetailIds.value = ids.filter((id) => failedIds.has(id))
+    if (failedIds.size > 0) {
+      actionError.value = `仍有 ${failedIds.size} 项修改失败`
+      return
+    }
+    closeBulkEditModal()
+  } finally {
+    bulkSavingStatus.value = false
   }
 }
 </script>
@@ -287,10 +374,13 @@ async function saveAttendanceStatus() {
           :columns="detailColumns as unknown as Array<{ key: string; label: string; width?: number }>"
           row-key="id"
           empty-text="暂无课次考勤明细"
+          :show-selection="true"
+          :selected-row-keys="selectedDetailIds"
           :show-actions="true"
           :action-col-width="14"
           :pagination="{ page: detailPage, pageSize: detailPageSize, totalPages: detailTotalPages, pageOptions: PAGE_OPTIONS, totalItems: detailTotalItems }"
           :all-items="detailTotalItems"
+          :selected-items="selectedDetailIds.length"
           :highlight-row-key="detailFocusRowKey"
           :highlight-token="detailFocusToken"
           :active-filter-keys="[
@@ -304,6 +394,7 @@ async function saveAttendanceStatus() {
           :has-search-condition="!!(detailStudentId.trim() || detailRealName.trim() || detailClassName || detailStatus || detailOperatorName.trim() || detailOperatedDate)"
           @update-page="detailPage = $event"
           @update-page-size="detailPageSize = $event"
+          @toggle-row-selection="toggleDetailSelection(Number($event))"
         >
           <template #filter-student_id>
             <AppDigitInput v-model="detailStudentId" aria-label="按学号筛选课次考勤明细" />
@@ -332,6 +423,14 @@ async function saveAttendanceStatus() {
           </template>
           <template #filter-operated_at>
             <input v-model="detailOperatedDate" type="date" aria-label="按最后操作时间筛选课次考勤明细" />
+          </template>
+          <template #filter-actions>
+            <button class="ghost-button compact-button" :class="{ selected: areAllVisibleDetailsSelected }" type="button" @click="toggleDetailPageSelection">
+              全选
+            </button>
+            <button class="ghost-button compact-button" type="button" :disabled="detailLoading || selectedDetailIds.length === 0" @click="openBulkEditModal">
+              批量修改
+            </button>
           </template>
           <template #cell-class_name="{ value }">
             {{ normalizeClassName(String(value ?? '')) }}
@@ -368,7 +467,7 @@ async function saveAttendanceStatus() {
             <h3>修改考勤状态</h3>
             <button class="ghost-button compact-button modal-close" type="button" @click="closeEditModal">关闭</button>
           </div>
-          <div class="attendance-status-modal">
+          <form class="form-grid single-column-form" @submit.prevent="saveAttendanceStatus">
             <label class="field attendance-status-static-field">
               <span>学号</span>
               <input class="readonly-field-input" :value="editingRecord.student_id" readonly />
@@ -384,21 +483,39 @@ async function saveAttendanceStatus() {
             <label class="field">
               <span>状态</span>
               <select v-model="editingStatus">
-                <option value="0">签到</option>
-                <option value="1">迟到</option>
-                <option value="2">缺勤</option>
-                <option value="3">请假</option>
+                <option v-for="item in ATTENDANCE_STATUS_OPTIONS" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
             <p v-if="actionError" class="hint form-error-text">{{ actionError }}</p>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" @click="closeEditModal">取消</button>
-              <button class="primary-button" type="button" :disabled="savingStatus" @click="saveAttendanceStatus">
-                <span v-if="savingStatus" class="button-spinner" aria-hidden="true"></span>
-                <span>{{ savingStatus ? '保存中...' : '保存' }}</span>
-              </button>
-            </div>
+            <button class="primary-button" type="submit" :disabled="savingStatus">
+              <span v-if="savingStatus" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ savingStatus ? '提交中...' : '提交' }}</span>
+            </button>
+          </form>
+        </article>
+      </div>
+    </Transition>
+
+    <Transition name="modal-float" appear>
+      <div v-if="bulkEditModalOpen" class="modal-backdrop">
+        <article class="modal-card modal-card-narrow">
+          <div class="modal-header">
+            <h3>批量修改考勤状态</h3>
+            <button class="ghost-button compact-button modal-close" type="button" @click="closeBulkEditModal">关闭</button>
           </div>
+          <form class="form-grid single-column-form" @submit.prevent="saveBulkAttendanceStatus">
+            <label class="field">
+              <span>状态</span>
+              <select v-model="bulkEditingStatus">
+                <option v-for="item in ATTENDANCE_STATUS_OPTIONS" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+            <p v-if="actionError" class="hint form-error-text">{{ actionError }}</p>
+            <button class="primary-button" type="submit" :disabled="bulkSavingStatus">
+              <span v-if="bulkSavingStatus" class="button-spinner" aria-hidden="true"></span>
+              <span>{{ bulkSavingStatus ? '提交中...' : '提交' }}</span>
+            </button>
+          </form>
         </article>
       </div>
     </Transition>
