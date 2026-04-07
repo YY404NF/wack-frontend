@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { HomeFilled } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import type { AppTab, StatusCode } from '../constants'
+import type { AdminTab, StatusCode } from '../constants'
 import { adminNavItems } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
@@ -24,12 +24,12 @@ import {
   readAdminCourseRoute,
 } from '../router/admin-routes'
 
-const props = defineProps<AdminWorkspaceProps & { activeTab: AppTab }>()
+const props = defineProps<AdminWorkspaceProps & { activeTab: AdminTab }>()
 const router = useRouter()
 const route = useRoute()
 
 const emit = defineEmits<{
-  'update:activeTab': [value: AppTab]
+  'update:activeTab': [value: AdminTab]
   logout: []
   openCreateClassModal: []
   openEditClassModal: [item: ClassItem]
@@ -313,7 +313,7 @@ function openOverviewClass(classId: number) {
 }
 
 function openOverviewStudent(studentRefId: number) {
-  void router.push(buildAdminTabLocation('student', { focus_student_ref_id: String(studentRefId) }))
+  void router.push(buildAdminTabLocation('student-manage', { focus_student_ref_id: String(studentRefId) }))
 }
 
 function openCourseCalendarUser(loginId: string) {

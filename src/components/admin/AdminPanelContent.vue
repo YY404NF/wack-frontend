@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import type { AppTab, StatusCode } from '../../constants'
+import type { AdminTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
 import type { AdminAttendanceDetailTarget, AdminClassManageRouteView, AdminCourseManageRouteView } from './shared-types'
@@ -16,7 +16,7 @@ const AdminUserManagePanel = defineAsyncComponent(() => import('./AdminUserManag
 const AdminSettingsPanel = defineAsyncComponent(() => import('./AdminSettingsPanel.vue'))
 
 defineProps<AdminWorkspaceProps & {
-  activeTab: AppTab
+  activeTab: AdminTab
   classManageRouteView?: AdminClassManageRouteView
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
@@ -282,8 +282,8 @@ function forwardUserStatus(studentId: string, status: number) {
     />
 
     <AdminStudentManagePanel
-      v-else-if="activeTab === 'student'"
-      key="student"
+      v-else-if="activeTab === 'student-manage'"
+      key="student-manage"
       :students="students"
       :all-classes="allClasses"
       :student-form="studentForm"

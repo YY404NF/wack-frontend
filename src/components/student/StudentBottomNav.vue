@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { AppTab } from '../../constants'
+import type { StudentTab } from '../../constants'
 
 const props = defineProps<{
-  activeTab: AppTab
-  navItems: Array<{ key: 'home' | 'student' | 'settings'; label: string; icon: unknown }>
+  activeTab: StudentTab
+  navItems: Array<{ key: StudentTab; label: string; icon: unknown }>
 }>()
 
 const emit = defineEmits<{
-  'update:activeTab': [value: AppTab]
+  'update:activeTab': [value: StudentTab]
 }>()
 
 const activeIndex = computed(() => {

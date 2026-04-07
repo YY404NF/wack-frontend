@@ -1,13 +1,17 @@
 export type StatusCode = 0 | 1 | 2 | 3
-export type AppTab =
-  | 'home'
+export type AdminTab =
   | 'overview'
   | 'attendance'
   | 'attendance-logs'
   | 'course-calendar'
   | 'course-manage'
   | 'class-manage'
+  | 'student-manage'
   | 'user-manage'
+  | 'settings'
+
+export type StudentTab =
+  | 'home'
   | 'student'
   | 'settings'
 
@@ -80,11 +84,11 @@ export const adminNavItems = [
   { key: 'attendance-logs', label: '考勤日志' },
   { key: 'course-manage', label: '课程管理' },
   { key: 'class-manage', label: '班级管理' },
-  { key: 'student', label: '学生管理' },
+  { key: 'student-manage', label: '学生管理' },
   { key: 'user-manage', label: '系统用户管理' },
   { key: 'settings', label: '设置' },
-] as const
+] as const satisfies ReadonlyArray<{ key: AdminTab; label: string }>
 
-export const adminTabKeys = adminNavItems.map((item) => item.key)
+export const adminTabKeys = adminNavItems.map((item) => item.key) as AdminTab[]
 
-export const studentTabKeys = ['home', 'student', 'settings'] as const
+export const studentTabKeys = ['home', 'student', 'settings'] as const satisfies readonly StudentTab[]

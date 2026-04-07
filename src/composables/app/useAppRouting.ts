@@ -1,9 +1,9 @@
 import { ref, watch, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
-import { adminTabKeys, studentTabKeys, type AppTab } from '../../constants'
+import { studentTabKeys, type AdminTab, type StudentTab } from '../../constants'
 import type { SessionUser } from '../../api'
-import { buildAdminTabLocation, readAdminTab, type AdminTab } from '../../router/admin-routes'
+import { buildAdminTabLocation, readAdminTab } from '../../router/admin-routes'
 
 type UseAppRoutingDeps = {
   router: Router
@@ -14,91 +14,90 @@ type UseAppRoutingDeps = {
   ensureStudentFreeTimesLoaded: (force?: boolean) => Promise<void>
 }
 
+const studentSegmentToTab = {
+  home: 'home',
+  check: 'student',
+  settings: 'settings',
+} as const satisfies Record<string, StudentTab>
+
+const tabToStudentSegment: Record<StudentTab, keyof typeof studentSegmentToTab> = {
+  home: 'home',
+  student: 'check',
+  settings: 'settings',
+}
+
 export function useAppRouting(deps: UseAppRoutingDeps) {
-  const activeTab = ref<AppTab>('overview')
+  const activeAdminTab = ref<AdminTab>('overview')
+  const activeStudentTab = ref<StudentTab>('home')
 
-  const studentSegmentToTab = {
-    home: 'home',
-    check: 'student',
-    settings: 'settings',
-  } as const
-
-  const tabToStudentSegment: Record<'home' | 'student' | 'settings', keyof typeof studentSegmentToTab> = {
-    home: 'home',
-    student: 'check',
-    settings: 'settings',
+  function defaultAdminTab() {
+    return 'overview' as const
   }
 
-  function defaultTabForRole(role?: number): AppTab {
-    return role === 1 ? 'overview' : 'home'
+  function defaultStudentTab() {
+    return 'home' as const
   }
 
-  function tabAllowedForRole(tab: string, role?: number): tab is AppTab {
-    if (!role) {
-      return false
+  function readStudentTabFromLocation(): StudentTab | null {
+    if (deps.route.name !== 'student') {
+      return null
     }
-    return role === 1
-      ? (adminTabKeys as readonly string[]).includes(tab)
-      : (studentTabKeys as readonly string[]).includes(tab)
+    const segment = typeof deps.route.params.tab === 'string' ? deps.route.params.tab : ''
+    const tab = studentSegmentToTab[segment as keyof typeof studentSegmentToTab]
+    if (!tab || !(studentTabKeys as readonly string[]).includes(tab)) {
+      return null
+    }
+    return tab
   }
 
-  function readTabFromLocation() {
-    const adminTab = readAdminTab(deps.route)
-    if (adminTab) {
-      return adminTab
-    }
-
-    if (deps.route.name === 'student') {
-      const segment = typeof deps.route.params.tab === 'string' ? deps.route.params.tab : ''
-      return studentSegmentToTab[segment as keyof typeof studentSegmentToTab] ?? null
-    }
-
-    return null
+  function resolveAdminTab() {
+    return readAdminTab(deps.route) ?? defaultAdminTab()
   }
 
-  async function writeTabToLocation(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
-    if (deps.me.value?.role === 1 && (adminTabKeys as readonly string[]).includes(tab)) {
-      await deps.router[mode](buildAdminTabLocation(tab as AdminTab))
-      return
-    }
-
-    if ((deps.me.value?.role === 2 || deps.me.value?.role === 3) && (studentTabKeys as readonly string[]).includes(tab)) {
-      await deps.router[mode]({
-        name: 'student',
-        params: { tab: tabToStudentSegment[tab as keyof typeof tabToStudentSegment] },
-        query: deps.route.query,
-      })
-    }
+  function resolveStudentTab() {
+    return readStudentTabFromLocation() ?? defaultStudentTab()
   }
 
-  async function setActiveTab(tab: AppTab, mode: 'push' | 'replace' = 'replace') {
-    activeTab.value = tab
-    await writeTabToLocation(tab, mode)
-    if (deps.me.value?.role !== 2) {
-      return
-    }
-    if (tab === 'settings') {
+  async function writeAdminTabToLocation(tab: AdminTab, mode: 'push' | 'replace' = 'replace') {
+    await deps.router[mode](buildAdminTabLocation(tab))
+  }
+
+  async function writeStudentTabToLocation(tab: StudentTab, mode: 'push' | 'replace' = 'replace') {
+    await deps.router[mode]({
+      name: 'student',
+      params: { tab: tabToStudentSegment[tab] },
+      query: deps.route.query,
+    })
+  }
+
+  async function setActiveAdminTab(tab: AdminTab, mode: 'push' | 'replace' = 'replace') {
+    activeAdminTab.value = tab
+    await writeAdminTabToLocation(tab, mode)
+  }
+
+  async function setActiveStudentTab(tab: StudentTab, mode: 'push' | 'replace' = 'replace') {
+    activeStudentTab.value = tab
+    await writeStudentTabToLocation(tab, mode)
+    if (deps.me.value?.role === 2 && tab === 'settings') {
       void deps.ensureStudentFreeTimesLoaded(true)
     }
-  }
-
-  function resolveTabForRole(role?: number): AppTab {
-    const tab = readTabFromLocation()
-    if (tab && tabAllowedForRole(tab, role)) {
-      return tab
-    }
-    return defaultTabForRole(role)
   }
 
   watch(
     () => [deps.route.name, deps.route.params.tab, deps.me.value?.role] as const,
     ([, , role]) => {
-      if (!role) {
+      if (role === 1) {
+        const nextTab = resolveAdminTab()
+        if (nextTab !== activeAdminTab.value) {
+          activeAdminTab.value = nextTab
+        }
         return
       }
-      const nextTab = resolveTabForRole(role)
-      if (nextTab !== activeTab.value) {
-        activeTab.value = nextTab
+      if (role === 2 || role === 3) {
+        const nextTab = resolveStudentTab()
+        if (nextTab !== activeStudentTab.value) {
+          activeStudentTab.value = nextTab
+        }
       }
     },
     { immediate: true },
@@ -125,18 +124,30 @@ export function useAppRouting(deps: UseAppRoutingDeps) {
         return
       }
 
-      const nextTab = resolveTabForRole(role)
-      const isOnExpectedRoute = role === 1 ? readAdminTab(deps.route) !== null : routeName === 'student'
-      if (!isOnExpectedRoute || nextTab !== activeTab.value) {
-        await setActiveTab(nextTab, 'replace')
+      if (role === 1) {
+        const nextTab = resolveAdminTab()
+        const isOnExpectedRoute = readAdminTab(deps.route) !== null
+        if (!isOnExpectedRoute || nextTab !== activeAdminTab.value) {
+          await setActiveAdminTab(nextTab, 'replace')
+        }
+        return
+      }
+
+      const nextTab = resolveStudentTab()
+      const isOnExpectedRoute = routeName === 'student'
+      if (!isOnExpectedRoute || nextTab !== activeStudentTab.value) {
+        await setActiveStudentTab(nextTab, 'replace')
       }
     },
     { immediate: true },
   )
 
   return {
-    activeTab,
-    setActiveTab,
-    resolveTabForRole,
+    activeAdminTab,
+    activeStudentTab,
+    setActiveAdminTab,
+    setActiveStudentTab,
+    resolveAdminTab,
+    resolveStudentTab,
   }
 }

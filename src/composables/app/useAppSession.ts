@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 import type { Router } from 'vue-router'
 
 import type { SessionUser } from '../../api'
-import type { AppTab } from '../../constants'
+import type { AdminTab, StudentTab } from '../../constants'
 import { useSessionFlow } from './useSessionFlow'
 
 type LoginForm = {
@@ -20,7 +20,8 @@ type SetupForm = {
 type UseAppSessionDeps = {
   router: Router
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
+  activeAdminTab: Ref<AdminTab>
+  activeStudentTab: Ref<StudentTab>
   booting: Ref<boolean>
   initialized: Ref<boolean>
   authLoading: Ref<boolean>
@@ -30,8 +31,10 @@ type UseAppSessionDeps = {
   loginForm: LoginForm
   setupForm: SetupForm
   loadRoleData: () => Promise<void>
-  resolveTabForRole: (role: number) => AppTab
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  resolveAdminTab: () => AdminTab
+  resolveStudentTab: () => StudentTab
+  setActiveAdminTab: (tab: AdminTab, mode?: 'push' | 'replace') => Promise<void>
+  setActiveStudentTab: (tab: StudentTab, mode?: 'push' | 'replace') => Promise<void>
   clearAllNotices: () => void
   resetAppData: () => void
   closeAllAdminModals: () => void
@@ -40,7 +43,8 @@ type UseAppSessionDeps = {
 export function useAppSession(deps: UseAppSessionDeps) {
   const sessionFlow = useSessionFlow({
     me: deps.me,
-    activeTab: deps.activeTab,
+    activeAdminTab: deps.activeAdminTab,
+    activeStudentTab: deps.activeStudentTab,
     booting: deps.booting,
     initialized: deps.initialized,
     authLoading: deps.authLoading,
@@ -50,8 +54,10 @@ export function useAppSession(deps: UseAppSessionDeps) {
     loginForm: deps.loginForm,
     setupForm: deps.setupForm,
     loadRoleData: deps.loadRoleData,
-    resolveTabForRole: deps.resolveTabForRole,
-    setActiveTab: deps.setActiveTab,
+    resolveAdminTab: deps.resolveAdminTab,
+    resolveStudentTab: deps.resolveStudentTab,
+    setActiveAdminTab: deps.setActiveAdminTab,
+    setActiveStudentTab: deps.setActiveStudentTab,
     navigateToLogin: async () => {
       await deps.router.replace({ name: 'login' })
     },

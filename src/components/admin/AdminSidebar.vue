@@ -2,17 +2,17 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import type { SessionUser } from '../../api'
-import { adminNavItems, type AppTab } from '../../constants'
+import { adminNavItems, type AdminTab } from '../../constants'
 import { getGreetingMeta } from '../../utils/greeting'
 
 const props = defineProps<{
   me: SessionUser
-  activeTab: AppTab
+  activeTab: AdminTab
   roleName: (role?: number) => string
 }>()
 
 const emit = defineEmits<{
-  'update:activeTab': [value: AppTab]
+  'update:activeTab': [value: AdminTab]
   logout: []
   openAbout: []
 }>()

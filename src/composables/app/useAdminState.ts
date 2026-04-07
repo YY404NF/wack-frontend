@@ -19,7 +19,7 @@ import {
   type SystemSetting,
   type UserItem,
 } from '../../api'
-import type { AppTab } from '../../constants'
+import type { AdminTab } from '../../constants'
 import type { AdminWorkspaceProps } from '../../components/admin/types'
 import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
 import {
@@ -55,12 +55,12 @@ type UseAdminStateDeps = {
   router: Router
   route: RouteLocationNormalizedLoaded
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
+  activeTab: Ref<AdminTab>
   passwordForm: PasswordForm
   passwordModalOpen: Ref<boolean>
   passwordSaving: Ref<boolean>
   showScopedToast: (target: 'admin' | 'student', message: string) => void
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  setActiveTab: (tab: AdminTab, mode?: 'push' | 'replace') => Promise<void>
   logout: () => void
   changePassword: () => Promise<void>
   closePasswordModal: () => void
@@ -604,7 +604,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     return ''
   }
 
-  function buildRoleLoadKey(tab: AppTab = deps.activeTab.value) {
+  function buildRoleLoadKey(tab: AdminTab = deps.activeTab.value) {
     switch (tab) {
       case 'user-manage':
         return JSON.stringify({
@@ -640,7 +640,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           className: classFilters.className,
           focusClassId: readQueryText(deps.route.query.focus_class_id),
         })
-      case 'student':
+      case 'student-manage':
         return JSON.stringify({
           tab,
           page: studentPage.value,
@@ -707,7 +707,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
   }
 
-  async function prepareTabForLoad(tab: AppTab = deps.activeTab.value) {
+  async function prepareTabForLoad(tab: AdminTab = deps.activeTab.value) {
     if (tab === 'attendance-logs') {
       await ensureAttendanceLogTermReady()
       return
@@ -717,7 +717,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
   }
 
-  function resetAdminFiltersForTab(tab: AppTab) {
+  function resetAdminFiltersForTab(tab: AdminTab) {
     switch (tab) {
       case 'user-manage':
         Object.assign(userFilters, createUserFilters())
@@ -732,7 +732,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
         Object.assign(classStudentFilters, createClassStudentFilters())
         classPage.value = 1
         return
-      case 'student':
+      case 'student-manage':
         Object.assign(studentFilters, createStudentFilters())
         studentPage.value = 1
         return
@@ -973,7 +973,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     return adminAppLoader
   }
 
-  async function loadRoleData(tab: AppTab = deps.activeTab.value) {
+  async function loadRoleData(tab: AdminTab = deps.activeTab.value) {
     try {
       await prepareTabForLoad(tab)
     } catch (error) {
@@ -1135,8 +1135,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
   watch(
     () => [studentPage.value, studentPageSize.value, studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
     () => {
-      if (isAdmin.value && deps.activeTab.value === 'student') {
-        void loadRoleData('student')
+      if (isAdmin.value && deps.activeTab.value === 'student-manage') {
+        void loadRoleData('student-manage')
       }
     },
   )
@@ -1166,7 +1166,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
     },
   )
 
-  const adminWorkspaceProps = computed<(AdminWorkspaceProps & { activeTab: AppTab }) | null>(() => {
+  const adminWorkspaceProps = computed<(AdminWorkspaceProps & { activeTab: AdminTab }) | null>(() => {
     if (!isAdmin.value || !adminApp.value) {
       return null
     }

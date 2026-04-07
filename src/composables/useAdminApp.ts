@@ -1,4 +1,4 @@
-import type { AppTab, StatusCode } from '../constants'
+import type { AdminTab, StatusCode } from '../constants'
 import { useAdminBulkActions, type AdminBulkActionsDeps } from './app/useAdminBulkActions'
 import { useAdminFlow, type AdminFlowDeps } from './app/useAdminFlow'
 import { useAdminWorkspaceHandlers, type AdminWorkspaceHandlersDeps } from './app/useAdminWorkspaceHandlers'
@@ -50,7 +50,7 @@ export function useAdminApp(deps: UseAdminAppDeps) {
     showAdminToast: (message: string) => deps.showScopedToast('admin', message),
   })
 
-  async function loadAdminData(tab?: AppTab) {
+  async function loadAdminData(tab?: AdminTab) {
     await adminFlow.loadAdminData(tab)
   }
 

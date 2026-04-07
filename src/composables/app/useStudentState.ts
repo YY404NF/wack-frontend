@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import type { Ref } from 'vue'
 
 import type { AvailableCourseItem, ClassItem, ClassStudentItem, FreeTimeEditorItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
-import type { AppTab } from '../../constants'
+import type { StudentTab } from '../../constants'
 import { createFreeTimeForm } from './forms'
 import { useStudentApp } from '../useStudentApp'
 import { createEmptyFreeTimeDraft, getCurrentAcademicTerm } from '../../utils/free-time'
@@ -15,8 +15,8 @@ type PasswordForm = {
 
 type UseStudentStateDeps = {
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  activeTab: Ref<StudentTab>
+  setActiveTab: (tab: StudentTab, mode?: 'push' | 'replace') => Promise<void>
   showScopedToast: (target: 'admin' | 'student', message: string) => void
   changePassword: () => Promise<void>
   openPasswordModal: () => void

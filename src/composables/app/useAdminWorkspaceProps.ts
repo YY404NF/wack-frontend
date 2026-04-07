@@ -18,12 +18,12 @@ import type {
   AdminUserPasswordForm,
 } from '../../components/admin/form-types'
 import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
-import type { AppTab } from '../../constants'
+import type { AdminTab } from '../../constants'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './view'
 
 export type AdminWorkspacePropsDeps = {
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
+  activeTab: Ref<AdminTab>
   adminError: Ref<string>
   adminToast: Ref<string>
   adminStats: ComputedRef<Array<{ label: string; value: number; tone: string }>>

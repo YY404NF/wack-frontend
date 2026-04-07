@@ -6,21 +6,8 @@ import type {
   RouteRecordRaw,
 } from 'vue-router'
 
-import type { AppTab } from '../constants'
+import type { AdminTab } from '../constants'
 import type { AdminClassManageRouteView, AdminCourseManageRouteView } from '../components/admin/shared-types'
-
-export type AdminTab = Extract<
-  AppTab,
-  | 'overview'
-  | 'attendance'
-  | 'attendance-logs'
-  | 'course-calendar'
-  | 'course-manage'
-  | 'class-manage'
-  | 'student'
-  | 'user-manage'
-  | 'settings'
->
 
 type AdminRouteMeta = {
   adminTab: AdminTab
@@ -72,7 +59,7 @@ const adminTabRouteNameMap: Record<AdminTab, string> = {
   'course-calendar': adminRouteNames.courseCalendar,
   'course-manage': adminRouteNames.courseManage,
   'class-manage': adminRouteNames.classManage,
-  student: adminRouteNames.studentManage,
+  'student-manage': adminRouteNames.studentManage,
   'user-manage': adminRouteNames.userManage,
   settings: adminRouteNames.settings,
 }
@@ -297,7 +284,8 @@ export function resolveLegacyAdminLocation(to: { params: Record<string, unknown>
     case 'class-manage':
       return buildAdminClassLocation({ view: 'classes', classId: null })
     case 'student':
-      return buildAdminTabLocation('student')
+    case 'student-manage':
+      return buildAdminTabLocation('student-manage')
     case 'user-manage':
       return buildAdminTabLocation('user-manage')
     case 'settings':
@@ -384,7 +372,7 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin/students',
     name: adminRouteNames.studentManage,
     component: EmptyRouteComponent,
-    meta: adminMeta('student'),
+    meta: adminMeta('student-manage'),
   },
   {
     path: '/admin/users',
@@ -399,7 +387,7 @@ export const adminRoutes: RouteRecordRaw[] = [
     meta: adminMeta('settings'),
   },
   {
-    path: '/admin/:legacyTab(overview|attendance|attendance-logs|course-calendar|course-manage|class-manage|student|user-manage|settings)',
+    path: '/admin/:legacyTab(overview|attendance|attendance-logs|course-calendar|course-manage|class-manage|student|student-manage|user-manage|settings)',
     name: adminRouteNames.legacy,
     redirect: (to) => resolveLegacyAdminLocation(to),
   },

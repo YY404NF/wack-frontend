@@ -1,7 +1,7 @@
 import { computed, watch, type Ref } from 'vue'
 
 import { api, type AvailableCourseItem, type ClassItem, type ClassStudentItem, type FreeTimeEditorItem, type MetaSectionItem, type SessionUser, type SystemSetting } from '../api'
-import type { AppTab } from '../constants'
+import type { StudentTab } from '../constants'
 import { useStudentFlow } from './app/useStudentFlow'
 import { roleName, slotLabel } from './app/view'
 import { createEmptyFreeTimeDraft, getCurrentAcademicTerm, type FreeTimeDraft } from '../utils/free-time'
@@ -21,7 +21,7 @@ type PasswordForm = {
 
 type StudentAppDeps = {
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
+  activeTab: Ref<StudentTab>
   studentError: Ref<string>
   studentToast: Ref<string>
   systemSettings: Ref<SystemSetting | null>
@@ -45,7 +45,7 @@ type StudentAppDeps = {
   studentFreeTimesLoaded: Ref<boolean>
   resetFreeTimeForm: () => void
   showScopedToast: (target: 'admin' | 'student', message: string) => void
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  setActiveTab: (tab: StudentTab, mode?: 'push' | 'replace') => Promise<void>
   openPasswordModal: () => void
   closePasswordModal: () => void
   changePassword: () => Promise<void>
@@ -70,6 +70,9 @@ export function useStudentApp(deps: StudentAppDeps) {
   })
 
   async function loadStudentCoreData(force = false) {
+    if (deps.me.value?.role === 1 || !deps.me.value) {
+      return
+    }
     if (!force && deps.studentCoreLoaded.value) {
       return
     }
@@ -165,7 +168,7 @@ export function useStudentApp(deps: StudentAppDeps) {
   }
 
   watch(deps.activeTab, (nextTab, previousTab) => {
-    if (nextTab === 'student' && previousTab !== 'student') {
+    if (deps.me.value?.role !== 1 && nextTab === 'student' && previousTab !== 'student') {
       void loadStudentCoreData(true)
     }
   })
@@ -201,7 +204,7 @@ export function useStudentApp(deps: StudentAppDeps) {
   }))
 
   const studentWorkspaceHandlers = {
-    'update:activeTab': (value: AppTab) => {
+    'update:activeTab': (value: StudentTab) => {
       void deps.setActiveTab(value, 'push')
     },
     openFreeTimeModal,

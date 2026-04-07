@@ -17,7 +17,7 @@ import {
   type SystemSetting,
   type UserItem,
 } from '../../api'
-import type { AppTab, StatusCode } from '../../constants'
+import type { AdminTab, StatusCode } from '../../constants'
 import { createClassForm, createCourseForm, createStudentForm } from './forms'
 import { selectDefaultTermName } from '../../utils/terms'
 import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
@@ -108,7 +108,7 @@ type StudentForm = {
 export type AdminFlowDeps = {
   router: Router
   route: RouteLocationNormalizedLoaded
-  activeTab: Ref<AppTab>
+  activeTab: Ref<AdminTab>
   me: Ref<SessionUser | null>
   users: Ref<UserItem[]>
   classes: Ref<ClassItem[]>
@@ -510,7 +510,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
     deps.courseTerms.value = terms
   }
 
-  async function loadAdminData(tab: AppTab = deps.activeTab.value) {
+  async function loadAdminData(tab: AdminTab = deps.activeTab.value) {
     switch (tab) {
       case 'overview':
         await loadOverviewData()
@@ -530,7 +530,7 @@ export function useAdminFlow(deps: AdminFlowDeps) {
       case 'class-manage':
         await loadClassManageData()
         return
-      case 'student':
+      case 'student-manage':
         await loadStudentManageData()
         return
       case 'user-manage':

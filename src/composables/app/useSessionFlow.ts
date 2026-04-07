@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 
 import { api, clearToken, getToken, setToken, type SessionUser } from '../../api'
 import { useSessionStore } from '../../stores/session'
-import type { AppTab } from '../../constants'
+import type { AdminTab, StudentTab } from '../../constants'
 import { createSetupForm } from './forms'
 
 type LoginForm = {
@@ -19,7 +19,8 @@ type SetupForm = {
 
 type SessionFlowDeps = {
   me: Ref<SessionUser | null>
-  activeTab: Ref<AppTab>
+  activeAdminTab: Ref<AdminTab>
+  activeStudentTab: Ref<StudentTab>
   booting: Ref<boolean>
   initialized: Ref<boolean>
   authLoading: Ref<boolean>
@@ -29,8 +30,10 @@ type SessionFlowDeps = {
   loginForm: LoginForm
   setupForm: SetupForm
   loadRoleData: () => Promise<void>
-  resolveTabForRole: (role: number) => AppTab
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => void
+  resolveAdminTab: () => AdminTab
+  resolveStudentTab: () => StudentTab
+  setActiveAdminTab: (tab: AdminTab, mode?: 'push' | 'replace') => Promise<void>
+  setActiveStudentTab: (tab: StudentTab, mode?: 'push' | 'replace') => Promise<void>
   navigateToLogin: () => Promise<void>
   navigateToSetup: () => Promise<void>
   clearAllNotices: () => void
@@ -42,9 +45,19 @@ export function useSessionFlow(deps: SessionFlowDeps) {
   const sessionStore = useSessionStore()
 
   async function activateRoleTab(role: number, mode: 'push' | 'replace' = 'replace') {
-    const targetTab = deps.resolveTabForRole(role)
-    const tabChanged = targetTab !== deps.activeTab.value
-    await deps.setActiveTab(targetTab, mode)
+    if (role === 1) {
+      const targetTab = deps.resolveAdminTab()
+      const tabChanged = targetTab !== deps.activeAdminTab.value
+      await deps.setActiveAdminTab(targetTab, mode)
+      if (!tabChanged) {
+        await deps.loadRoleData()
+      }
+      return
+    }
+
+    const targetTab = deps.resolveStudentTab()
+    const tabChanged = targetTab !== deps.activeStudentTab.value
+    await deps.setActiveStudentTab(targetTab, mode)
     if (!tabChanged) {
       await deps.loadRoleData()
     }

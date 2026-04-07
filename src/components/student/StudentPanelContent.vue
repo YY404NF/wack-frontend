@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 
-import type { AppTab } from '../../constants'
+import type { StudentTab } from '../../constants'
 import type { StudentGreeting, StudentWorkspaceProps } from './types'
 
 const StudentHomePanel = defineAsyncComponent(() => import('./StudentHomePanel.vue'))
@@ -17,7 +17,7 @@ const props = defineProps<StudentWorkspaceProps & {
 }>()
 
 const emit = defineEmits<{
-  'update:activeTab': [value: AppTab]
+  'update:activeTab': [value: StudentTab]
   logout: []
   openAbout: []
   openFreeTimeModal: []

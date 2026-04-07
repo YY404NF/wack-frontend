@@ -1,9 +1,9 @@
 import type { AvailableCourseItem, ClassItem, ClassStudentItem, FreeTimeEditorItem, MetaSectionItem, SessionUser, SystemSetting } from '../../api'
-import type { AppTab } from '../../constants'
+import type { StudentTab } from '../../constants'
 
 export type StudentWorkspaceProps = {
   me: SessionUser
-  activeTab: AppTab
+  activeTab: StudentTab
   pageError: string
   toast: string
   systemSettings: SystemSetting | null

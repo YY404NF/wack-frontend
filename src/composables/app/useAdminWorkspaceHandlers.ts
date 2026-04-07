@@ -1,7 +1,7 @@
-import type { AppTab, StatusCode } from '../../constants'
+import type { AdminTab, StatusCode } from '../../constants'
 
 export type AdminWorkspaceHandlersDeps = {
-  setActiveTab: (tab: AppTab, mode?: 'push' | 'replace') => Promise<void>
+  setActiveTab: (tab: AdminTab, mode?: 'push' | 'replace') => Promise<void>
   logout: () => void
   openCreateCourseModal: () => void
   openEditCourseModal: (item: any) => Promise<void>
@@ -88,7 +88,7 @@ export type AdminWorkspaceHandlersDeps = {
 
 export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
   return {
-    'update:activeTab': (value: AppTab) => {
+    'update:activeTab': (value: AdminTab) => {
       void deps.setActiveTab(value, 'push')
     },
     logout: deps.logout,

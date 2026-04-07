@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Calendar, HomeFilled, Setting } from '@element-plus/icons-vue'
 
-import type { AppTab } from '../constants'
+import type { StudentTab } from '../constants'
 import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
 import StudentBottomNav from '../components/student/StudentBottomNav.vue'
 import StudentPanelContent from '../components/student/StudentPanelContent.vue'
@@ -13,7 +13,7 @@ import { formatSectionTimeRange, getSectionTimeRange, scheduleLabelMap, schedule
 
 const props = defineProps<StudentWorkspaceProps>()
 const emit = defineEmits<{
-  'update:activeTab': [value: AppTab]
+  'update:activeTab': [value: StudentTab]
   logout: []
   openFreeTimeModal: []
   openManagedClassStudentsModal: []
@@ -60,7 +60,7 @@ const activeScheduleSections = computed(() => {
     })
     .map((item) => item.section)
 })
-const navItems: Array<{ key: 'home' | 'student' | 'settings'; label: string; icon: typeof HomeFilled }> = [
+const navItems: Array<{ key: StudentTab; label: string; icon: typeof HomeFilled }> = [
   { key: 'home', label: '首页', icon: HomeFilled },
   { key: 'student', label: '查课', icon: Calendar },
   { key: 'settings', label: '设置', icon: Setting },
