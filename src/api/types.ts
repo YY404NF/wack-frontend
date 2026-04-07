@@ -233,6 +233,7 @@ export interface CourseCalendarItem {
   course_name: string
   teacher_name: string
   has_attendance_record: boolean
+  attendance_rate: number
   class_names: string[]
   class_ids: number[]
   grades: number[]

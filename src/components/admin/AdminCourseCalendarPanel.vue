@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { api, type CourseCalendarItem, type CourseCalendarOutlineItem, type FreeTimeItem, type MetaTermItem, type SystemSetting } from '../../api'
 import { weekdayLabels } from '../../constants'
+import { clampAttendanceRate, mixHex, normalizeValueWithinRange, paletteForAttendanceRate, paletteForRelativeAttendanceRate } from '../../utils/attendance-rate-theme'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import type { AdminAttendanceDetailTarget } from './shared-types'
 
@@ -52,6 +53,7 @@ type CalendarCellCourseItem = {
   courseId: number
   selectedLessonId: number | null
   selectedHasAttendanceRecord: boolean
+  selectedAttendanceRate: number | null
   courseName: string
   teacherName: string
   locations: string[]
@@ -290,6 +292,24 @@ const selectedWeekCourseMap = computed(() => {
   return map
 })
 
+const selectedWeekRecordedRateRange = computed(() => {
+  const rates = courseCalendarRows.value
+    .filter((item) => item.has_attendance_record)
+    .map((item) => clampAttendanceRate(item.attendance_rate))
+
+  if (rates.length === 0) {
+    return {
+      minRate: 0,
+      maxRate: 0,
+    }
+  }
+
+  return {
+    minRate: Math.min(...rates),
+    maxRate: Math.max(...rates),
+  }
+})
+
 const courseCells = computed(() =>
   activeSchedule.value.map((row) =>
     visibleWeekdays.value.map((weekday) => {
@@ -304,6 +324,7 @@ const courseCells = computed(() =>
             courseId: item.course_id,
             selectedLessonId: selectedWeekDetail?.id ?? null,
             selectedHasAttendanceRecord: selectedWeekDetail?.has_attendance_record ?? false,
+            selectedAttendanceRate: typeof selectedWeekDetail?.attendance_rate === 'number' ? selectedWeekDetail.attendance_rate : null,
             courseName: item.course_name,
             teacherName: item.teacher_name,
             locations: item.locations,
@@ -336,6 +357,56 @@ const freeTimeCells = computed(() =>
   ),
 )
 
+const selectedWeekFreeTimeCountByLoginId = computed(() => {
+  const counts = new Map<string, number>()
+  for (const item of freeTimeRows.value) {
+    counts.set(item.login_id, (counts.get(item.login_id) ?? 0) + 1)
+  }
+  return counts
+})
+
+const selectedWeekFreeTimeCountRange = computed(() => {
+  const counts = Array.from(selectedWeekFreeTimeCountByLoginId.value.values())
+  if (counts.length === 0) {
+    return {
+      minCount: 0,
+      maxCount: 0,
+    }
+  }
+  return {
+    minCount: Math.min(...counts),
+    maxCount: Math.max(...counts),
+  }
+})
+
+function freeTimePaletteForLoginId(loginId: string) {
+  const count = selectedWeekFreeTimeCountByLoginId.value.get(loginId) ?? 0
+  const hasCollapsedRange =
+    selectedWeekFreeTimeCountRange.value.maxCount - selectedWeekFreeTimeCountRange.value.minCount <= 0.000001
+  return paletteForRelativeAttendanceRate(
+    hasCollapsedRange
+      ? 0.5
+      : normalizeValueWithinRange(
+          count,
+          selectedWeekFreeTimeCountRange.value.minCount,
+          selectedWeekFreeTimeCountRange.value.maxCount,
+        ),
+  )
+}
+
+const hoveredFreeTimeCellKeys = computed(() => {
+  const keys = new Set<string>()
+  if (!hoveredFreeTimeLoginId.value) {
+    return keys
+  }
+  for (const item of freeTimeRows.value) {
+    if (item.login_id === hoveredFreeTimeLoginId.value) {
+      keys.add(`${item.weekday}:${item.section}`)
+    }
+  }
+  return keys
+})
+
 function formatWeekText(weeks: number[]) {
   return `第 ${weeks.join('、')} 周`
 }
@@ -346,6 +417,56 @@ function courseTooltipLines(item: CalendarCellCourseItem) {
     item.locations.join('、') || '-',
     item.classNames.join('、') || '未关联班级',
   ]
+}
+
+function courseTagStyle(item: CalendarCellCourseItem) {
+  if (!item.containsSelectedWeek || !item.selectedHasAttendanceRecord || item.selectedAttendanceRate === null) {
+    return {}
+  }
+
+  const palette = paletteForAttendanceRate(
+    item.selectedAttendanceRate,
+    selectedWeekRecordedRateRange.value.minRate,
+    selectedWeekRecordedRateRange.value.maxRate,
+  )
+
+  return {
+    '--course-tag-bg': mixHex(palette[1], '#F4EFE8', 0.56),
+    '--course-tag-text': palette[3],
+    '--course-tag-border': mixHex(palette[2], palette[3], 0.34),
+    '--course-tag-hover-bg': mixHex(palette[1], '#FFFFFF', 0.28),
+  }
+}
+
+function freeTimeTagStyle(item: FreeTimeItem) {
+  if (hoveredFreeTimeLoginId.value && hoveredFreeTimeLoginId.value !== item.login_id) {
+    return {
+      '--course-tag-bg': 'rgba(92, 82, 75, 0.08)',
+      '--course-tag-hover-bg': 'rgba(92, 82, 75, 0.12)',
+      '--course-tag-text': 'rgba(107, 96, 86, 0.78)',
+    }
+  }
+
+  const palette = freeTimePaletteForLoginId(item.login_id)
+
+  return {
+    '--course-tag-bg': mixHex(palette[1], '#F4EFE8', 0.56),
+    '--course-tag-hover-bg': mixHex(palette[1], '#FFFFFF', 0.28),
+    '--course-tag-text': palette[3],
+    '--course-tag-border': mixHex(palette[2], palette[3], 0.3),
+  }
+}
+
+function freeTimeCellStyle(weekday: number, section: number) {
+  const loginId = hoveredFreeTimeLoginId.value
+  if (!loginId || !hoveredFreeTimeCellKeys.value.has(`${weekday}:${section}`)) {
+    return {}
+  }
+
+  const palette = freeTimePaletteForLoginId(loginId)
+  return {
+    '--course-calendar-free-highlight-bg': mixHex(palette[1], '#F4EFE8', 0.62),
+  }
 }
 
 function showCourseTooltip(event: MouseEvent, item: CalendarCellCourseItem) {
@@ -564,7 +685,9 @@ onBeforeUnmount(() => {
             :class="{
               'course-calendar-cell-active-column': highlightCurrentSlot && currentWeekday === weekday,
               'course-calendar-cell-active-current': highlightCurrentSlot && currentWeekday === weekday && currentSection === row.section,
+              'course-calendar-cell-free-highlight': showingFreeTime && hoveredFreeTimeCellKeys.has(`${weekday}:${row.section}`),
             }"
+            :style="showingFreeTime ? freeTimeCellStyle(weekday, row.section) : undefined"
           >
             <template v-if="!showingFreeTime">
               <button
@@ -572,9 +695,10 @@ onBeforeUnmount(() => {
                 :key="`course-${item.key}`"
                 class="course-tag course-tag-button"
                 :class="{
-                  'course-tag-muted': !item.containsSelectedWeek,
-                  'course-tag-recorded': item.containsSelectedWeek && item.selectedHasAttendanceRecord,
+                  'course-tag-muted': !item.containsSelectedWeek || !item.selectedHasAttendanceRecord,
+                  'course-tag-current-week': item.containsSelectedWeek,
                 }"
+                :style="courseTagStyle(item)"
                 type="button"
                 :disabled="!item.containsSelectedWeek || !item.selectedLessonId"
                 @mouseenter="showCourseTooltip($event, item)"
@@ -590,7 +714,11 @@ onBeforeUnmount(() => {
                 v-for="item in freeTimeCells[rowIndex][columnIndex]"
                 :key="`free-${item.id}`"
                 class="course-tag course-tag-free course-tag-button"
-                :class="{ 'course-tag-free-dimmed': hoveredFreeTimeLoginId && hoveredFreeTimeLoginId !== item.login_id }"
+                :class="{
+                  'course-tag-free-dimmed': hoveredFreeTimeLoginId && hoveredFreeTimeLoginId !== item.login_id,
+                  'course-tag-free-highlighted': hoveredFreeTimeLoginId === item.login_id,
+                }"
+                :style="freeTimeTagStyle(item)"
                 type="button"
                 :title="`${item.real_name}（${item.login_id}）`"
                 @mouseenter="highlightFreeTimeUser(item.login_id)"

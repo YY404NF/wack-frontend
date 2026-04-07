@@ -10,6 +10,7 @@ import {
   type OverviewStudentRankingItem,
 } from '../../api'
 import { attendanceStatusBadgeClass, sectionLabels, statusLabels, weekdayLabels } from '../../constants'
+import { attendanceTonePalettes, clampAttendanceRate, mixHex, paletteForAttendanceRate } from '../../utils/attendance-rate-theme'
 import type { AdminAttendanceDetailTarget } from './shared-types'
 import type { AdminOverviewProps } from './types'
 
@@ -306,71 +307,9 @@ watch(studentRankAsc, () => {
   void loadOverviewSection('student_rankings', true)
 })
 
-const attendanceTonePalettes = {
-  present: ['#EEF8E8', '#CFEABF', '#79C56B', '#0A9448'],
-  late: ['#FFF7D9', '#FFE89A', '#F7BE38', '#B86E00'],
-  absent: ['#FDEBEC', '#F8CBCE', '#E97C86', '#C61F26'],
-  leave: ['#EBF7FD', '#C9E8F7', '#63B9E3', '#167FBC'],
-  unrecorded: ['#F3F0EC', '#D7D1C9', '#A99E94', '#6B6056'],
-} as const
-
 function rateText(value: number) {
-  const normalized = Number.isFinite(value) ? value : 0
+  const normalized = clampAttendanceRate(value)
   return `${(normalized * 100).toFixed(1).replace(/\.0$/, '')} %`
-}
-
-function hexToRgb(value: string) {
-  const normalized = value.replace('#', '')
-  const safe = normalized.length === 3
-    ? normalized.split('').map((item) => item + item).join('')
-    : normalized
-  const numeric = Number.parseInt(safe, 16)
-  return {
-    r: (numeric >> 16) & 255,
-    g: (numeric >> 8) & 255,
-    b: numeric & 255,
-  }
-}
-
-function rgbToHex(value: { r: number; g: number; b: number }) {
-  return `#${[value.r, value.g, value.b].map((item) => Math.max(0, Math.min(255, Math.round(item))).toString(16).padStart(2, '0')).join('')}`
-}
-
-function mixHex(left: string, right: string, factor: number) {
-  const start = hexToRgb(left)
-  const end = hexToRgb(right)
-  const ratio = Math.max(0, Math.min(1, factor))
-  return rgbToHex({
-    r: start.r + (end.r - start.r) * ratio,
-    g: start.g + (end.g - start.g) * ratio,
-    b: start.b + (end.b - start.b) * ratio,
-  })
-}
-
-function mixPalette(
-  left: readonly [string, string, string, string],
-  right: readonly [string, string, string, string],
-  factor: number,
-) {
-  return left.map((value, index) => mixHex(value, right[index]!, factor)) as [string, string, string, string]
-}
-
-function paletteForRate(value: number) {
-  const normalized = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
-  if (normalized <= 0.5) {
-    return mixPalette(attendanceTonePalettes.absent, attendanceTonePalettes.late, normalized / 0.5)
-  }
-  return mixPalette(attendanceTonePalettes.late, attendanceTonePalettes.present, (normalized - 0.5) / 0.5)
-}
-
-function normalizeRateWithinRange(value: number, minRate: number, maxRate: number) {
-  const safeValue = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
-  const safeMin = Math.max(0, Math.min(1, Number.isFinite(minRate) ? minRate : 0))
-  const safeMax = Math.max(0, Math.min(1, Number.isFinite(maxRate) ? maxRate : 0))
-  if (safeMax - safeMin <= 0.000001) {
-    return safeValue
-  }
-  return Math.max(0, Math.min(1, (safeValue - safeMin) / (safeMax - safeMin)))
 }
 
 function entryToneStyle(palette: readonly [string, string, string, string]) {
@@ -386,8 +325,8 @@ function entryToneStyle(palette: readonly [string, string, string, string]) {
 }
 
 function rateThemeStyle(value: number, minRate: number, maxRate: number) {
-  const actualRate = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
-  const palette = paletteForRate(normalizeRateWithinRange(actualRate, minRate, maxRate))
+  const actualRate = clampAttendanceRate(value)
+  const palette = paletteForAttendanceRate(actualRate, minRate, maxRate)
   const percent = `${actualRate * 100}%`
   return {
     '--overview-rate-width': percent,
