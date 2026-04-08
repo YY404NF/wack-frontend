@@ -22,6 +22,7 @@ const emit = defineEmits<{
 }>()
 
 const WEEK_COUNT = 16
+const FULL_WEEK_FREE_TIME_SLOT_COUNT = 35
 
 const now = ref(new Date())
 const showingFreeTime = ref(false)
@@ -326,13 +327,11 @@ const selectedWeekRecordedRateRange = computed(() => {
   if (rates.length === 0) {
     return {
       minRate: 0,
-      maxRate: 0,
     }
   }
 
   return {
     minRate: Math.min(...rates),
-    maxRate: Math.max(...rates),
   }
 })
 
@@ -401,27 +400,21 @@ const selectedWeekFreeTimeCountRange = computed(() => {
   if (counts.length === 0) {
     return {
       minCount: 0,
-      maxCount: 0,
     }
   }
   return {
     minCount: Math.min(...counts),
-    maxCount: Math.max(...counts),
   }
 })
 
 function freeTimePaletteForLoginId(loginId: string) {
   const count = selectedWeekFreeTimeCountByLoginId.value.get(loginId) ?? 0
-  const hasCollapsedRange =
-    selectedWeekFreeTimeCountRange.value.maxCount - selectedWeekFreeTimeCountRange.value.minCount <= 0.000001
   return paletteForRelativeAttendanceRate(
-    hasCollapsedRange
-      ? 0.5
-      : normalizeValueWithinRange(
-          count,
-          selectedWeekFreeTimeCountRange.value.minCount,
-          selectedWeekFreeTimeCountRange.value.maxCount,
-        ),
+    normalizeValueWithinRange(
+      count,
+      selectedWeekFreeTimeCountRange.value.minCount,
+      FULL_WEEK_FREE_TIME_SLOT_COUNT,
+    ),
   )
 }
 
@@ -474,7 +467,7 @@ function courseTagStyle(item: CalendarCellCourseItem) {
   const palette = paletteForAttendanceRate(
     item.selectedAttendanceRate,
     selectedWeekRecordedRateRange.value.minRate,
-    selectedWeekRecordedRateRange.value.maxRate,
+    1,
   )
 
   return {

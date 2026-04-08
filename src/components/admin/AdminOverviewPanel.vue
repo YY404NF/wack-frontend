@@ -40,7 +40,6 @@ type LazySectionState<T> = {
   hasMore: Ref<boolean>
   loading: Ref<boolean>
   minRate: Ref<number>
-  maxRate: Ref<number>
   requestToken: number
 }
 
@@ -51,7 +50,6 @@ function createLazySectionState<T>(): LazySectionState<T> {
     hasMore: ref(true),
     loading: ref(false),
     minRate: ref(0),
-    maxRate: ref(0),
     requestToken: 0,
   }
 }
@@ -98,7 +96,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       courseSection.total.value = 0
       courseSection.hasMore.value = true
       courseSection.minRate.value = 0
-      courseSection.maxRate.value = 0
     }
     try {
       const payload = await api.adminOverview({
@@ -116,7 +113,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       courseSection.total.value = payload.course_rankings_total
       courseSection.hasMore.value = payload.course_rankings_has_more
       courseSection.minRate.value = payload.course_rankings_min_rate
-      courseSection.maxRate.value = payload.course_rankings_max_rate
     } finally {
       if (courseSection.requestToken === requestToken) {
         courseSection.loading.value = false
@@ -137,7 +133,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       classSection.total.value = 0
       classSection.hasMore.value = true
       classSection.minRate.value = 0
-      classSection.maxRate.value = 0
     }
     try {
       const payload = await api.adminOverview({
@@ -155,7 +150,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       classSection.total.value = payload.class_rankings_total
       classSection.hasMore.value = payload.class_rankings_has_more
       classSection.minRate.value = payload.class_rankings_min_rate
-      classSection.maxRate.value = payload.class_rankings_max_rate
     } finally {
       if (classSection.requestToken === requestToken) {
         classSection.loading.value = false
@@ -176,7 +170,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       studentSection.total.value = 0
       studentSection.hasMore.value = true
       studentSection.minRate.value = 0
-      studentSection.maxRate.value = 0
     }
     try {
       const payload = await api.adminOverview({
@@ -194,7 +187,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       studentSection.total.value = payload.student_rankings_total
       studentSection.hasMore.value = payload.student_rankings_has_more
       studentSection.minRate.value = payload.student_rankings_min_rate
-      studentSection.maxRate.value = payload.student_rankings_max_rate
     } finally {
       if (studentSection.requestToken === requestToken) {
         studentSection.loading.value = false
@@ -215,7 +207,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       sessionSection.total.value = 0
       sessionSection.hasMore.value = true
       sessionSection.minRate.value = 0
-      sessionSection.maxRate.value = 0
     }
     try {
       const payload = await api.adminOverview({
@@ -232,7 +223,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       sessionSection.total.value = payload.recent_sessions_total
       sessionSection.hasMore.value = payload.recent_sessions_has_more
       sessionSection.minRate.value = payload.recent_sessions_min_rate
-      sessionSection.maxRate.value = payload.recent_sessions_max_rate
     } finally {
       if (sessionSection.requestToken === requestToken) {
         sessionSection.loading.value = false
@@ -252,7 +242,6 @@ async function loadOverviewSection(section: OverviewSectionKey, reset = false) {
       abnormalSection.total.value = 0
       abnormalSection.hasMore.value = true
       abnormalSection.minRate.value = 0
-      abnormalSection.maxRate.value = 0
     }
   try {
     const payload = await api.adminOverview({
@@ -324,9 +313,9 @@ function entryToneStyle(palette: readonly [string, string, string, string]) {
   }
 }
 
-function rateThemeStyle(value: number, minRate: number, maxRate: number) {
+function rateThemeStyle(value: number, minRate: number) {
   const actualRate = clampAttendanceRate(value)
-  const palette = paletteForAttendanceRate(actualRate, minRate, maxRate)
+  const palette = paletteForAttendanceRate(actualRate, minRate, 1)
   const percent = `${actualRate * 100}%`
   return {
     '--overview-rate-width': percent,
@@ -448,7 +437,7 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
             v-for="item in courseRankings"
             :key="item.course_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
-            :style="rateThemeStyle(item.attendance_rate, courseSection.minRate.value, courseSection.maxRate.value)"
+            :style="rateThemeStyle(item.attendance_rate, courseSection.minRate.value)"
             type="button"
             @click="openCourseDetail(item.course_id)"
           >
@@ -474,7 +463,7 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
             v-for="item in classRankings"
             :key="item.class_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
-            :style="rateThemeStyle(item.attendance_rate, classSection.minRate.value, classSection.maxRate.value)"
+            :style="rateThemeStyle(item.attendance_rate, classSection.minRate.value)"
             type="button"
             @click="openClassDetail(item.class_id)"
           >
@@ -500,7 +489,7 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
             v-for="item in studentRankings"
             :key="item.student_ref_id"
             class="overview-rank-item overview-rank-item-button overview-entry overview-entry-with-lead overview-entry-with-rate"
-            :style="rateThemeStyle(item.attendance_rate, studentSection.minRate.value, studentSection.maxRate.value)"
+            :style="rateThemeStyle(item.attendance_rate, studentSection.minRate.value)"
             type="button"
             @click="openStudentDetail(item.student_ref_id)"
           >
@@ -523,7 +512,7 @@ function openRecentAbnormalDetail(item: OverviewRecentAbnormalItem) {
             v-for="item in recentSessions"
             :key="item.course_group_lesson_id"
             class="overview-session-item overview-session-item-button overview-entry overview-entry-two-column overview-entry-with-rate"
-            :style="rateThemeStyle(item.attendance_rate, sessionSection.minRate.value, sessionSection.maxRate.value)"
+            :style="rateThemeStyle(item.attendance_rate, sessionSection.minRate.value)"
             type="button"
             @click="openRecentSessionDetail(item)"
           >
