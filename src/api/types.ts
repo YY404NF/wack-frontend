@@ -521,6 +521,13 @@ export interface AdminAttendanceSessionPageResult {
   focus_row_key?: number | null
 }
 
+export interface AdminBulkUpdateAttendanceStatusesResult {
+  applied_items: number[]
+  failed_items: number[]
+  applied_count: number
+  failed_count: number
+}
+
 export interface SubmitAttendanceStatusesResult {
   accepted_items: number[]
   ignored_items: number[]

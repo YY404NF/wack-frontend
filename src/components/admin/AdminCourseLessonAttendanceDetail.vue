@@ -300,25 +300,21 @@ async function saveBulkAttendanceStatus() {
   }
   bulkSavingStatus.value = true
   actionError.value = ''
-  const failedIds = new Set<number>()
-  let updatedCount = 0
 
   try {
-    for (const id of ids) {
-      try {
-        await api.adminUpdateAttendanceStatus(props.sessionId, id, Number(bulkEditingStatus.value))
-        updatedCount += 1
-      } catch {
-        failedIds.add(id)
-      }
-    }
+    const result = await api.adminBulkUpdateAttendanceStatuses(props.sessionId, ids, Number(bulkEditingStatus.value))
     await loadSessionDetailPage()
-    selectedDetailIds.value = ids.filter((id) => failedIds.has(id))
-    if (failedIds.size > 0) {
-      actionError.value = `仍有 ${failedIds.size} 项修改失败`
+    selectedDetailIds.value = [...result.failed_items]
+    if (result.failed_count > 0) {
+      actionError.value = result.applied_count > 0
+        ? `已更新 ${result.applied_count} 项，仍有 ${result.failed_count} 项修改失败`
+        : `仍有 ${result.failed_count} 项修改失败`
       return
     }
+    clearDetailSelection()
     closeBulkEditModal()
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '批量修改考勤状态失败'
   } finally {
     bulkSavingStatus.value = false
   }

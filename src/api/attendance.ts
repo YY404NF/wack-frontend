@@ -1,6 +1,7 @@
 import { request } from './client'
 import { apiPaths } from './paths'
 import type {
+  AdminBulkUpdateAttendanceStatusesResult,
   AdminAttendanceSessionPageResult,
   AdminOverviewData,
   AttendanceRecordLogItem,
@@ -167,6 +168,18 @@ export const attendanceApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
+  },
+  adminBulkUpdateAttendanceStatuses(sessionId: number, studentRefIds: number[], status: number) {
+    return request<AdminBulkUpdateAttendanceStatusesResult>(`${apiPaths.admin.attendanceSessions}/${sessionId}/students/statuses`, {
+      method: 'PATCH',
+      body: JSON.stringify({ student_ref_ids: studentRefIds, status }),
+    }).then((result) => ({
+      ...result,
+      applied_items: Array.isArray(result.applied_items) ? result.applied_items : [],
+      failed_items: Array.isArray(result.failed_items) ? result.failed_items : [],
+      applied_count: result.applied_count ?? 0,
+      failed_count: result.failed_count ?? 0,
+    }))
   },
   studentAvailableCourses() {
     return request<AvailableCourseItem[] | null>(apiPaths.student.coursesAvailable)
