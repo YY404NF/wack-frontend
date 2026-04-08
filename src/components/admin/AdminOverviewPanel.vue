@@ -400,7 +400,7 @@ function abnormalRightTitleText(item: OverviewRecentAbnormalItem) {
 }
 
 function abnormalRightSubtitleText(item: OverviewRecentAbnormalItem) {
-  return [item.course_name, item.teacher_name, item.grade ? `${item.grade}级` : ''].filter(Boolean).join(' · ')
+  return [item.course_name, item.teacher_name].filter(Boolean).join(' · ')
 }
 
 function openCourseDetail(courseId: number) {
