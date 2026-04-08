@@ -168,6 +168,20 @@ const gridStyle = computed(() => ({
   minHeight: `calc(42px + ${activeSchedule.value.length} * 172px)`,
 }))
 
+function selectedWeekDateText(weekday: number) {
+  const startDate = selectedTermMeta.value?.term_start_date
+  if (!startDate) {
+    return weekdayLabels[weekday] ?? `周${weekday}`
+  }
+  const weekStart = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(weekStart.getTime())) {
+    return weekdayLabels[weekday] ?? `周${weekday}`
+  }
+  const targetDate = new Date(weekStart)
+  targetDate.setDate(weekStart.getDate() + (selectedWeek.value - 1) * 7 + (weekday - 1))
+  return `${targetDate.getMonth() + 1}月${targetDate.getDate()}日 · ${weekdayLabels[weekday] ?? `周${weekday}`}`
+}
+
 function buildWeekRequestKey(term: string, weekNo: number) {
   return `${term}::${weekNo}`
 }
@@ -666,7 +680,10 @@ onBeforeUnmount(() => {
           v-for="weekNo in WEEK_COUNT"
           :key="weekNo"
           class="ghost-button compact-button course-calendar-week-button"
-          :class="{ selected: selectedWeek === weekNo }"
+          :class="{
+            selected: selectedWeek === weekNo,
+            current: selectedTermModel === currentTerm && currentWeek === weekNo,
+          }"
           type="button"
           @click="selectedWeek = weekNo"
         >
@@ -700,7 +717,7 @@ onBeforeUnmount(() => {
           class="course-calendar-day"
           :class="{ 'course-calendar-day-active': highlightCurrentSlot && currentWeekday === weekday }"
         >
-          {{ weekdayLabels[weekday] }}
+          {{ selectedWeekDateText(weekday) }}
         </div>
 
         <template v-for="(row, rowIndex) in activeSchedule" :key="row.section">
