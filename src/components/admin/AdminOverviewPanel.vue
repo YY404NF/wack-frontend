@@ -357,6 +357,10 @@ function weekSectionText(weekNo: number, weekday: number, section: number) {
   return `第${weekNo}周 · ${weekdayLabels[weekday] ?? `周${weekday}`} · ${sectionLabels[section] ?? `第 ${section} 段`}`
 }
 
+function uncheckedCount(studentCount: number, recordCount: number) {
+  return Math.max(0, studentCount - recordCount)
+}
+
 function sessionLeftTitleText(item: OverviewRecentSessionItem) {
   return weekSectionText(item.week_no, item.weekday, item.section)
 }
@@ -372,6 +376,7 @@ function sessionRightTitleText(item: OverviewRecentSessionItem) {
 
 function sessionSummaryItems(item: OverviewRecentSessionItem) {
   return [
+    { key: 'unrecorded', label: '未查', count: uncheckedCount(item.student_count, item.record_count), className: attendanceStatusBadgeClass(null) },
     { key: 'late', label: '迟到', count: item.late_count, className: attendanceStatusBadgeClass(1) },
     { key: 'absent', label: '缺勤', count: item.absent_count, className: attendanceStatusBadgeClass(2) },
     { key: 'leave', label: '请假', count: item.leave_count, className: attendanceStatusBadgeClass(3) },

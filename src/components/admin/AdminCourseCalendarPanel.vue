@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { api, type CourseCalendarItem, type CourseCalendarOutlineItem, type FreeTimeItem, type MetaTermItem, type SystemSetting } from '../../api'
-import { weekdayLabels } from '../../constants'
+import { attendanceStatusBadgeClass, weekdayLabels } from '../../constants'
 import { clampAttendanceRate, mixHex, normalizeValueWithinRange, paletteForAttendanceRate, paletteForRelativeAttendanceRate } from '../../utils/attendance-rate-theme'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import type { AdminAttendanceDetailTarget } from './shared-types'
@@ -27,7 +27,7 @@ const now = ref(new Date())
 const showingFreeTime = ref(false)
 const showWeekend = ref(false)
 const selectedWeek = ref(1)
-const hoveredCourse = ref<null | { title: string; lines: string[]; x: number; y: number }>(null)
+const hoveredCourse = ref<null | { title: string; lines: string[]; summaryItems: TooltipAttendanceSummaryItem[]; x: number; y: number }>(null)
 const hoveredFreeTimeLoginId = ref('')
 const tooltipRef = ref<HTMLElement | null>(null)
 const tooltipSize = ref({ width: 0, height: 0 })
@@ -54,12 +54,24 @@ type CalendarCellCourseItem = {
   selectedLessonId: number | null
   selectedHasAttendanceRecord: boolean
   selectedAttendanceRate: number | null
+  selectedStudentCount: number
+  selectedRecordCount: number
+  selectedLateCount: number
+  selectedAbsentCount: number
+  selectedLeaveCount: number
   courseName: string
   teacherName: string
   locations: string[]
   classNames: string[]
   weekNos: number[]
   containsSelectedWeek: boolean
+}
+
+type TooltipAttendanceSummaryItem = {
+  key: string
+  label: string
+  count: number
+  className: string
 }
 
 const scheduleMap = {
@@ -325,6 +337,11 @@ const courseCells = computed(() =>
             selectedLessonId: selectedWeekDetail?.id ?? null,
             selectedHasAttendanceRecord: selectedWeekDetail?.has_attendance_record ?? false,
             selectedAttendanceRate: typeof selectedWeekDetail?.attendance_rate === 'number' ? selectedWeekDetail.attendance_rate : null,
+            selectedStudentCount: selectedWeekDetail?.student_count ?? 0,
+            selectedRecordCount: selectedWeekDetail?.record_count ?? 0,
+            selectedLateCount: selectedWeekDetail?.late_count ?? 0,
+            selectedAbsentCount: selectedWeekDetail?.absent_count ?? 0,
+            selectedLeaveCount: selectedWeekDetail?.leave_count ?? 0,
             courseName: item.course_name,
             teacherName: item.teacher_name,
             locations: item.locations,
@@ -411,12 +428,28 @@ function formatWeekText(weeks: number[]) {
   return `第 ${weeks.join('、')} 周`
 }
 
+function uncheckedCount(studentCount: number, recordCount: number) {
+  return Math.max(0, studentCount - recordCount)
+}
+
 function courseTooltipLines(item: CalendarCellCourseItem) {
   return [
     formatWeekText(item.weekNos),
     item.locations.join('、') || '-',
     item.classNames.join('、') || '未关联班级',
   ]
+}
+
+function courseTooltipSummaryItems(item: CalendarCellCourseItem) {
+  if (!item.selectedHasAttendanceRecord) {
+    return []
+  }
+  return [
+    { key: 'unrecorded', label: '未查', count: uncheckedCount(item.selectedStudentCount, item.selectedRecordCount), className: attendanceStatusBadgeClass(null) },
+    { key: 'late', label: '迟到', count: item.selectedLateCount, className: attendanceStatusBadgeClass(1) },
+    { key: 'absent', label: '缺勤', count: item.selectedAbsentCount, className: attendanceStatusBadgeClass(2) },
+    { key: 'leave', label: '请假', count: item.selectedLeaveCount, className: attendanceStatusBadgeClass(3) },
+  ].filter((summary) => summary.count > 0)
 }
 
 function courseTagStyle(item: CalendarCellCourseItem) {
@@ -473,6 +506,7 @@ function showCourseTooltip(event: MouseEvent, item: CalendarCellCourseItem) {
   hoveredCourse.value = {
     title: `${item.courseName} · ${item.teacherName}`,
     lines: courseTooltipLines(item),
+    summaryItems: courseTooltipSummaryItems(item),
     x: event.clientX,
     y: event.clientY,
   }
@@ -742,6 +776,17 @@ onBeforeUnmount(() => {
       >
         <strong>{{ hoveredCourse.title }}</strong>
         <p v-for="line in hoveredCourse.lines" :key="line">{{ line }}</p>
+        <div v-if="hoveredCourse.summaryItems.length > 0" class="attendance-session-summary course-floating-tooltip-summary">
+          <span
+            v-for="summary in hoveredCourse.summaryItems"
+            :key="summary.key"
+            class="status-badge attendance-session-summary-chip"
+            :class="summary.className"
+          >
+            <span class="attendance-session-summary-label">{{ summary.label }}</span>
+            <span class="attendance-session-summary-count">{{ summary.count }}</span>
+          </span>
+        </div>
       </div>
     </Teleport>
   </section>

@@ -234,6 +234,11 @@ export interface CourseCalendarItem {
   teacher_name: string
   has_attendance_record: boolean
   attendance_rate: number
+  student_count: number
+  record_count: number
+  late_count: number
+  absent_count: number
+  leave_count: number
   class_names: string[]
   class_ids: number[]
   grades: number[]
@@ -337,6 +342,7 @@ export interface OverviewRecentSessionItem {
   building_name: string
   room_name: string
   class_summary: string
+  student_count: number
   record_count: number
   present_count: number
   late_count: number

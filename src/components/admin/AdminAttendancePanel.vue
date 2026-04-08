@@ -320,6 +320,10 @@ function lessonTimeLabel(section: number) {
   return sectionLabels[section] ?? `第 ${section} 节`
 }
 
+function uncheckedCount(studentCount: number, recordCount: number) {
+  return Math.max(0, studentCount - recordCount)
+}
+
 function sessionSummaryText(item: AttendanceSessionSummary) {
   const summaries = sessionSummaryItems(item).map((entry) => `${entry.label} ${entry.count}`)
   return summaries.length > 0 ? summaries.join(' / ') : '-'
@@ -327,6 +331,7 @@ function sessionSummaryText(item: AttendanceSessionSummary) {
 
 function sessionSummaryItems(item: AttendanceSessionSummary) {
   return [
+    { key: 'unrecorded', label: '未查', count: uncheckedCount(item.student_count, item.record_count), className: attendanceStatusBadgeClass(null) },
     { key: 'late', label: '迟到', count: item.late_count, className: attendanceStatusBadgeClass(1) },
     { key: 'absent', label: '缺勤', count: item.absent_count, className: attendanceStatusBadgeClass(2) },
     { key: 'leave', label: '请假', count: item.leave_count, className: attendanceStatusBadgeClass(3) },

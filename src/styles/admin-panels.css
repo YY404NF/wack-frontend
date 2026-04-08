@@ -1678,6 +1678,10 @@
   line-height: 1.4;
 }
 
+.course-floating-tooltip-summary {
+  margin-top: 10px;
+}
+
 .split-modal-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
