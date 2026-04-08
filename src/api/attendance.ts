@@ -181,6 +181,12 @@ export const attendanceApi = {
       failed_count: result.failed_count ?? 0,
     }))
   },
+  adminUpdateAttendanceRecordStatus(recordId: number, status: number) {
+    return request<Record<string, never>>(`${apiPaths.admin.attendanceRecords}/${recordId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+  },
   studentAvailableCourses() {
     return request<AvailableCourseItem[] | null>(apiPaths.student.coursesAvailable)
   },

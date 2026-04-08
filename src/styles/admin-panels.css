@@ -1017,6 +1017,7 @@
 }
 
 .user-manage-panel > .attendance-page,
+.user-manage-panel > .attendance-detail-view,
 .user-manage-panel > .attendance-detail-layout {
   grid-row: 1 / span 3;
   min-height: 0;

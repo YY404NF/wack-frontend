@@ -604,6 +604,44 @@ export function useAdminState(deps: UseAdminStateDeps) {
     return ''
   }
 
+  function getInheritedTermValue(tab: AdminTab) {
+    switch (tab) {
+      case 'course-manage':
+        return courseFilters.term.trim()
+      case 'attendance-logs':
+        return attendanceLogFilters.term.trim()
+      case 'course-calendar':
+        return courseCalendarTerm.value.trim()
+      case 'student-manage':
+        return studentFilters.term.trim()
+      default:
+        return ''
+    }
+  }
+
+  function setInheritedTermValue(tab: AdminTab, term: string) {
+    const value = term.trim()
+    if (!value) {
+      return
+    }
+    switch (tab) {
+      case 'course-manage':
+        courseFilters.term = value
+        return
+      case 'attendance-logs':
+        attendanceLogFilters.term = value
+        return
+      case 'course-calendar':
+        courseCalendarTerm.value = value
+        return
+      case 'student-manage':
+        studentFilters.term = value
+        return
+      default:
+        return
+    }
+  }
+
   function buildRoleLoadKey(tab: AdminTab = deps.activeTab.value) {
     switch (tab) {
       case 'user-manage':
@@ -645,6 +683,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
           tab,
           page: studentPage.value,
           pageSize: studentPageSize.value,
+          term: studentFilters.term,
+          attendanceSummaryStatus: studentFilters.attendanceSummaryStatus,
           studentId: studentFilters.studentId,
           realName: studentFilters.realName,
           className: studentFilters.className,
@@ -707,6 +747,20 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
   }
 
+  async function ensureStudentManageTermReady() {
+    if (studentFilters.term.trim()) {
+      return
+    }
+    const terms = courseTerms.value.length > 0
+      ? courseTerms.value
+      : await api.listMetaTerms()
+    courseTerms.value = terms
+    const defaultTerm = selectDefaultTermName(terms) || terms[0]?.name || ''
+    if (defaultTerm) {
+      studentFilters.term = defaultTerm
+    }
+  }
+
   async function prepareTabForLoad(tab: AdminTab = deps.activeTab.value) {
     if (tab === 'attendance-logs') {
       await ensureAttendanceLogTermReady()
@@ -714,6 +768,10 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
     if (tab === 'course-manage') {
       await ensureCourseManageTermReady()
+      return
+    }
+    if (tab === 'student-manage') {
+      await ensureStudentManageTermReady()
     }
   }
 
@@ -1045,10 +1103,12 @@ export function useAdminState(deps: UseAdminStateDeps) {
 
   watch(deps.activeTab, (nextTab, previousTab) => {
     if (nextTab !== previousTab && isAdmin.value) {
+      const inheritedTerm = getInheritedTermValue(previousTab)
       clearAdminListFocusState()
       closeAllModals()
       clearAdminSelections()
       resetAdminFiltersForTab(previousTab)
+      setInheritedTermValue(nextTab, inheritedTerm)
       void loadRoleData(nextTab)
     }
     if (isAdmin.value) {
@@ -1078,7 +1138,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
+    () => [studentFilters.term, studentFilters.attendanceSummaryStatus, studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
     () => {
       studentPage.value = 1
     },
@@ -1133,7 +1193,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [studentPage.value, studentPageSize.value, studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
+    () => [studentPage.value, studentPageSize.value, studentFilters.term, studentFilters.attendanceSummaryStatus, studentFilters.studentId, studentFilters.realName, studentFilters.className] as const,
     () => {
       if (isAdmin.value && deps.activeTab.value === 'student-manage') {
         void loadRoleData('student-manage')

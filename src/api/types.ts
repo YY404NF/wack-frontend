@@ -127,8 +127,37 @@ export interface StudentItem {
   class_name?: string | null
   grade?: number | null
   major_name?: string | null
+  late_count?: number
+  absent_count?: number
+  leave_count?: number
   created_at?: string
   updated_at?: string
+}
+
+export interface StudentAttendanceItem {
+  id: number
+  course_group_lesson_id: number
+  course_group_id: number
+  course_id: number
+  term_id: number
+  term: string
+  lesson_date: string
+  week_no: number
+  weekday: number
+  section: number
+  course_name: string
+  teacher_name: string
+  status: number
+  operator_name?: string | null
+  operated_at?: string | null
+}
+
+export interface StudentAttendancePageResult {
+  student: StudentItem
+  attendance_records: StudentAttendanceItem[]
+  page: number
+  page_size: number
+  total: number
 }
 
 export interface StudentOptionItem {

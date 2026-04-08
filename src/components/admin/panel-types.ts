@@ -30,7 +30,7 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from './form-types'
-import type { AdminClassManageRouteView, AdminRoleName, AdminSlotLabel, AdminStatusClass, AdminStatusName } from './shared-types'
+import type { AdminClassManageRouteView, AdminRoleName, AdminSlotLabel, AdminStatusClass, AdminStatusName, AdminStudentManageRouteView } from './shared-types'
 
 export type AdminAttendanceProps = {
   attendanceResults: AttendanceResultItem[]
@@ -114,6 +114,9 @@ export type AdminClassManageProps = {
 export type AdminStudentManageProps = {
   students: StudentItem[]
   allClasses: ClassItem[]
+  courseTerms: MetaTermItem[]
+  studentManageRouteView?: AdminStudentManageRouteView
+  studentManageRouteStudentId?: number | null
   studentForm: AdminStudentForm
   studentFilters: AdminStudentFilters
   studentModalOpen: boolean

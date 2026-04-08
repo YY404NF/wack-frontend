@@ -8,20 +8,23 @@ import { adminNavItems } from '../constants'
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminPanelContent from '../components/admin/AdminPanelContent.vue'
 import AboutCaptchaGate from '../components/about/AboutCaptchaGate.vue'
-import { api, type ClassItem, type CourseItem, type UserItem } from '../api'
+import { api, type ClassItem, type CourseItem, type StudentItem, type UserItem } from '../api'
 import type { AdminWorkspaceProps } from '../components/admin/types'
 import type {
   AdminAttendanceDetailTarget,
   AdminClassManageRouteView,
   AdminCourseManageRouteView,
+  AdminStudentManageRouteView,
 } from '../components/admin/shared-types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 import {
   buildAdminClassLocation,
   buildAdminCourseLocation,
+  buildAdminStudentLocation,
   buildAdminTabLocation,
   readAdminClassRoute,
   readAdminCourseRoute,
+  readAdminStudentRoute,
 } from '../router/admin-routes'
 
 const props = defineProps<AdminWorkspaceProps & { activeTab: AdminTab }>()
@@ -124,6 +127,8 @@ const aboutCaptchaOpen = ref(false)
 const aboutModalOpen = ref(false)
 const classManageView = ref<AdminClassManageRouteView>('classes')
 const courseManageView = ref<AdminCourseManageRouteView>('courses')
+const studentManageView = ref<AdminStudentManageRouteView>('students')
+const studentManageRouteStudentId = ref<number | null>(null)
 const courseManageRouteCourseId = ref<number | null>(null)
 const courseManageRouteGroupId = ref<number | null>(null)
 const courseManageRouteLessonId = ref<number | null>(null)
@@ -133,19 +138,31 @@ const activeTabLabel = computed(() => {
 })
 
 const pathSegments = computed(() => {
-  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManageRouteView | 'class-manage-root' }> = [
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root' }> = [
     {
       key: 'root',
       label: activeTabLabel.value,
       clickable:
         (props.activeTab === 'course-manage' && courseManageView.value !== 'courses') ||
-        (props.activeTab === 'class-manage' && classManageView.value !== 'classes'),
-      target: props.activeTab === 'class-manage' ? 'class-manage-root' : 'courses',
+        (props.activeTab === 'class-manage' && classManageView.value !== 'classes') ||
+        (props.activeTab === 'student-manage' && studentManageView.value !== 'students'),
+      target:
+        props.activeTab === 'class-manage'
+          ? 'class-manage-root'
+          : props.activeTab === 'student-manage'
+            ? 'student-manage-root'
+            : 'courses',
     },
   ]
   if (props.activeTab === 'class-manage') {
     if (classManageView.value === 'students') {
       segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
+    }
+    return segments
+  }
+  if (props.activeTab === 'student-manage') {
+    if (studentManageView.value === 'attendance-detail') {
+      segments.push({ key: 'student-attendance-detail', label: '学生考勤明细', clickable: false })
     }
     return segments
   }
@@ -180,6 +197,10 @@ watch(
   (tab) => {
     if (tab !== 'class-manage') {
       classManageView.value = 'classes'
+    }
+    if (tab !== 'student-manage') {
+      studentManageView.value = 'students'
+      studentManageRouteStudentId.value = null
     }
     if (tab === 'course-manage') {
       return
@@ -253,6 +274,22 @@ watch(
 )
 
 watch(
+  () => [props.activeTab, route.name, route.params.studentId] as const,
+  ([tab]) => {
+    if (tab !== 'student-manage') {
+      return
+    }
+    const next = readAdminStudentRoute(route) ?? {
+      view: 'students' as AdminStudentManageRouteView,
+      studentId: null,
+    }
+    studentManageView.value = next.view
+    studentManageRouteStudentId.value = next.studentId
+  },
+  { immediate: true },
+)
+
+watch(
   () => [props.activeTab, route.name, route.params.courseId, route.params.groupId, route.params.lessonId] as const,
   ([tab]) => {
     if (tab !== 'course-manage') {
@@ -296,6 +333,17 @@ async function syncClassManageRouteToLocation(
   }, query))
 }
 
+async function syncStudentManageRouteToLocation(
+  payload: { view: AdminStudentManageRouteView; studentId?: number | null },
+  query: Record<string, string> | undefined = undefined,
+  mode: 'push' | 'replace' = 'push',
+) {
+  await router[mode](buildAdminStudentLocation({
+    view: payload.view,
+    studentId: payload.studentId ?? null,
+  }, query))
+}
+
 function handleCourseManageRouteChange(payload: { view: AdminCourseManageRouteView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }) {
   courseManageView.value = payload.view
   courseManageRouteCourseId.value = payload.courseId ?? null
@@ -313,7 +361,21 @@ function openOverviewClass(classId: number) {
 }
 
 function openOverviewStudent(studentRefId: number) {
-  void router.push(buildAdminTabLocation('student-manage', { focus_student_ref_id: String(studentRefId) }))
+  studentManageView.value = 'attendance-detail'
+  studentManageRouteStudentId.value = studentRefId
+  void syncStudentManageRouteToLocation({
+    view: 'attendance-detail',
+    studentId: studentRefId,
+  })
+}
+
+function handleOpenStudentAttendanceDetail(item: StudentItem) {
+  studentManageView.value = 'attendance-detail'
+  studentManageRouteStudentId.value = item.id
+  void syncStudentManageRouteToLocation({
+    view: 'attendance-detail',
+    studentId: item.id,
+  })
 }
 
 function openCourseCalendarUser(loginId: string) {
@@ -375,13 +437,24 @@ async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarge
   }
 }
 
-function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-manage-root') {
+function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root') {
   if (!target) {
     return
   }
   if (target === 'class-manage-root') {
     if (props.activeTab === 'class-manage' && classManageView.value === 'students') {
       handleCloseClassStudentRoute()
+    }
+    return
+  }
+  if (target === 'student-manage-root') {
+    if (props.activeTab === 'student-manage' && studentManageView.value === 'attendance-detail') {
+      studentManageView.value = 'students'
+      studentManageRouteStudentId.value = null
+      void syncStudentManageRouteToLocation({
+        view: 'students',
+        studentId: null,
+      })
     }
     return
   }
@@ -493,6 +566,8 @@ function closeAboutModal() {
         <AdminPanelContent
           v-bind="$props"
           :class-manage-route-view="classManageView"
+          :student-manage-route-view="studentManageView"
+          :student-manage-route-student-id="studentManageRouteStudentId"
           :course-manage-route-view="courseManageView"
           :course-manage-route-course-id="courseManageRouteCourseId"
           :course-manage-route-group-id="courseManageRouteGroupId"
@@ -554,6 +629,7 @@ function closeAboutModal() {
           @open-overview-course="openOverviewCourse"
           @open-overview-class="openOverviewClass"
           @open-overview-student="openOverviewStudent"
+          @open-student-attendance-detail="handleOpenStudentAttendanceDetail"
           @open-course-calendar-user="openCourseCalendarUser"
           @open-attendance-detail="handleOverviewAttendanceDetail"
           @open-create-user-modal="emit('openCreateUserModal')"

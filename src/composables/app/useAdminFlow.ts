@@ -55,6 +55,8 @@ type ClassFilters = {
 }
 
 type StudentFilters = {
+  term: string
+  attendanceSummaryStatus: string
   studentId: string
   realName: string
   className: string
@@ -431,22 +433,26 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadStudentManageData() {
     const requestToken = nextRequestToken('studentManage')
     const focusStudentRefId = readAdminQueryNumber(deps.route.query, 'focus_student_ref_id')
-    const [studentPageResult, classes] = await Promise.all([
+    const [studentPageResult, classes, terms] = await Promise.all([
       api.listStudents({
         page: deps.studentPage.value,
         page_size: deps.studentPageSize.value,
         student_id: deps.studentFilters.studentId,
         real_name: deps.studentFilters.realName,
         class_name: deps.studentFilters.className,
+        term: deps.studentFilters.term,
+        attendance_summary_status: deps.studentFilters.attendanceSummaryStatus as 'late' | 'absent' | 'leave' | '',
         focus_student_ref_id: focusStudentRefId ?? undefined,
       }),
       loadClassOptions({ preferCache: true }),
+      loadMetaTerms(),
     ])
     if (!isLatestRequest('studentManage', requestToken)) {
       return
     }
     deps.studentRows.value = studentPageResult.items ?? []
     deps.classes.value = classes as unknown as ClassItem[]
+    deps.courseTerms.value = terms
     deps.studentPage.value = studentPageResult.page ?? deps.studentPage.value
     deps.studentTotalItems.value = studentPageResult.total ?? 0
     deps.studentAllItems.value = studentPageResult.total ?? 0

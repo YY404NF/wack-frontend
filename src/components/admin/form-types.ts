@@ -54,6 +54,8 @@ export type AdminClassStudentForm = {
 }
 
 export type AdminStudentFilters = {
+  term: string
+  attendanceSummaryStatus: string
   className: string
   studentId: string
   realName: string

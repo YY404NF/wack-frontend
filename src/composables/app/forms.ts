@@ -137,6 +137,8 @@ export function createClassStudentForm(): AdminClassStudentForm {
 
 export function createStudentFilters(): AdminStudentFilters {
   return {
+    term: '',
+    attendanceSummaryStatus: '',
     className: '',
     studentId: '',
     realName: '',

@@ -10,6 +10,7 @@ export type AdminSlotLabel = (weekday: number, section: number) => string
 export type AdminRoleName = (role?: number) => string
 export type AdminCourseManageRouteView = 'courses' | 'groups' | 'lessons' | 'attendance-detail' | 'students'
 export type AdminClassManageRouteView = 'classes' | 'students'
+export type AdminStudentManageRouteView = 'students' | 'attendance-detail'
 
 export type AdminAttendanceDetailTarget = {
   sessionId: number

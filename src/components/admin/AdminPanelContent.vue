@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import type { AdminTab, StatusCode } from '../../constants'
-import type { ClassItem, CourseItem, UserItem } from '../../api'
+import type { ClassItem, CourseItem, StudentItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
-import type { AdminAttendanceDetailTarget, AdminClassManageRouteView, AdminCourseManageRouteView } from './shared-types'
+import type { AdminAttendanceDetailTarget, AdminClassManageRouteView, AdminCourseManageRouteView, AdminStudentManageRouteView } from './shared-types'
 
 const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
 const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
@@ -21,6 +21,8 @@ defineProps<AdminWorkspaceProps & {
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
   courseManageRouteLessonId?: number | null
+  studentManageRouteView?: AdminStudentManageRouteView
+  studentManageRouteStudentId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +47,7 @@ const emit = defineEmits<{
   saveStudent: []
   deleteStudent: []
   bulkDeleteStudents: []
+  openStudentAttendanceDetail: [item: StudentItem]
   bulkDeleteClasses: []
   createClassStudent: []
   importClassStudents: [file: File]
@@ -286,6 +289,9 @@ function forwardUserStatus(studentId: string, status: number) {
       key="student-manage"
       :students="students"
       :all-classes="allClasses"
+      :course-terms="courseTerms"
+      :student-manage-route-view="studentManageRouteView"
+      :student-manage-route-student-id="studentManageRouteStudentId"
       :student-form="studentForm"
       :student-filters="studentFilters"
       :student-modal-open="studentModalOpen"
@@ -315,6 +321,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @save-student="emit('saveStudent')"
       @delete-student="emit('deleteStudent')"
       @bulk-delete-students="emit('bulkDeleteStudents')"
+      @open-student-attendance-detail="emit('openStudentAttendanceDetail', $event)"
       @update-student-page="emit('updateStudentPage', $event)"
       @update-student-page-size="emit('updateStudentPageSize', $event)"
       @toggle-student-selection="emit('toggleStudentSelection', $event)"

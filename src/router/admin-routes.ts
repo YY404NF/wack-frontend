@@ -7,12 +7,13 @@ import type {
 } from 'vue-router'
 
 import type { AdminTab } from '../constants'
-import type { AdminClassManageRouteView, AdminCourseManageRouteView } from '../components/admin/shared-types'
+import type { AdminClassManageRouteView, AdminCourseManageRouteView, AdminStudentManageRouteView } from '../components/admin/shared-types'
 
 type AdminRouteMeta = {
   adminTab: AdminTab
   adminCourseView?: AdminCourseManageRouteView
   adminClassView?: AdminClassManageRouteView
+  adminStudentView?: AdminStudentManageRouteView
 }
 
 type AdminCourseRouteState = {
@@ -25,6 +26,11 @@ type AdminCourseRouteState = {
 type AdminClassRouteState = {
   view: AdminClassManageRouteView
   classId: number | null
+}
+
+type AdminStudentRouteState = {
+  view: AdminStudentManageRouteView
+  studentId: number | null
 }
 
 export const adminFocusQueryKeys = ['focus_course_id', 'focus_class_id', 'focus_student_ref_id'] as const
@@ -47,6 +53,7 @@ export const adminRouteNames = {
   classManage: 'admin-class-manage',
   classStudents: 'admin-class-students',
   studentManage: 'admin-student-manage',
+  studentAttendanceDetail: 'admin-student-attendance-detail',
   userManage: 'admin-user-manage',
   settings: 'admin-settings',
   legacy: 'admin-legacy',
@@ -77,6 +84,13 @@ function adminClassMeta(adminTab: AdminTab, adminClassView?: AdminClassManageRou
   return {
     adminTab,
     adminClassView,
+  }
+}
+
+function adminStudentMeta(adminTab: AdminTab, adminStudentView?: AdminStudentManageRouteView): AdminRouteMeta {
+  return {
+    adminTab,
+    adminStudentView,
   }
 }
 
@@ -181,6 +195,18 @@ export function buildAdminClassLocation(state: AdminClassRouteState, query?: Loc
   return buildAdminTabLocation('class-manage', query)
 }
 
+export function buildAdminStudentLocation(state: AdminStudentRouteState, query?: LocationQueryRaw): RouteLocationRaw {
+  if (state.view === 'attendance-detail' && state.studentId) {
+    return {
+      name: adminRouteNames.studentAttendanceDetail,
+      params: { studentId: String(state.studentId) },
+      query,
+    }
+  }
+
+  return buildAdminTabLocation('student-manage', query)
+}
+
 export function readAdminQueryNumber(query: LocationQuery, key: AdminFocusQueryKey): number | null {
   return readPositiveInt(query[key])
 }
@@ -240,6 +266,26 @@ export function readAdminClassRoute(route: RouteLocationNormalizedLoaded): Admin
   return {
     view,
     classId: readPositiveInt(route.params.classId),
+  }
+}
+
+export function readAdminStudentRoute(route: RouteLocationNormalizedLoaded): AdminStudentRouteState | null {
+  const adminTab = readAdminTab(route)
+  if (adminTab !== 'student-manage') {
+    return null
+  }
+
+  const view = route.meta.adminStudentView
+  if (view !== 'attendance-detail') {
+    return {
+      view: 'students',
+      studentId: null,
+    }
+  }
+
+  return {
+    view,
+    studentId: readPositiveInt(route.params.studentId),
   }
 }
 
@@ -372,7 +418,13 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin/students',
     name: adminRouteNames.studentManage,
     component: EmptyRouteComponent,
-    meta: adminMeta('student-manage'),
+    meta: adminStudentMeta('student-manage', 'students'),
+  },
+  {
+    path: '/admin/students/:studentId(\\d+)/attendance',
+    name: adminRouteNames.studentAttendanceDetail,
+    component: EmptyRouteComponent,
+    meta: adminStudentMeta('student-manage', 'attendance-detail'),
   },
   {
     path: '/admin/users',
