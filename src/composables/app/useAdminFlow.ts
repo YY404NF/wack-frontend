@@ -49,6 +49,8 @@ type CourseFilters = {
 }
 
 type ClassFilters = {
+  term: string
+  attendanceSummaryStatus: string
   grade: string
   majorName: string
   className: string
@@ -404,18 +406,26 @@ export function useAdminFlow(deps: AdminFlowDeps) {
   async function loadClassManageData() {
     const requestToken = nextRequestToken('classManage')
     const focusClassId = readAdminQueryNumber(deps.route.query, 'focus_class_id')
-    const classPageResult = await api.listClasses({
-      page: deps.classPage.value,
-      page_size: deps.classPageSize.value,
-      grade: deps.classFilters.grade,
-      major_name: deps.classFilters.majorName,
-      class_name: deps.classFilters.className,
-      focus_class_id: focusClassId ?? undefined,
-    })
+    const [classPageResult, terms, classes] = await Promise.all([
+      api.listClasses({
+        page: deps.classPage.value,
+        page_size: deps.classPageSize.value,
+        grade: deps.classFilters.grade,
+        major_name: deps.classFilters.majorName,
+        class_name: deps.classFilters.className,
+        term: deps.classFilters.term,
+        attendance_summary_status: deps.classFilters.attendanceSummaryStatus as 'late' | 'absent' | 'leave' | '',
+        focus_class_id: focusClassId ?? undefined,
+      }),
+      loadMetaTerms(),
+      loadClassOptions({ preferCache: true }),
+    ])
     if (!isLatestRequest('classManage', requestToken)) {
       return
     }
     deps.classRows.value = classPageResult.items ?? []
+    deps.classes.value = classes as unknown as ClassItem[]
+    deps.courseTerms.value = terms
     deps.students.value = []
     deps.classPage.value = classPageResult.page ?? deps.classPage.value
     deps.classTotalItems.value = classPageResult.total ?? 0

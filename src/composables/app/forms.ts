@@ -115,6 +115,8 @@ export function createClassForm(): AdminClassForm {
 
 export function createClassFilters(): AdminClassFilters {
   return {
+    term: '',
+    attendanceSummaryStatus: '',
     grade: '',
     majorName: '',
     className: '',

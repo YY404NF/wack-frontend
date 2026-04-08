@@ -6,11 +6,13 @@ import type { AdminClassManageProps } from './types'
 const props = defineProps<AdminClassManageProps>()
 const AdminClassListView = defineAsyncComponent(() => import('./AdminClassListView.vue'))
 const AdminClassStudentManageView = defineAsyncComponent(() => import('./AdminClassStudentManageView.vue'))
+const AdminClassAttendanceDetail = defineAsyncComponent(() => import('./AdminClassAttendanceDetail.vue'))
 
 const emit = defineEmits<{
   openCreateClassModal: []
   openEditClassModal: [item: ClassItem]
   openClassStudentModal: [item: ClassItem]
+  openClassAttendanceDetail: [item: ClassItem]
   closeClassModal: []
   closeClassStudentModal: []
   openDeleteClassModal: [item: ClassItem]
@@ -33,6 +35,9 @@ const emit = defineEmits<{
 }>()
 
 const showClassStudentView = computed(() => props.classManageRouteView === 'students')
+const showClassAttendanceDetailView = computed(
+  () => props.classManageRouteView === 'attendance-detail' && typeof props.classManageRouteClassId === 'number' && props.classManageRouteClassId > 0,
+)
 </script>
 
 <template>
@@ -106,10 +111,11 @@ const showClassStudentView = computed(() => props.classManageRouteView === 'stud
 
     <Transition name="subpage-fade" mode="out-in" appear>
       <AdminClassListView
-        v-if="!showClassStudentView"
+        v-if="!showClassStudentView && !showClassAttendanceDetailView"
         key="class-list"
         :classes="classes"
         :all-classes="allClasses"
+        :course-terms="courseTerms"
         :class-filters="classFilters"
         :selected-class-ids="selectedClassIds"
         :class-deleting="classDeleting"
@@ -124,6 +130,7 @@ const showClassStudentView = computed(() => props.classManageRouteView === 'stud
         @open-create-class-modal="emit('openCreateClassModal')"
         @open-edit-class-modal="emit('openEditClassModal', $event)"
         @open-class-student-modal="emit('openClassStudentModal', $event)"
+        @open-class-attendance-detail="emit('openClassAttendanceDetail', $event)"
         @open-delete-class-modal="emit('openDeleteClassModal', $event)"
         @open-bulk-delete-class-modal="emit('openBulkDeleteClassModal')"
         @update-class-page="emit('updateClassPage', $event)"
@@ -133,7 +140,7 @@ const showClassStudentView = computed(() => props.classManageRouteView === 'stud
       />
 
       <AdminClassStudentManageView
-        v-else
+        v-else-if="showClassStudentView"
         key="class-students"
         :all-classes="allClasses"
         :class-students="classStudents"
@@ -143,6 +150,15 @@ const showClassStudentView = computed(() => props.classManageRouteView === 'stud
         :class-student-target-name="classStudentTargetName"
         @delete-class-student="emit('deleteClassStudent', $event)"
         @bulk-delete-class-students="emit('bulkDeleteClassStudents', $event)"
+      />
+
+      <AdminClassAttendanceDetail
+        v-else
+        key="class-attendance-detail"
+        :class-id="classManageRouteClassId ?? 0"
+        :selected-term="classFilters.term"
+        :course-terms="courseTerms"
+        @update:selected-term="classFilters.term = $event"
       />
     </Transition>
   </section>

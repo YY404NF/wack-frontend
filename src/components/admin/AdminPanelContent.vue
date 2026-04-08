@@ -18,6 +18,7 @@ const AdminSettingsPanel = defineAsyncComponent(() => import('./AdminSettingsPan
 defineProps<AdminWorkspaceProps & {
   activeTab: AdminTab
   classManageRouteView?: AdminClassManageRouteView
+  classManageRouteClassId?: number | null
   courseManageRouteCourseId?: number | null
   courseManageRouteGroupId?: number | null
   courseManageRouteLessonId?: number | null
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   openCreateClassModal: []
   openEditClassModal: [item: ClassItem]
   openClassStudentModal: [item: ClassItem]
+  openClassAttendanceDetail: [item: ClassItem]
   closeClassModal: []
   closeClassStudentModal: []
   openDeleteClassModal: [item: ClassItem]
@@ -231,7 +233,9 @@ function forwardUserStatus(studentId: string, status: number) {
       :classes="classes"
       :all-classes="allClasses"
       :students="students"
+      :course-terms="courseTerms"
       :class-manage-route-view="classManageRouteView"
+      :class-manage-route-class-id="classManageRouteClassId"
       :class-form="classForm"
       :class-filters="classFilters"
       :class-student-form="classStudentForm"
@@ -263,6 +267,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @open-create-class-modal="emit('openCreateClassModal')"
       @open-edit-class-modal="emit('openEditClassModal', $event)"
       @open-class-student-modal="emit('openClassStudentModal', $event)"
+      @open-class-attendance-detail="emit('openClassAttendanceDetail', $event)"
       @close-class-modal="emit('closeClassModal')"
       @close-class-student-modal="emit('closeClassStudentModal')"
       @open-delete-class-modal="emit('openDeleteClassModal', $event)"

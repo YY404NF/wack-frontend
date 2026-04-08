@@ -80,7 +80,9 @@ export type AdminClassManageProps = {
   classes: ClassItem[]
   allClasses: ClassItem[]
   students: StudentItem[]
+  courseTerms: MetaTermItem[]
   classManageRouteView?: AdminClassManageRouteView
+  classManageRouteClassId?: number | null
   classForm: AdminClassForm
   classFilters: AdminClassFilters
   classStudentForm: AdminClassStudentForm

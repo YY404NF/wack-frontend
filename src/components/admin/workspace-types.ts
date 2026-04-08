@@ -30,6 +30,7 @@ import type {
   AdminUserPasswordForm,
 } from './form-types'
 import type {
+  AdminClassManageRouteView,
   AdminCourseManageRouteView,
   AdminRoleName,
   AdminSlotLabel,
@@ -138,6 +139,8 @@ export type AdminWorkspaceProps = {
   deletingClassName: string
   classFocusRowKey?: number | null
   classFocusToken?: number
+  classManageRouteView?: AdminClassManageRouteView
+  classManageRouteClassId?: number | null
   studentForm: AdminStudentForm
   studentFilters: AdminStudentFilters
   studentModalOpen: boolean

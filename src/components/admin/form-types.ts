@@ -38,6 +38,8 @@ export type AdminClassForm = {
 }
 
 export type AdminClassFilters = {
+  term: string
+  attendanceSummaryStatus: string
   grade: string
   majorName: string
   className: string

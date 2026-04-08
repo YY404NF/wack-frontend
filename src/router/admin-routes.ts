@@ -52,6 +52,7 @@ export const adminRouteNames = {
   courseAttendanceDetail: 'admin-course-attendance-detail',
   classManage: 'admin-class-manage',
   classStudents: 'admin-class-students',
+  classAttendanceDetail: 'admin-class-attendance-detail',
   studentManage: 'admin-student-manage',
   studentAttendanceDetail: 'admin-student-attendance-detail',
   userManage: 'admin-user-manage',
@@ -184,11 +185,20 @@ export function buildAdminCourseLocation(state: AdminCourseRouteState, query?: L
 }
 
 export function buildAdminClassLocation(state: AdminClassRouteState, query?: LocationQueryRaw): RouteLocationRaw {
-  if (state.view === 'students' && state.classId) {
-    return {
-      name: adminRouteNames.classStudents,
-      params: { classId: String(state.classId) },
-      query,
+  if (state.classId) {
+    if (state.view === 'students') {
+      return {
+        name: adminRouteNames.classStudents,
+        params: { classId: String(state.classId) },
+        query,
+      }
+    }
+    if (state.view === 'attendance-detail') {
+      return {
+        name: adminRouteNames.classAttendanceDetail,
+        params: { classId: String(state.classId) },
+        query,
+      }
     }
   }
 
@@ -256,7 +266,7 @@ export function readAdminClassRoute(route: RouteLocationNormalizedLoaded): Admin
   }
 
   const view = route.meta.adminClassView
-  if (view !== 'students') {
+  if (view !== 'students' && view !== 'attendance-detail') {
     return {
       view: 'classes',
       classId: null,
@@ -328,7 +338,17 @@ export function resolveLegacyAdminLocation(to: { params: Record<string, unknown>
       return buildAdminTabLocation('course-manage')
     }
     case 'class-manage':
+    {
+      const classId = readPositiveInt(to.query.classId)
+      const view = readFirstString(to.query.classView)
+      if (view === 'students' && classId) {
+        return buildAdminClassLocation({ view: 'students', classId })
+      }
+      if (view === 'attendance-detail' && classId) {
+        return buildAdminClassLocation({ view: 'attendance-detail', classId })
+      }
       return buildAdminClassLocation({ view: 'classes', classId: null })
+    }
     case 'student':
     case 'student-manage':
       return buildAdminTabLocation('student-manage')
@@ -413,6 +433,12 @@ export const adminRoutes: RouteRecordRaw[] = [
     name: adminRouteNames.classStudents,
     component: EmptyRouteComponent,
     meta: adminClassMeta('class-manage', 'students'),
+  },
+  {
+    path: '/admin/classes/:classId(\\d+)/attendance',
+    name: adminRouteNames.classAttendanceDetail,
+    component: EmptyRouteComponent,
+    meta: adminClassMeta('class-manage', 'attendance-detail'),
   },
   {
     path: '/admin/students',

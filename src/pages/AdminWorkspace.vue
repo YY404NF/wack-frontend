@@ -126,6 +126,7 @@ function forwardUserStatus(studentId: string, status: number) {
 const aboutCaptchaOpen = ref(false)
 const aboutModalOpen = ref(false)
 const classManageView = ref<AdminClassManageRouteView>('classes')
+const classManageRouteClassId = ref<number | null>(null)
 const courseManageView = ref<AdminCourseManageRouteView>('courses')
 const studentManageView = ref<AdminStudentManageRouteView>('students')
 const studentManageRouteStudentId = ref<number | null>(null)
@@ -157,6 +158,8 @@ const pathSegments = computed(() => {
   if (props.activeTab === 'class-manage') {
     if (classManageView.value === 'students') {
       segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
+    } else if (classManageView.value === 'attendance-detail') {
+      segments.push({ key: 'class-attendance-detail', label: '班级考勤明细', clickable: false })
     }
     return segments
   }
@@ -197,6 +200,7 @@ watch(
   (tab) => {
     if (tab !== 'class-manage') {
       classManageView.value = 'classes'
+      classManageRouteClassId.value = null
     }
     if (tab !== 'student-manage') {
       studentManageView.value = 'students'
@@ -236,8 +240,16 @@ watch(
       classId: null,
     }
     classManageView.value = next.view
+    classManageRouteClassId.value = next.classId
 
     if (next.view === 'classes' || !next.classId) {
+      if (props.classStudentTargetClass !== null) {
+        emit('closeClassStudentModal')
+      }
+      return
+    }
+
+    if (next.view === 'attendance-detail') {
       if (props.classStudentTargetClass !== null) {
         emit('closeClassStudentModal')
       }
@@ -357,7 +369,12 @@ function openOverviewCourse(courseId: number) {
 }
 
 function openOverviewClass(classId: number) {
-  void router.push(buildAdminTabLocation('class-manage', { focus_class_id: String(classId) }))
+  classManageView.value = 'attendance-detail'
+  classManageRouteClassId.value = classId
+  void syncClassManageRouteToLocation({
+    view: 'attendance-detail',
+    classId,
+  })
 }
 
 function openOverviewStudent(studentRefId: number) {
@@ -384,14 +401,25 @@ function openCourseCalendarUser(loginId: string) {
 
 function handleOpenClassStudentRoute(item: ClassItem) {
   classManageView.value = 'students'
+  classManageRouteClassId.value = item.id
   void syncClassManageRouteToLocation({
     view: 'students',
     classId: item.id,
   })
 }
 
+function handleOpenClassAttendanceDetail(item: ClassItem) {
+  classManageView.value = 'attendance-detail'
+  classManageRouteClassId.value = item.id
+  void syncClassManageRouteToLocation({
+    view: 'attendance-detail',
+    classId: item.id,
+  })
+}
+
 function handleCloseClassStudentRoute(mode: 'push' | 'replace' = 'push') {
   classManageView.value = 'classes'
+  classManageRouteClassId.value = null
   void syncClassManageRouteToLocation({
     view: 'classes',
     classId: null,
@@ -442,7 +470,7 @@ function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-man
     return
   }
   if (target === 'class-manage-root') {
-    if (props.activeTab === 'class-manage' && classManageView.value === 'students') {
+    if (props.activeTab === 'class-manage' && classManageView.value !== 'classes') {
       handleCloseClassStudentRoute()
     }
     return
@@ -566,6 +594,7 @@ function closeAboutModal() {
         <AdminPanelContent
           v-bind="$props"
           :class-manage-route-view="classManageView"
+          :class-manage-route-class-id="classManageRouteClassId"
           :student-manage-route-view="studentManageView"
           :student-manage-route-student-id="studentManageRouteStudentId"
           :course-manage-route-view="courseManageView"
@@ -591,6 +620,7 @@ function closeAboutModal() {
           @open-create-class-modal="emit('openCreateClassModal')"
           @open-edit-class-modal="emit('openEditClassModal', $event)"
           @open-class-student-modal="handleOpenClassStudentRoute"
+          @open-class-attendance-detail="handleOpenClassAttendanceDetail"
           @close-class-modal="emit('closeClassModal')"
           @close-class-student-modal="handleCloseClassStudentRoute"
           @open-delete-class-modal="emit('openDeleteClassModal', $event)"

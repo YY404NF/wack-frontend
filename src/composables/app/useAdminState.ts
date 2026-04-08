@@ -608,6 +608,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
     switch (tab) {
       case 'course-manage':
         return courseFilters.term.trim()
+      case 'class-manage':
+        return classFilters.term.trim()
       case 'attendance-logs':
         return attendanceLogFilters.term.trim()
       case 'course-calendar':
@@ -627,6 +629,9 @@ export function useAdminState(deps: UseAdminStateDeps) {
     switch (tab) {
       case 'course-manage':
         courseFilters.term = value
+        return
+      case 'class-manage':
+        classFilters.term = value
         return
       case 'attendance-logs':
         attendanceLogFilters.term = value
@@ -673,6 +678,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
           tab,
           page: classPage.value,
           pageSize: classPageSize.value,
+          term: classFilters.term,
+          attendanceSummaryStatus: classFilters.attendanceSummaryStatus,
           grade: classFilters.grade,
           majorName: classFilters.majorName,
           className: classFilters.className,
@@ -747,6 +754,20 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
   }
 
+  async function ensureClassManageTermReady() {
+    if (classFilters.term.trim()) {
+      return
+    }
+    const terms = courseTerms.value.length > 0
+      ? courseTerms.value
+      : await api.listMetaTerms()
+    courseTerms.value = terms
+    const defaultTerm = selectDefaultTermName(terms) || terms[0]?.name || ''
+    if (defaultTerm) {
+      classFilters.term = defaultTerm
+    }
+  }
+
   async function ensureStudentManageTermReady() {
     if (studentFilters.term.trim()) {
       return
@@ -768,6 +789,10 @@ export function useAdminState(deps: UseAdminStateDeps) {
     }
     if (tab === 'course-manage') {
       await ensureCourseManageTermReady()
+      return
+    }
+    if (tab === 'class-manage') {
+      await ensureClassManageTermReady()
       return
     }
     if (tab === 'student-manage') {
@@ -1131,7 +1156,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [classFilters.grade, classFilters.majorName, classFilters.className] as const,
+    () => [classFilters.term, classFilters.attendanceSummaryStatus, classFilters.grade, classFilters.majorName, classFilters.className] as const,
     () => {
       classPage.value = 1
     },
@@ -1184,7 +1209,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   )
 
   watch(
-    () => [classPage.value, classPageSize.value, classFilters.grade, classFilters.majorName, classFilters.className] as const,
+    () => [classPage.value, classPageSize.value, classFilters.term, classFilters.attendanceSummaryStatus, classFilters.grade, classFilters.majorName, classFilters.className] as const,
     () => {
       if (isAdmin.value && deps.activeTab.value === 'class-manage') {
         void loadRoleData('class-manage')
