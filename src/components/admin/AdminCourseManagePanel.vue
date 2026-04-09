@@ -14,7 +14,7 @@ import {
 import { formatClassNameListMultiline, sectionLabels, weekdayLabels } from '../../constants'
 import AdminCourseLessonAttendanceDetail from './AdminCourseLessonAttendanceDetail.vue'
 import type { AdminCourseManageProps } from './types'
-import type { AdminCourseManageRouteView } from './shared-types'
+import type { AdminAttendanceLogsOpenPayload, AdminCourseManageRouteView } from './shared-types'
 
 const AdminCourseListView = defineAsyncComponent(() => import('./AdminCourseListView.vue'))
 const AdminCourseGroupManageView = defineAsyncComponent(() => import('./AdminCourseGroupManageView.vue'))
@@ -51,6 +51,7 @@ const emit = defineEmits<{
   toggleCoursePageSelection: []
   bulkDeleteCourses: []
   updateCourseManageRoute: [payload: { view: CourseManageView; courseId?: number | null; groupId?: number | null; lessonId?: number | null }]
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
 }>()
 
 const GROUP_BATCH_SIZE = 100
@@ -1464,6 +1465,7 @@ function pad(value: number) {
         :teacher-name="courseGroupWorkspaceCourse.teacher_name"
         :grade="courseGroupWorkspaceCourse.grade"
         :term="courseGroupWorkspaceCourse.term"
+        @open-attendance-logs="emit('openAttendanceLogs', $event)"
       />
 
       <template v-else>

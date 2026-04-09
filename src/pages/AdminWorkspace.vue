@@ -12,12 +12,14 @@ import { api, type ClassItem, type CourseItem, type StudentItem, type UserItem }
 import type { AdminWorkspaceProps } from '../components/admin/types'
 import type {
   AdminAttendanceDetailTarget,
+  AdminAttendanceLogsOpenPayload,
   AdminClassManageRouteView,
   AdminCourseManageRouteView,
   AdminStudentManageRouteView,
 } from '../components/admin/shared-types'
 import { aboutCaptchaChallenges } from '../data/aboutCaptchaChallenges'
 import {
+  readAdminAttendanceLogsRoute,
   buildAdminClassLocation,
   buildAdminCourseLocation,
   buildAdminStudentLocation,
@@ -72,7 +74,9 @@ const emit = defineEmits<{
   toggleClassPageSelection: []
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
-  openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
+  loadMoreAttendanceLogs: []
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
+  closeAttendanceLogDetail: []
   openAttendanceDetail: [target: AdminAttendanceDetailTarget]
   openCreateUserModal: []
   openEditUserModal: [user: UserItem]
@@ -139,22 +143,31 @@ const activeTabLabel = computed(() => {
 })
 
 const pathSegments = computed(() => {
-  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root' }> = [
+  const segments: Array<{ key: string; label: string; clickable: boolean; target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root' | 'attendance-logs-root' }> = [
     {
       key: 'root',
       label: activeTabLabel.value,
       clickable:
+        (props.activeTab === 'attendance-logs' && props.attendanceLogsView === 'detail') ||
         (props.activeTab === 'course-manage' && courseManageView.value !== 'courses') ||
         (props.activeTab === 'class-manage' && classManageView.value !== 'classes') ||
         (props.activeTab === 'student-manage' && studentManageView.value !== 'students'),
       target:
-        props.activeTab === 'class-manage'
+        props.activeTab === 'attendance-logs'
+          ? 'attendance-logs-root'
+          : props.activeTab === 'class-manage'
           ? 'class-manage-root'
           : props.activeTab === 'student-manage'
             ? 'student-manage-root'
             : 'courses',
     },
   ]
+  if (props.activeTab === 'attendance-logs') {
+    if (props.attendanceLogsView === 'detail') {
+      segments.push({ key: 'attendance-log-detail', label: '考勤变更记录', clickable: false })
+    }
+    return segments
+  }
   if (props.activeTab === 'class-manage') {
     if (classManageView.value === 'students') {
       segments.push({ key: 'class-students', label: '班级学生管理', clickable: false })
@@ -224,6 +237,39 @@ watch(
     }
     if (typeof sessionIdValue === 'string' && /^\d+$/.test(sessionIdValue)) {
       void handleOverviewAttendanceDetail({ sessionId: Number(sessionIdValue) }, 'replace')
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [props.activeTab, route.name, route.params.courseGroupLessonId, route.params.studentId] as const,
+  ([tab]) => {
+    if (tab !== 'attendance-logs') {
+      return
+    }
+    const next = readAdminAttendanceLogsRoute(route) ?? {
+      view: 'list' as const,
+      courseGroupLessonId: null,
+      studentId: null,
+    }
+    if (next.view === 'detail' && next.courseGroupLessonId && next.studentId) {
+      const current = props.attendanceLogDetailContext
+      const isSameDetail =
+        props.attendanceLogsView === 'detail' &&
+        current?.courseGroupLessonId === next.courseGroupLessonId &&
+        current?.studentId === next.studentId
+      if (!isSameDetail) {
+        emit('openAttendanceLogs', {
+          term: '',
+          courseGroupLessonId: next.courseGroupLessonId,
+          studentId: next.studentId,
+        })
+      }
+      return
+    }
+    if (props.attendanceLogsView === 'detail') {
+      emit('closeAttendanceLogDetail')
     }
   },
   { immediate: true },
@@ -465,8 +511,14 @@ async function handleOverviewAttendanceDetail(target: AdminAttendanceDetailTarge
   }
 }
 
-function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root') {
+function handlePathSegmentClick(target?: AdminCourseManageRouteView | 'class-manage-root' | 'student-manage-root' | 'attendance-logs-root') {
   if (!target) {
+    return
+  }
+  if (target === 'attendance-logs-root') {
+    if (props.activeTab === 'attendance-logs' && props.attendanceLogsView === 'detail') {
+      emit('closeAttendanceLogDetail')
+    }
     return
   }
   if (target === 'class-manage-root') {
@@ -656,6 +708,8 @@ function closeAboutModal() {
           @bulk-delete-classes="emit('bulkDeleteClasses')"
           @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
           @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
+          @load-more-attendance-logs="emit('loadMoreAttendanceLogs')"
+          @close-attendance-log-detail="emit('closeAttendanceLogDetail')"
           @open-overview-course="openOverviewCourse"
           @open-overview-class="openOverviewClass"
           @open-overview-student="openOverviewStudent"

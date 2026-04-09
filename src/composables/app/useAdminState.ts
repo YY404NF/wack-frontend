@@ -20,8 +20,14 @@ import {
   type UserItem,
 } from '../../api'
 import type { AdminTab } from '../../constants'
+import { sectionLabels } from '../../constants'
 import type { AdminWorkspaceProps } from '../../components/admin/types'
-import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
+import type {
+  AdminAttendanceLogDetailContext,
+  AdminAttendanceLogsOpenPayload,
+  AdminAttendanceLogsView,
+  AdminCourseManageRouteView,
+} from '../../components/admin/shared-types'
 import {
   createAttendanceLogFilters,
   createClassFilters,
@@ -42,6 +48,7 @@ import { selectDefaultTermName } from '../../utils/terms'
 import { useAdminCollections } from './useAdminCollections'
 import { useAdminEditors } from './useAdminEditors'
 import type { UseAdminAppDeps } from '../useAdminApp'
+import { buildAdminAttendanceLogsLocation, readAdminAttendanceLogsRoute } from '../../router/admin-routes'
 
 type PasswordForm = {
   oldPassword: string
@@ -130,6 +137,15 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const attendanceLogsTotalPages = ref(1)
   const attendanceLogsTotalItems = ref(0)
   const attendanceLogsAllItems = ref(0)
+  const attendanceLogsView = ref<AdminAttendanceLogsView>('list')
+  const attendanceLogDetailContext = ref<AdminAttendanceLogDetailContext | null>(null)
+  const attendanceLogsLoading = ref(false)
+  const attendanceLogsHasMore = ref(false)
+  const attendanceLogListSnapshot = ref<null | {
+    filters: ReturnType<typeof createAttendanceLogFilters>
+    page: number
+    pageSize: number
+  }>(null)
 
   const userSaving = ref(false)
   const passwordResetting = ref(false)
@@ -182,6 +198,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
   const studentFocusToken = ref(0)
   const classStudentTargetName = ref('')
   const inFlightRoleLoads = new Map<string, Promise<void>>()
+  let attendanceLogContextRequestToken = 0
 
   const userModalOpen = ref(false)
   const courseModalOpen = ref(false)
@@ -548,14 +565,192 @@ export function useAdminState(deps: UseAdminStateDeps) {
     attendanceLogsPage.value = 1
   }
 
-  async function openAttendanceLogs(payload: { term: string; courseGroupLessonId: number; studentId?: string }) {
+  function cloneAttendanceLogFilters() {
+    return { ...attendanceLogFilters }
+  }
+
+  function normalizeText(value: unknown, fallback = '-') {
+    if (typeof value !== 'string') {
+      return fallback
+    }
+    const normalized = value.trim()
+    return normalized || fallback
+  }
+
+  function normalizeClassName(value: unknown, fallback = '-') {
+    if (typeof value !== 'string') {
+      return fallback
+    }
+    const normalized = value.trim()
+    return normalized || '其他学生'
+  }
+
+  function normalizeLocation(buildingName: unknown, roomName: unknown, fallback = '-') {
+    const building = typeof buildingName === 'string' ? buildingName.trim() : ''
+    const room = typeof roomName === 'string' ? roomName.trim() : ''
+    if (building && room) {
+      return `${building}-${room}`
+    }
+    return building || room || fallback
+  }
+
+  function sectionLabel(section: number | null, fallback = '-') {
+    if (typeof section !== 'number' || !Number.isFinite(section) || section <= 0) {
+      return fallback
+    }
+    return sectionLabels[section] ?? `第 ${section} 节`
+  }
+
+  function createAttendanceLogDetailContext(payload: AdminAttendanceLogsOpenPayload): AdminAttendanceLogDetailContext {
+    const context = payload.context ?? {}
+    const section = typeof context.section === 'number' && Number.isFinite(context.section) && context.section > 0
+      ? context.section
+      : null
+    const studentId = (payload.studentId?.trim() || context.studentId?.trim() || '')
+    const timeLabel = normalizeText(context.timeLabel, '')
+    return {
+      term: payload.term.trim() || '-',
+      courseGroupLessonId: payload.courseGroupLessonId,
+      studentId: studentId || '-',
+      realName: normalizeText(context.realName),
+      className: normalizeClassName(context.className),
+      lessonDate: normalizeText(context.lessonDate),
+      section,
+      timeLabel: timeLabel || sectionLabel(section),
+      location: normalizeText(context.location),
+      classSummary: normalizeText(context.classSummary),
+      studentCount: typeof context.studentCount === 'number' && Number.isFinite(context.studentCount)
+        ? Math.max(0, Math.round(context.studentCount))
+        : 0,
+      courseName: normalizeText(context.courseName),
+      teacherName: normalizeText(context.teacherName),
+      grade: typeof context.grade === 'number' || typeof context.grade === 'string'
+        ? context.grade
+        : '-',
+    }
+  }
+
+  async function hydrateAttendanceLogDetailContext(payload: AdminAttendanceLogsOpenPayload) {
+    const studentId = payload.studentId?.trim() || payload.context?.studentId?.trim() || ''
+    if (!studentId) {
+      return
+    }
+    attendanceLogContextRequestToken += 1
+    const requestToken = attendanceLogContextRequestToken
+    try {
+      const detail = await api.adminGetAttendanceSessionPage(payload.courseGroupLessonId, {
+        page: 1,
+        page_size: 2000,
+      })
+      if (requestToken !== attendanceLogContextRequestToken || attendanceLogsView.value !== 'detail') {
+        return
+      }
+      const current = attendanceLogDetailContext.value
+      if (!current || current.courseGroupLessonId !== payload.courseGroupLessonId) {
+        return
+      }
+
+      const records = detail.attendance_records ?? []
+      const targetStudent = records.find((item) => item.student_id === studentId)
+      const classNames = Array.from(
+        new Set(
+          records.map((item) => normalizeClassName(item.class_name, '其他学生')),
+        ),
+      ).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'))
+      const classSummary = classNames.length > 0 ? classNames.join('、') : current.classSummary
+      const section = typeof detail.course_group_lesson?.section === 'number' && detail.course_group_lesson.section > 0
+        ? detail.course_group_lesson.section
+        : current.section
+      attendanceLogDetailContext.value = {
+        ...current,
+        realName: targetStudent?.real_name?.trim() || current.realName,
+        className: targetStudent ? normalizeClassName(targetStudent.class_name, current.className) : current.className,
+        section,
+        timeLabel: sectionLabel(section, current.timeLabel),
+        location: normalizeLocation(detail.course_group_lesson?.building_name, detail.course_group_lesson?.room_name, current.location),
+        classSummary: normalizeText(classSummary, current.classSummary),
+        studentCount: Math.max(0, Number(detail.total ?? records.length ?? current.studentCount) || 0),
+        courseName: normalizeText(detail.course?.course_name, current.courseName),
+        teacherName: normalizeText(detail.course?.teacher_name, current.teacherName),
+        grade: typeof detail.course?.grade === 'number' || typeof detail.course?.grade === 'string'
+          ? detail.course.grade
+          : current.grade,
+      }
+    } catch {
+      // Ignore enrichment failures; the initial context is enough to continue working.
+    }
+  }
+
+  async function openAttendanceLogs(payload: AdminAttendanceLogsOpenPayload) {
+    if (attendanceLogsView.value === 'list') {
+      attendanceLogListSnapshot.value = {
+        filters: cloneAttendanceLogFilters(),
+        page: attendanceLogsPage.value,
+        pageSize: attendanceLogsPageSize.value,
+      }
+    }
+    const studentId = payload.studentId?.trim() || payload.context?.studentId?.trim() || ''
     Object.assign(attendanceLogFilters, createAttendanceLogFilters(), {
-      term: payload.term,
+      term: '',
       courseGroupLessonId: String(payload.courseGroupLessonId),
-      studentId: payload.studentId ?? '',
+      studentId,
     })
     attendanceLogsPage.value = 1
-    await deps.setActiveTab('attendance-logs', 'push')
+    attendanceLogsView.value = 'detail'
+    attendanceLogDetailContext.value = createAttendanceLogDetailContext(payload)
+    const currentRoute = readAdminAttendanceLogsRoute(deps.route)
+    if (
+      currentRoute?.view !== 'detail' ||
+      currentRoute.courseGroupLessonId !== payload.courseGroupLessonId ||
+      currentRoute.studentId !== studentId
+    ) {
+      await deps.router.push(buildAdminAttendanceLogsLocation({
+        view: 'detail',
+        courseGroupLessonId: payload.courseGroupLessonId,
+        studentId,
+      }))
+    }
+    void hydrateAttendanceLogDetailContext(payload)
+  }
+
+  function closeAttendanceLogDetail() {
+    attendanceLogsView.value = 'list'
+    attendanceLogDetailContext.value = null
+    attendanceLogsHasMore.value = false
+    const snapshot = attendanceLogListSnapshot.value
+    if (snapshot) {
+      Object.assign(attendanceLogFilters, snapshot.filters)
+      attendanceLogsPage.value = snapshot.page
+      attendanceLogsPageSize.value = snapshot.pageSize
+      attendanceLogListSnapshot.value = null
+    } else {
+      const term = attendanceLogFilters.term.trim()
+      Object.assign(attendanceLogFilters, createAttendanceLogFilters(), {
+        term: term || getCurrentAcademicTerm(),
+      })
+      attendanceLogsPage.value = 1
+    }
+    const currentRoute = readAdminAttendanceLogsRoute(deps.route)
+    if (currentRoute?.view === 'detail') {
+      void deps.router.push(buildAdminAttendanceLogsLocation({
+        view: 'list',
+        courseGroupLessonId: null,
+        studentId: null,
+      }))
+    }
+    if (isAdmin.value && deps.activeTab.value === 'attendance-logs') {
+      void loadRoleData('attendance-logs')
+    }
+  }
+
+  function loadMoreAttendanceLogs() {
+    if (attendanceLogsView.value !== 'detail') {
+      return
+    }
+    if (attendanceLogsLoading.value || !attendanceLogsHasMore.value) {
+      return
+    }
+    attendanceLogsPage.value += 1
   }
 
   function clearAdminSelections() {
@@ -700,6 +895,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
       case 'attendance-logs':
         return JSON.stringify({
           tab,
+          view: attendanceLogsView.value,
           page: attendanceLogsPage.value,
           pageSize: attendanceLogsPageSize.value,
           term: attendanceLogFilters.term,
@@ -821,6 +1017,9 @@ export function useAdminState(deps: UseAdminStateDeps) {
         return
       case 'attendance-logs':
         Object.assign(attendanceLogFilters, createAttendanceLogFilters())
+        attendanceLogsView.value = 'list'
+        attendanceLogDetailContext.value = null
+        attendanceLogListSnapshot.value = null
         attendanceLogsPage.value = 1
         return
       default:
@@ -866,6 +1065,8 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userForm,
           userFilters,
           attendanceLogFilters,
+          attendanceLogsView,
+          attendanceLogDetailContext,
           classForm,
           classFilters,
           studentForm,
@@ -896,6 +1097,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           userFreeTimeLoading,
           userFreeTimeSaving,
           systemSettingSaving,
+          attendanceLogsLoading,
           editingUserStudentId,
           editingCourseId,
           editingClassId,
@@ -975,6 +1177,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
           attendanceLogsTotalPages,
           attendanceLogsTotalItems,
           attendanceLogsAllItems,
+          attendanceLogsHasMore,
           selectedCourseIds,
           selectedClassIds,
           selectedStudentIds,
@@ -1035,7 +1238,9 @@ export function useAdminState(deps: UseAdminStateDeps) {
           openCreateUserModal,
           updateAttendanceLogsPage,
           updateAttendanceLogsPageSize,
+          loadMoreAttendanceLogs,
           openAttendanceLogs,
+          closeAttendanceLogDetail,
           openEditUserModal,
           openUserPasswordModal,
           openUserFreeTimeModal,
@@ -1103,6 +1308,11 @@ export function useAdminState(deps: UseAdminStateDeps) {
     studentAllItems.value = 0
     attendanceLogsTotalItems.value = 0
     attendanceLogsAllItems.value = 0
+    attendanceLogsView.value = 'list'
+    attendanceLogDetailContext.value = null
+    attendanceLogsLoading.value = false
+    attendanceLogsHasMore.value = false
+    attendanceLogListSnapshot.value = null
     classTotalItems.value = 0
     classAllItems.value = 0
     userRows.value = []
@@ -1228,6 +1438,7 @@ export function useAdminState(deps: UseAdminStateDeps) {
 
   watch(
     () => [
+      attendanceLogsView.value,
       attendanceLogsPage.value,
       attendanceLogsPageSize.value,
       attendanceLogFilters.term,

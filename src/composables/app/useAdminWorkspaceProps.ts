@@ -17,7 +17,7 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from '../../components/admin/form-types'
-import type { AdminCourseManageRouteView } from '../../components/admin/shared-types'
+import type { AdminAttendanceLogDetailContext, AdminAttendanceLogsView, AdminCourseManageRouteView } from '../../components/admin/shared-types'
 import type { AdminTab } from '../../constants'
 import { roleName, slotLabel, statusClass, statusName, USER_PAGE_OPTIONS } from './view'
 
@@ -137,6 +137,10 @@ export type AdminWorkspacePropsDeps = {
   studentFocusRowKey: Ref<number | null>
   studentFocusToken: Ref<number>
   attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsView: Ref<AdminAttendanceLogsView>
+  attendanceLogDetailContext: Ref<AdminAttendanceLogDetailContext | null>
+  attendanceLogsLoading: Ref<boolean>
+  attendanceLogsHasMore: Ref<boolean>
   attendanceLogsPage: Ref<number>
   attendanceLogsPageSize: Ref<number>
   attendanceLogsTotalPages: Ref<number> | ComputedRef<number>
@@ -272,6 +276,10 @@ export function useAdminWorkspaceProps(deps: AdminWorkspacePropsDeps) {
     studentFocusRowKey: deps.studentFocusRowKey.value,
     studentFocusToken: deps.studentFocusToken.value,
     attendanceLogFilters: deps.attendanceLogFilters,
+    attendanceLogsView: deps.attendanceLogsView.value,
+    attendanceLogDetailContext: deps.attendanceLogDetailContext.value,
+    attendanceLogsLoading: deps.attendanceLogsLoading.value,
+    attendanceLogsHasMore: deps.attendanceLogsHasMore.value,
     attendanceLogsPage: deps.attendanceLogsPage.value,
     attendanceLogsPageSize: deps.attendanceLogsPageSize.value,
     attendanceLogsTotalPages: deps.attendanceLogsTotalPages.value,

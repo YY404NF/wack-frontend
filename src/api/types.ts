@@ -93,6 +93,7 @@ export interface ClassItem {
 
 export interface ClassAttendanceItem {
   id: number
+  course_group_lesson_id: number
   student_id: string
   real_name: string
   course_id: number

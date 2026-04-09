@@ -1,4 +1,5 @@
 import type { AdminTab, StatusCode } from '../../constants'
+import type { AdminAttendanceLogsOpenPayload } from '../../components/admin/shared-types'
 
 export type AdminWorkspaceHandlersDeps = {
   setActiveTab: (tab: AdminTab, mode?: 'push' | 'replace') => Promise<void>
@@ -58,7 +59,9 @@ export type AdminWorkspaceHandlersDeps = {
   openCreateUserModal: () => void
   updateAttendanceLogsPage: (page: number) => void
   updateAttendanceLogsPageSize: (size: number) => void
-  openAttendanceLogs: (payload: { term: string; courseGroupLessonId: number; studentId?: string }) => Promise<void>
+  loadMoreAttendanceLogs: () => void
+  openAttendanceLogs: (payload: AdminAttendanceLogsOpenPayload) => Promise<void>
+  closeAttendanceLogDetail: () => void
   openEditUserModal: (user: any) => void
   closeUserModal: () => void
   openUserPasswordModal: (user: any) => void
@@ -147,7 +150,9 @@ export function useAdminWorkspaceHandlers(deps: AdminWorkspaceHandlersDeps) {
     openCreateUserModal: deps.openCreateUserModal,
     updateAttendanceLogsPage: deps.updateAttendanceLogsPage,
     updateAttendanceLogsPageSize: deps.updateAttendanceLogsPageSize,
+    loadMoreAttendanceLogs: deps.loadMoreAttendanceLogs,
     openAttendanceLogs: deps.openAttendanceLogs,
+    closeAttendanceLogDetail: deps.closeAttendanceLogDetail,
     openEditUserModal: deps.openEditUserModal,
     closeUserModal: deps.closeUserModal,
     openUserPasswordModal: deps.openUserPasswordModal,

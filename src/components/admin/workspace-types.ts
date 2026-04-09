@@ -30,6 +30,8 @@ import type {
   AdminUserPasswordForm,
 } from './form-types'
 import type {
+  AdminAttendanceLogDetailContext,
+  AdminAttendanceLogsView,
   AdminClassManageRouteView,
   AdminCourseManageRouteView,
   AdminRoleName,
@@ -161,6 +163,10 @@ export type AdminWorkspaceProps = {
   studentFocusRowKey?: number | null
   studentFocusToken?: number
   attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsView: AdminAttendanceLogsView
+  attendanceLogDetailContext: AdminAttendanceLogDetailContext | null
+  attendanceLogsLoading: boolean
+  attendanceLogsHasMore: boolean
   attendanceLogsPage: number
   attendanceLogsPageSize: number
   attendanceLogsTotalPages: number

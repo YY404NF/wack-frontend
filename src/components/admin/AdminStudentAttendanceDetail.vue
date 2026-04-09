@@ -6,6 +6,7 @@ import { attendanceStatusBadgeClass, sectionLabels, statusLabels } from '../../c
 import { useSelection } from '../../composables/app/useSelection'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AdminDataList from './AdminDataList.vue'
+import type { AdminAttendanceLogsOpenPayload } from './shared-types'
 
 const props = defineProps<{
   studentId: number
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:selectedTerm': [term: string]
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
 }>()
 
 const PAGE_OPTIONS = [100, 200, 500, 1000]
@@ -247,6 +249,23 @@ function openEditModal(item: StudentAttendanceItem) {
   editModalOpen.value = true
 }
 
+function openAttendanceLogDetail(item: StudentAttendanceItem) {
+  emit('openAttendanceLogs', {
+    term: item.term || selectedTermModel.value,
+    courseGroupLessonId: item.course_group_lesson_id,
+    studentId: studentInfo.value?.student_id || '',
+    context: {
+      studentId: studentInfo.value?.student_id || '',
+      realName: studentInfo.value?.real_name || '',
+      className: normalizeClassName(studentInfo.value?.class_name),
+      lessonDate: item.lesson_date,
+      section: item.section,
+      courseName: item.course_name,
+      teacherName: item.teacher_name,
+    },
+  })
+}
+
 function closeEditModal() {
   editModalOpen.value = false
   editingRecord.value = null
@@ -411,6 +430,7 @@ async function saveBulkAttendanceStatus() {
           <template #actions="{ row }">
             <div class="inline-actions user-actions">
               <button class="ghost-button compact-button" type="button" @click="openEditModal(asStudentAttendanceItem(row))">修改</button>
+              <button class="ghost-button compact-button" type="button" @click="openAttendanceLogDetail(asStudentAttendanceItem(row))">变更记录</button>
             </div>
           </template>
           <template #empty>

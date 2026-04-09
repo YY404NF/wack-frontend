@@ -3,7 +3,13 @@ import { defineAsyncComponent } from 'vue'
 import type { AdminTab, StatusCode } from '../../constants'
 import type { ClassItem, CourseItem, StudentItem, UserItem } from '../../api'
 import type { AdminWorkspaceProps } from './types'
-import type { AdminAttendanceDetailTarget, AdminClassManageRouteView, AdminCourseManageRouteView, AdminStudentManageRouteView } from './shared-types'
+import type {
+  AdminAttendanceDetailTarget,
+  AdminAttendanceLogsOpenPayload,
+  AdminClassManageRouteView,
+  AdminCourseManageRouteView,
+  AdminStudentManageRouteView,
+} from './shared-types'
 
 const AdminOverviewPanel = defineAsyncComponent(() => import('./AdminOverviewPanel.vue'))
 const AdminAttendancePanel = defineAsyncComponent(() => import('./AdminAttendancePanel.vue'))
@@ -67,7 +73,9 @@ const emit = defineEmits<{
   toggleClassPageSelection: []
   updateAttendanceLogsPage: [page: number]
   updateAttendanceLogsPageSize: [size: number]
-  openAttendanceLogs: [payload: { term: string; courseGroupLessonId: number; studentId?: string }]
+  loadMoreAttendanceLogs: []
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
+  closeAttendanceLogDetail: []
   openAttendanceDetail: [target: AdminAttendanceDetailTarget]
   openOverviewCourse: [courseId: number]
   openOverviewClass: [classId: number]
@@ -156,6 +164,10 @@ function forwardUserStatus(studentId: string, status: number) {
       :all-classes="allClasses"
       :course-terms="courseTerms"
       :attendance-log-filters="attendanceLogFilters"
+      :attendance-logs-view="attendanceLogsView"
+      :attendance-log-detail-context="attendanceLogDetailContext"
+      :attendance-logs-loading="attendanceLogsLoading"
+      :attendance-logs-has-more="attendanceLogsHasMore"
       :attendance-logs-page="attendanceLogsPage"
       :attendance-logs-page-size="attendanceLogsPageSize"
       :attendance-logs-total-pages="attendanceLogsTotalPages"
@@ -165,6 +177,9 @@ function forwardUserStatus(studentId: string, status: number) {
       :status-name="statusName"
       @update-attendance-logs-page="emit('updateAttendanceLogsPage', $event)"
       @update-attendance-logs-page-size="emit('updateAttendanceLogsPageSize', $event)"
+      @load-more-attendance-logs="emit('loadMoreAttendanceLogs')"
+      @open-attendance-logs="emit('openAttendanceLogs', $event)"
+      @close-attendance-log-detail="emit('closeAttendanceLogDetail')"
     />
 
     <AdminCourseCalendarPanel
@@ -225,6 +240,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @toggle-course-page-selection="emit('toggleCoursePageSelection')"
       @bulk-delete-courses="emit('bulkDeleteCourses')"
       @update-course-manage-route="emit('updateCourseManageRoute', $event)"
+      @open-attendance-logs="emit('openAttendanceLogs', $event)"
     />
 
     <AdminClassManagePanel
@@ -287,6 +303,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @toggle-class-selection="emit('toggleClassSelection', $event)"
       @toggle-class-page-selection="emit('toggleClassPageSelection')"
       @bulk-delete-classes="emit('bulkDeleteClasses')"
+      @open-attendance-logs="emit('openAttendanceLogs', $event)"
     />
 
     <AdminStudentManagePanel
@@ -331,6 +348,7 @@ function forwardUserStatus(studentId: string, status: number) {
       @update-student-page-size="emit('updateStudentPageSize', $event)"
       @toggle-student-selection="emit('toggleStudentSelection', $event)"
       @toggle-student-page-selection="emit('toggleStudentPageSelection')"
+      @open-attendance-logs="emit('openAttendanceLogs', $event)"
     />
 
     <AdminUserManagePanel

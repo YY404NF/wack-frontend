@@ -6,6 +6,7 @@ import { api, type AttendanceRecordStudentItem } from '../../api'
 import { useSelection } from '../../composables/app/useSelection'
 import { attendanceStatusBadgeClass, statusLabels } from '../../constants'
 import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
+import type { AdminAttendanceLogsOpenPayload } from './shared-types'
 import AppDigitInput from '../common/AppDigitInput.vue'
 import AdminDataList from './AdminDataList.vue'
 
@@ -24,6 +25,10 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+
+const emit = defineEmits<{
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
+}>()
 
 const PAGE_OPTIONS = [100, 200, 500, 1000]
 const ATTENDANCE_STATUS_OPTIONS = [
@@ -252,6 +257,27 @@ function openEditModal(item: AttendanceRecordStudentItem) {
   editModalOpen.value = true
 }
 
+function openAttendanceLogDetail(item: AttendanceRecordStudentItem) {
+  emit('openAttendanceLogs', {
+    term: props.term,
+    courseGroupLessonId: props.sessionId,
+    studentId: item.student_id,
+    context: {
+      studentId: item.student_id,
+      realName: item.real_name,
+      className: normalizeClassName(item.class_name),
+      lessonDate: props.sessionDate,
+      timeLabel: props.sessionTime,
+      courseName: props.courseName,
+      teacherName: props.teacherName,
+      grade: props.grade,
+      location: props.location,
+      classSummary: props.classSummary,
+      studentCount: props.studentCount,
+    },
+  })
+}
+
 function closeEditModal() {
   editModalOpen.value = false
   editingRecord.value = null
@@ -445,6 +471,7 @@ async function saveBulkAttendanceStatus() {
           <template #actions="{ row }">
             <div class="inline-actions user-actions">
               <button class="ghost-button compact-button" type="button" @click="openEditModal(asAttendanceRecordStudentItem(row))">修改</button>
+              <button class="ghost-button compact-button" type="button" @click="openAttendanceLogDetail(asAttendanceRecordStudentItem(row))">变更记录</button>
             </div>
           </template>
           <template #empty>

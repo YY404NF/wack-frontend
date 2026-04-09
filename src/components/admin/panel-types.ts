@@ -30,7 +30,16 @@ import type {
   AdminUserForm,
   AdminUserPasswordForm,
 } from './form-types'
-import type { AdminClassManageRouteView, AdminRoleName, AdminSlotLabel, AdminStatusClass, AdminStatusName, AdminStudentManageRouteView } from './shared-types'
+import type {
+  AdminAttendanceLogDetailContext,
+  AdminAttendanceLogsView,
+  AdminClassManageRouteView,
+  AdminRoleName,
+  AdminSlotLabel,
+  AdminStatusClass,
+  AdminStatusName,
+  AdminStudentManageRouteView,
+} from './shared-types'
 
 export type AdminAttendanceProps = {
   attendanceResults: AttendanceResultItem[]
@@ -151,6 +160,10 @@ export type AdminAttendanceLogsProps = {
   allClasses: ClassItem[]
   courseTerms: MetaTermItem[]
   attendanceLogFilters: AdminAttendanceLogFilters
+  attendanceLogsView: AdminAttendanceLogsView
+  attendanceLogDetailContext: AdminAttendanceLogDetailContext | null
+  attendanceLogsLoading: boolean
+  attendanceLogsHasMore: boolean
   attendanceLogsPage: number
   attendanceLogsPageSize: number
   attendanceLogsTotalPages: number

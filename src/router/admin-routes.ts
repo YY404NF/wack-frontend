@@ -7,13 +7,19 @@ import type {
 } from 'vue-router'
 
 import type { AdminTab } from '../constants'
-import type { AdminClassManageRouteView, AdminCourseManageRouteView, AdminStudentManageRouteView } from '../components/admin/shared-types'
+import type {
+  AdminAttendanceLogsView,
+  AdminClassManageRouteView,
+  AdminCourseManageRouteView,
+  AdminStudentManageRouteView,
+} from '../components/admin/shared-types'
 
 type AdminRouteMeta = {
   adminTab: AdminTab
   adminCourseView?: AdminCourseManageRouteView
   adminClassView?: AdminClassManageRouteView
   adminStudentView?: AdminStudentManageRouteView
+  adminAttendanceLogsView?: AdminAttendanceLogsView
 }
 
 type AdminCourseRouteState = {
@@ -33,6 +39,12 @@ type AdminStudentRouteState = {
   studentId: number | null
 }
 
+type AdminAttendanceLogsRouteState = {
+  view: AdminAttendanceLogsView
+  courseGroupLessonId: number | null
+  studentId: string | null
+}
+
 export const adminFocusQueryKeys = ['focus_course_id', 'focus_class_id', 'focus_student_ref_id'] as const
 
 export type AdminFocusQueryKey = (typeof adminFocusQueryKeys)[number]
@@ -44,6 +56,7 @@ export const adminRouteNames = {
   overview: 'admin-overview',
   attendance: 'admin-attendance',
   attendanceLogs: 'admin-attendance-logs',
+  attendanceLogDetail: 'admin-attendance-log-detail',
   courseCalendar: 'admin-course-calendar',
   courseManage: 'admin-course-manage',
   courseGroups: 'admin-course-groups',
@@ -95,6 +108,13 @@ function adminStudentMeta(adminTab: AdminTab, adminStudentView?: AdminStudentMan
   }
 }
 
+function adminAttendanceLogsMeta(adminTab: AdminTab, adminAttendanceLogsView?: AdminAttendanceLogsView): AdminRouteMeta {
+  return {
+    adminTab,
+    adminAttendanceLogsView,
+  }
+}
+
 function readFirstString(value: unknown): string | null {
   if (typeof value === 'string') {
     return value
@@ -126,6 +146,20 @@ export function buildAdminTabLocation(tab: AdminTab, query?: LocationQueryRaw): 
     name: adminTabRouteNameMap[tab],
     query,
   }
+}
+
+export function buildAdminAttendanceLogsLocation(state: AdminAttendanceLogsRouteState, query?: LocationQueryRaw): RouteLocationRaw {
+  if (state.view === 'detail' && state.courseGroupLessonId && state.studentId) {
+    return {
+      name: adminRouteNames.attendanceLogDetail,
+      params: {
+        courseGroupLessonId: String(state.courseGroupLessonId),
+        studentId: state.studentId,
+      },
+      query,
+    }
+  }
+  return buildAdminTabLocation('attendance-logs', query)
 }
 
 export function buildAdminCourseLocation(state: AdminCourseRouteState, query?: LocationQueryRaw): RouteLocationRaw {
@@ -299,6 +333,29 @@ export function readAdminStudentRoute(route: RouteLocationNormalizedLoaded): Adm
   }
 }
 
+export function readAdminAttendanceLogsRoute(route: RouteLocationNormalizedLoaded): AdminAttendanceLogsRouteState | null {
+  const adminTab = readAdminTab(route)
+  if (adminTab !== 'attendance-logs') {
+    return null
+  }
+
+  const view = route.meta.adminAttendanceLogsView
+  if (view !== 'detail') {
+    return {
+      view: 'list',
+      courseGroupLessonId: null,
+      studentId: null,
+    }
+  }
+
+  const studentId = readFirstString(route.params.studentId)
+  return {
+    view,
+    courseGroupLessonId: readPositiveInt(route.params.courseGroupLessonId),
+    studentId: studentId?.trim() || null,
+  }
+}
+
 export function resolveLegacyAdminLocation(to: { params: Record<string, unknown>; query: Record<string, unknown> }): RouteLocationRaw {
   const legacyTab = readFirstString(to.params.legacyTab)
 
@@ -384,7 +441,13 @@ export const adminRoutes: RouteRecordRaw[] = [
     path: '/admin/attendance-logs',
     name: adminRouteNames.attendanceLogs,
     component: EmptyRouteComponent,
-    meta: adminMeta('attendance-logs'),
+    meta: adminAttendanceLogsMeta('attendance-logs', 'list'),
+  },
+  {
+    path: '/admin/attendance-logs/lessons/:courseGroupLessonId(\\d+)/students/:studentId(\\d+)',
+    name: adminRouteNames.attendanceLogDetail,
+    component: EmptyRouteComponent,
+    meta: adminAttendanceLogsMeta('attendance-logs', 'detail'),
   },
   {
     path: '/admin/course-calendar',

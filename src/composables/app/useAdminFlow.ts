@@ -21,6 +21,7 @@ import type { AdminTab, StatusCode } from '../../constants'
 import { createClassForm, createCourseForm, createStudentForm } from './forms'
 import { selectDefaultTermName } from '../../utils/terms'
 import { omitAdminFocusQuery, readAdminQueryNumber } from '../../router/admin-routes'
+import type { AdminAttendanceLogsView } from '../../components/admin/shared-types'
 
 type UserForm = {
   studentId: string
@@ -138,6 +139,9 @@ export type AdminFlowDeps = {
   classFilters: ClassFilters
   studentFilters: StudentFilters
   attendanceLogFilters: AttendanceLogFilters
+  attendanceLogsView: Ref<AdminAttendanceLogsView>
+  attendanceLogsLoading: Ref<boolean>
+  attendanceLogsHasMore: Ref<boolean>
   profileForm: ProfileForm
   userPasswordForm: UserPasswordForm
   courseForm: CourseForm
@@ -314,40 +318,56 @@ export function useAdminFlow(deps: AdminFlowDeps) {
 
   async function loadAttendanceLogsData() {
     const requestToken = nextRequestToken('attendanceLogs')
-    const logQuery = {
-      term: deps.attendanceLogFilters.term,
-      course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
-      lesson_date: deps.attendanceLogFilters.lessonDate,
-      section: deps.attendanceLogFilters.section,
-      course_name: deps.attendanceLogFilters.courseName,
-      teacher_name: deps.attendanceLogFilters.teacherName,
-      student_id: deps.attendanceLogFilters.studentId,
-      real_name: deps.attendanceLogFilters.realName,
-      class_name: deps.attendanceLogFilters.className,
-      old_status: deps.attendanceLogFilters.oldStatus,
-      new_status: deps.attendanceLogFilters.newStatus,
-      operator_name: deps.attendanceLogFilters.operatorName,
-      operated_date: deps.attendanceLogFilters.operatedDate,
+    deps.attendanceLogsLoading.value = true
+    try {
+      const logQuery = {
+        term: deps.attendanceLogFilters.term,
+        course_group_lesson_id: deps.attendanceLogFilters.courseGroupLessonId,
+        lesson_date: deps.attendanceLogFilters.lessonDate,
+        section: deps.attendanceLogFilters.section,
+        course_name: deps.attendanceLogFilters.courseName,
+        teacher_name: deps.attendanceLogFilters.teacherName,
+        student_id: deps.attendanceLogFilters.studentId,
+        real_name: deps.attendanceLogFilters.realName,
+        class_name: deps.attendanceLogFilters.className,
+        old_status: deps.attendanceLogFilters.oldStatus,
+        new_status: deps.attendanceLogFilters.newStatus,
+        operator_name: deps.attendanceLogFilters.operatorName,
+        operated_date: deps.attendanceLogFilters.operatedDate,
+      }
+      const [attendanceLogPageResult, terms, classes] = await Promise.all([
+        api.listAttendanceRecordLogs({
+          page: deps.attendanceLogsPage.value,
+          page_size: deps.attendanceLogsPageSize.value,
+          ...logQuery,
+        }),
+        loadMetaTerms(),
+        loadClassOptions({ preferCache: true }),
+      ])
+      if (!isLatestRequest('attendanceLogs', requestToken)) {
+        return
+      }
+      const page = attendanceLogPageResult.page ?? deps.attendanceLogsPage.value
+      const total = attendanceLogPageResult.total ?? 0
+      const nextItems = attendanceLogPageResult.items ?? []
+      deps.attendanceLogsHasMore.value = page * deps.attendanceLogsPageSize.value < total
+      if (deps.attendanceLogsView.value === 'detail' && page > 1) {
+        deps.attendanceLogs.value = [...deps.attendanceLogs.value, ...nextItems]
+      } else {
+        deps.attendanceLogs.value = nextItems
+      }
+      deps.attendanceLogRows.value = []
+      deps.classes.value = classes as unknown as ClassItem[]
+      deps.courseTerms.value = terms
+      deps.attendanceLogsTotalItems.value = total
+      deps.attendanceLogsAllItems.value = total
+      deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil(total / deps.attendanceLogsPageSize.value))
+      deps.attendanceLogsPage.value = page
+    } finally {
+      if (isLatestRequest('attendanceLogs', requestToken)) {
+        deps.attendanceLogsLoading.value = false
+      }
     }
-    const [attendanceLogPageResult, terms, classes] = await Promise.all([
-      api.listAttendanceRecordLogs({
-        page: deps.attendanceLogsPage.value,
-        page_size: deps.attendanceLogsPageSize.value,
-        ...logQuery,
-      }),
-      loadMetaTerms(),
-      loadClassOptions({ preferCache: true }),
-    ])
-    if (!isLatestRequest('attendanceLogs', requestToken)) {
-      return
-    }
-    deps.attendanceLogs.value = attendanceLogPageResult.items ?? []
-    deps.attendanceLogRows.value = []
-    deps.classes.value = classes as unknown as ClassItem[]
-    deps.courseTerms.value = terms
-    deps.attendanceLogsTotalItems.value = attendanceLogPageResult.total ?? 0
-    deps.attendanceLogsAllItems.value = attendanceLogPageResult.total ?? 0
-    deps.attendanceLogsTotalPages.value = Math.max(1, Math.ceil((attendanceLogPageResult.total ?? 0) / deps.attendanceLogsPageSize.value))
   }
 
   async function loadCourseCalendarData() {

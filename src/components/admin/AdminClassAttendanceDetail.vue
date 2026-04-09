@@ -7,6 +7,7 @@ import { useSelection } from '../../composables/app/useSelection'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
 import AppDigitInput from '../common/AppDigitInput.vue'
 import AdminDataList from './AdminDataList.vue'
+import type { AdminAttendanceLogsOpenPayload } from './shared-types'
 
 const props = defineProps<{
   classId: number
@@ -16,6 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:selectedTerm': [term: string]
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
 }>()
 
 const PAGE_OPTIONS = [100, 200, 500, 1000]
@@ -254,6 +256,23 @@ function openEditModal(item: ClassAttendanceItem) {
   editModalOpen.value = true
 }
 
+function openAttendanceLogDetail(item: ClassAttendanceItem) {
+  emit('openAttendanceLogs', {
+    term: item.term || selectedTermModel.value,
+    courseGroupLessonId: item.course_group_lesson_id,
+    studentId: item.student_id,
+    context: {
+      studentId: item.student_id,
+      realName: item.real_name,
+      className: classInfo.value?.class_name || '',
+      lessonDate: item.lesson_date,
+      section: item.section,
+      courseName: item.course_name,
+      teacherName: item.teacher_name,
+    },
+  })
+}
+
 function closeEditModal() {
   editModalOpen.value = false
   editingRecord.value = null
@@ -426,6 +445,7 @@ async function saveBulkAttendanceStatus() {
           <template #actions="{ row }">
             <div class="inline-actions user-actions">
               <button class="ghost-button compact-button" type="button" @click="openEditModal(asClassAttendanceItem(row))">修改</button>
+              <button class="ghost-button compact-button" type="button" @click="openAttendanceLogDetail(asClassAttendanceItem(row))">变更记录</button>
             </div>
           </template>
           <template #empty>

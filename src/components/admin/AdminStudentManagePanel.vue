@@ -7,6 +7,7 @@ import AdminDataList from './AdminDataList.vue'
 import AppInputSelect from '../common/AppInputSelect.vue'
 import type { AdminStudentManageProps } from './types'
 import { selectDefaultTermName, sortTermsForSelect } from '../../utils/terms'
+import type { AdminAttendanceLogsOpenPayload } from './shared-types'
 
 const props = defineProps<AdminStudentManageProps>()
 const AdminStudentAttendanceDetail = defineAsyncComponent(() => import('./AdminStudentAttendanceDetail.vue'))
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   updateStudentPageSize: [size: number]
   toggleStudentSelection: [studentId: number]
   toggleStudentPageSelection: []
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
 }>()
 
 const studentColumns = [
@@ -300,6 +302,7 @@ function studentAttendanceSummaryText(item: StudentItem) {
         :selected-term="studentFilters.term"
         :course-terms="courseTerms"
         @update:selected-term="studentFilters.term = $event"
+        @open-attendance-logs="emit('openAttendanceLogs', $event)"
       />
     </Transition>
   </section>

@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import type { ClassItem } from '../../api'
 import type { AdminClassManageProps } from './types'
+import type { AdminAttendanceLogsOpenPayload } from './shared-types'
 
 const props = defineProps<AdminClassManageProps>()
 const AdminClassListView = defineAsyncComponent(() => import('./AdminClassListView.vue'))
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   toggleClassPageSelection: []
   bulkDeleteClasses: []
   bulkDeleteClassStudents: [studentIds: number[]]
+  openAttendanceLogs: [payload: AdminAttendanceLogsOpenPayload]
 }>()
 
 const showClassStudentView = computed(() => props.classManageRouteView === 'students')
@@ -159,6 +161,7 @@ const showClassAttendanceDetailView = computed(
         :selected-term="classFilters.term"
         :course-terms="courseTerms"
         @update:selected-term="classFilters.term = $event"
+        @open-attendance-logs="emit('openAttendanceLogs', $event)"
       />
     </Transition>
   </section>
