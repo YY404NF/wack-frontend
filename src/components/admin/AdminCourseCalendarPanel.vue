@@ -22,8 +22,6 @@ const emit = defineEmits<{
 }>()
 
 const WEEK_COUNT = 16
-const FULL_WEEK_FREE_TIME_SLOT_COUNT = 35
-
 const now = ref(new Date())
 const showingFreeTime = ref(false)
 const showWeekend = ref(false)
@@ -400,20 +398,26 @@ const selectedWeekFreeTimeCountRange = computed(() => {
   if (counts.length === 0) {
     return {
       minCount: 0,
+      maxCount: 0,
     }
   }
   return {
     minCount: Math.min(...counts),
+    maxCount: Math.max(...counts),
   }
 })
 
 function freeTimePaletteForLoginId(loginId: string) {
   const count = selectedWeekFreeTimeCountByLoginId.value.get(loginId) ?? 0
+  const { minCount, maxCount } = selectedWeekFreeTimeCountRange.value
+  if (maxCount - minCount <= 0.000001) {
+    return paletteForRelativeAttendanceRate(0.5)
+  }
   return paletteForRelativeAttendanceRate(
     normalizeValueWithinRange(
       count,
-      selectedWeekFreeTimeCountRange.value.minCount,
-      FULL_WEEK_FREE_TIME_SLOT_COUNT,
+      minCount,
+      maxCount,
     ),
   )
 }
